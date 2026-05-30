@@ -12,9 +12,10 @@ floor.Color = Color3.fromRGB(60, 60, 60)
 
 -- Attach camera to the subject
 -- Right-click + drag to orbit  |  Shift to toggle mouse lock
-Camera.Distance = 80
+Camera.Distance = 8
 Camera.Sensitivity = 1.2
 Camera.Fov = 70
+Camera:SetSubject(subject)
 
 task.wait(2)
 
@@ -23,7 +24,7 @@ task.wait(2)
 
 -- Override bindings (optional):
 -- Camera:SetLookBinding("Mouse", "Right")   -- default
--- Camera:SetLockBinding("Keyboard", "Shift") -- default
+Camera:SetLockBinding("Keyboard", "Shift") -- default
 
 -- Bob the subject and print its position every second
 task.spawn(function()
