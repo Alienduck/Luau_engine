@@ -7,11 +7,11 @@
 
 export type Vector3 = {
     X: number, Y: number, Z: number,
-    Dot:       (self: Vector3, other: Vector3) -> number,
-    Cross:     (self: Vector3, other: Vector3) -> Vector3,
+    Dot: (self: Vector3, other: Vector3) -> number,
+    Cross: (self: Vector3, other: Vector3) -> Vector3,
     Magnitude: (self: Vector3) -> number,
     Normalize: (self: Vector3) -> Vector3,
-    Lerp:      (self: Vector3, goal: Vector3, alpha: number) -> Vector3,
+    Lerp: (self: Vector3, goal: Vector3, alpha: number) -> Vector3,
 }
 
 export type Color3 = {
@@ -21,12 +21,12 @@ export type Color3 = {
 
 export type CFrame = {
     X: number, Y: number, Z: number,
-    Position:   Vector3,
+    Position: Vector3,
     LookVector: Vector3,
     RightVector:Vector3,
-    UpVector:   Vector3,
-    Inverse:          (self: CFrame) -> CFrame,
-    Lerp:             (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
+    UpVector: Vector3,
+    Inverse: (self: CFrame) -> CFrame,
+    Lerp: (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
     ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
 }
 
@@ -36,22 +36,23 @@ export type CFrame = {
 
 export type Part = {
     Position: Vector3,
-    Size:     Vector3,
-    Color:    Color3,
-    Destroy:  (self: Part) -> (),
+    Size: Vector3,
+    Handle: number,
+    Color: Color3,
+    Destroy: (self: Part) -> (),
 }
 
 export type Camera = {
     FirstPerson: boolean,
-    Distance:    number,
+    Distance: number,
     Sensitivity: number,
-    Fov:         number,
-    SetSubject:      (self: Camera, part: Part) -> (),
-    ClearSubject:    (self: Camera) -> (),
+    Fov: number,
+    SetSubject: (self: Camera, part: Part) -> (),
+    ClearSubject: (self: Camera) -> (),
     --- device = "Mouse" | "Keyboard"
     --- name   = "Left"|"Right"|"Middle" for mouse, "W"|"ShiftLeft"|… for keyboard
-    SetLookBinding:  (self: Camera, device: string, name: string) -> (),
-    SetLockBinding:  (self: Camera, device: string, name: string) -> (),
+    SetLookBinding: (self: Camera, device: string, name: string) -> (),
+    SetLockBinding: (self: Camera, device: string, name: string) -> (),
 }
 
 -- ─────────────────────────────────────────────
@@ -59,21 +60,21 @@ export type Camera = {
 -- ─────────────────────────────────────────────
 
 declare Vector3: {
-    new:  (x: number, y: number, z: number) -> Vector3,
+    new: (x: number, y: number, z: number) -> Vector3,
     zero: Vector3,
-    one:  Vector3,
+    one: Vector3,
 }
 
 declare Color3: {
-    new:     (r: number, g: number, b: number) -> Color3,
+    new: (r: number, g: number, b: number) -> Color3,
     fromRGB: (r: number, g: number, b: number) -> Color3,
 }
 
 declare CFrame: {
-    new:               (x: number, y: number, z: number) -> CFrame,
-    lookAt:            (position: Vector3, target: Vector3) -> CFrame,
+    new: (x: number, y: number, z: number) -> CFrame,
+    lookAt: (position: Vector3, target: Vector3) -> CFrame,
     fromEulerAnglesYXZ:(rx: number, ry: number, rz: number) -> CFrame,
-    identity:          CFrame,
+    identity: CFrame,
 }
 
 declare Part: {
@@ -88,7 +89,7 @@ declare Camera: Camera
 -- ─────────────────────────────────────────────
 
 declare task: {
-    wait:  (t: number?) -> (),
+    wait: (t: number?) -> (),
     spawn: <T...>(f: (T...) -> (), T...) -> thread,
     defer: <T...>(f: (T...) -> (), T...) -> thread,
 }
