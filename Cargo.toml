@@ -1,0 +1,43 @@
+[workspace]
+members = [
+    ".",
+    "crates/engine_core",
+    "crates/luau_runtime",
+    "crates/luau_classes",
+    "crates/services",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Alienudck"]
+
+[workspace.dependencies]
+bevy = { version = "0.18.1", features = ["jpeg"] }
+mlua = { version = "0.11.6", features = ["luau"] }
+log = "0.4"
+
+engine_core = { path = "crates/engine_core" }
+luau_runtime = { path = "crates/luau_runtime" }
+luau_classes = { path = "crates/luau_classes" }
+services = { path = "crates/services" }
+
+[package]
+name = "Luau_engine"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "luau_engine"
+path = "src/main.rs"
+
+[dependencies]
+engine_core = { workspace = true }
+luau_runtime = { workspace = true }
+luau_classes = { workspace = true }
+services = { workspace = true }
+bevy = { workspace = true }
+mlua = { workspace = true }
+log = { workspace = true }
