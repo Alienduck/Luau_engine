@@ -1,44 +1,53 @@
--- local p = Part.new()
--- p.Position = Vector3.new(0, 0, 0)
--- p.Color = Color3.new(1, 0.2, 0.2)
+-- Spawn a subject part that bobs up and down
+local subject = Part.new()
+subject.Position = Vector3.new(0, 1, 0)
+subject.Color = Color3.fromRGB(80, 160, 255)
+subject.Size = Vector3.new(1, 2, 1)
 
--- local p2 = Part.new()
--- p2.Position = Vector3.new(0, 3, 0)
--- p2.Size = Vector3.new(1, 2, 1)
--- p2.Color = Color3.new(0.5, 0.5, 1)
+-- Spawn a floor
+local floor = Part.new()
+floor.Position = Vector3.new(0, -0.5, 0)
+floor.Size = Vector3.new(20, 1, 20)
+floor.Color = Color3.fromRGB(60, 60, 60)
 
--- task.wait(1)
--- p2:Destroy()
+-- Attach camera to the subject
+-- Right-click + drag to orbit  |  Shift to toggle mouse lock
+Camera.Distance = 80
+Camera.Sensitivity = 1.2
+Camera.Fov = 70
 
--- local forward = true
--- while true do
---     task.wait(1/60)
---     if forward then
---         for i = 1, 100 do
---             task.wait(1/60)
---             p.Position = Vector3.new(0, 0, i * 0.05)
---             p.Color = Color3.new(1 - i / 100, 0.2, 0.2)
---         end
---     else
---         for i = 100, 1, -1 do
---             task.wait(1/60)
---             p.Position = Vector3.new(0, 0, i * 0.05)
---             p.Color = Color3.new(1 - i / 100, 0.2, 0.2)
---         end
---     end
---     forward = not forward
--- end
+task.wait(2)
 
--- Plusieurs coroutines indépendantes qui bougent chacune un cube
-for i = 1, 5 do
-    local p = Part.new()
-    p.Position = Vector3.new(i * 2, 0, 0)
-    task.spawn(function()
-        local t = 0
-        while true do
-            task.wait(1/60)
-            t += 1/60
-            p.Position = Vector3.new(i * 2, math.sin(t + i) * 2, 0)
-        end
-    end)
-end
+-- Swap to first-person with:
+-- Camera.FirstPerson = true
+
+-- Override bindings (optional):
+-- Camera:SetLookBinding("Mouse", "Right")   -- default
+-- Camera:SetLockBinding("Keyboard", "Shift") -- default
+
+-- Bob the subject and print its position every second
+task.spawn(function()
+    local t = 0
+    while true do
+        task.wait(1/60)
+        t += 1/60
+        subject.Position = Vector3.new(
+            math.sin(t * 0.5) * 3,
+            1 + math.sin(t) * 0.5,
+            math.cos(t * 0.5) * 3
+        )
+        subject.Color = Color3.new(
+            0.3 + math.sin(t) * 0.3,
+            0.6,
+            0.9
+        )
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        local p = subject.Position
+        print(string.format("Position: (%.2f, %.2f, %.2f)", p.X, p.Y, p.Z))
+    end
+end)
