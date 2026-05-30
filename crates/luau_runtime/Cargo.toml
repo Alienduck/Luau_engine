@@ -1,0 +1,10 @@
+[package]
+name    = "luau_runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+mlua = { workspace = true }
+engine_core = { workspace = true }
+log = { workspace = true }
