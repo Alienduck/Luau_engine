@@ -3,39 +3,11 @@ use bevy::{
     prelude::*,
     window::{CursorGrabMode, CursorOptions},
 };
+use engine_core::input::ActionMap;
 use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule};
 use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
 use std::f32::consts::FRAC_PI_2;
 use std::sync::{Arc, Mutex};
-
-// ─────────────────────────────────────────────
-// Input binding types
-// ─────────────────────────────────────────────
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum BoundKey {
-    Keyboard(KeyCode),
-    Mouse(MouseButton),
-}
-
-/// Configurable bindings for camera controls, set from Luau.
-#[derive(Clone, Debug)]
-pub struct CameraBindings {
-    /// Hold this to orbit / look (3rd person) or look freely (1st person).
-    /// Default: right mouse button.
-    pub look: BoundKey,
-    /// Toggle mouse lock (grab cursor). Default: Left Shift.
-    pub toggle_lock: BoundKey,
-}
-
-impl Default for CameraBindings {
-    fn default() -> Self {
-        Self {
-            look: BoundKey::Mouse(MouseButton::Right),
-            toggle_lock: BoundKey::Keyboard(KeyCode::ShiftLeft),
-        }
-    }
-}
 
 // ─────────────────────────────────────────────
 // Bevy component
@@ -44,26 +16,17 @@ impl Default for CameraBindings {
 /// The smart camera component. Attach to the camera entity.
 #[derive(Component)]
 pub struct SmartCamera {
-    /// Entity to follow (must have a Transform).
     pub subject: Option<Entity>,
-    /// true = first person, false = third person.
     pub first_person: bool,
-    /// Third-person orbit distance.
     pub distance: f32,
-    /// Mouse sensitivity multiplier.
     pub sensitivity: f32,
-    /// Vertical pitch (radians).
     pub pitch: f32,
-    /// Horizontal yaw (radians).
     pub yaw: f32,
-    /// Vertical FOV in radians.
     pub fov: f32,
-    /// Offset applied in first-person mode (eye position relative to subject).
     pub fp_offset: Vec3,
-    /// Mouse is currently grabbed.
     pub mouse_locked: bool,
-    /// Input bindings, configurable from Luau.
-    pub bindings: CameraBindings,
+    pub look_action: String,
+    pub lock_action: String,
 }
 
 impl Default for SmartCamera {
@@ -75,10 +38,11 @@ impl Default for SmartCamera {
             sensitivity: 1.0,
             pitch: 0.0,
             yaw: 0.0,
-            fov: std::f32::consts::FRAC_PI_3, // 60°
+            fov: std::f32::consts::FRAC_PI_3,
             fp_offset: Vec3::new(0.0, 1.6, 0.0),
             mouse_locked: false,
-            bindings: CameraBindings::default(),
+            look_action: "CameraLook".into(),
+            lock_action: "CameraToggleLock".into(),
         }
     }
 }
@@ -87,40 +51,17 @@ impl Default for SmartCamera {
 // Bevy systems
 // ─────────────────────────────────────────────
 
-fn is_pressed(
-    key: BoundKey,
-    keys: &ButtonInput<KeyCode>,
-    mouse: &ButtonInput<MouseButton>,
-) -> bool {
-    match key {
-        BoundKey::Keyboard(k) => keys.pressed(k),
-        BoundKey::Mouse(b) => mouse.pressed(b),
-    }
-}
-
-fn just_pressed(
-    key: BoundKey,
-    keys: &ButtonInput<KeyCode>,
-    mouse: &ButtonInput<MouseButton>,
-) -> bool {
-    match key {
-        BoundKey::Keyboard(k) => keys.just_pressed(k),
-        BoundKey::Mouse(b) => mouse.just_pressed(b),
-    }
-}
-
 pub fn camera_mouse_look(
     mut motion: MessageReader<MouseMotion>,
     mut query: Query<&mut SmartCamera>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    action_map: Res<ActionMap>,
 ) {
     let Ok(mut cam) = query.single_mut() else {
         return;
     };
 
-    // Only rotate when the look key is held, or when mouse is locked
-    let look_held = is_pressed(cam.bindings.look, &keys, &mouse);
+    // Vérification propre via le contexte
+    let look_held = action_map.is_pressed(&cam.look_action);
     if !look_held && !cam.mouse_locked {
         motion.clear();
         return;
@@ -142,21 +83,19 @@ pub fn camera_mouse_look(
 pub fn camera_toggle_lock(
     mut query: Query<&mut SmartCamera>,
     mut cursor: Single<&mut CursorOptions>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    action_map: Res<ActionMap>,
 ) {
     let Ok(mut cam) = query.single_mut() else {
         return;
     };
-    if just_pressed(cam.bindings.toggle_lock, &keys, &mouse) {
+    if action_map.just_pressed(&cam.lock_action) {
         cam.mouse_locked = !cam.mouse_locked;
-        if cam.mouse_locked {
-            cursor.grab_mode = CursorGrabMode::Locked;
-            cursor.visible = false;
+        cursor.grab_mode = if cam.mouse_locked {
+            CursorGrabMode::Locked
         } else {
-            cursor.grab_mode = CursorGrabMode::None;
-            cursor.visible = true;
-        }
+            CursorGrabMode::None
+        };
+        cursor.visible = !cam.mouse_locked;
     }
 }
 
@@ -213,8 +152,6 @@ pub enum CameraCommand {
     SetFov(f32),
     SetSubject(u64), // handle → resolved to Entity in the system
     ClearSubject,
-    SetLookBinding { keyboard: bool, code: u32 },
-    SetLockBinding { keyboard: bool, code: u32 },
 }
 
 /// Shared queue for camera commands (parallel to LuaQueue for world commands).
@@ -242,54 +179,7 @@ pub fn process_camera_queue(
                 cam.subject = handle_map.get_entity(h);
             }
             CameraCommand::ClearSubject => cam.subject = None,
-            CameraCommand::SetLookBinding { keyboard, code } => {
-                cam.bindings.look = decode_binding(keyboard, code);
-            }
-            CameraCommand::SetLockBinding { keyboard, code } => {
-                cam.bindings.toggle_lock = decode_binding(keyboard, code);
-            }
         }
-    }
-}
-
-fn decode_binding(keyboard: bool, code: u32) -> BoundKey {
-    if keyboard {
-        // Map a small subset of common keys by scancode-like integer.
-        // Luau side uses string names; we resolve them in the Lua register fn.
-        BoundKey::Keyboard(u32_to_keycode(code))
-    } else {
-        BoundKey::Mouse(u32_to_mouse_button(code))
-    }
-}
-
-fn u32_to_keycode(v: u32) -> KeyCode {
-    match v {
-        0 => KeyCode::KeyW,
-        1 => KeyCode::KeyA,
-        2 => KeyCode::KeyS,
-        3 => KeyCode::KeyD,
-        4 => KeyCode::ShiftLeft,
-        5 => KeyCode::ShiftRight,
-        6 => KeyCode::ControlLeft,
-        7 => KeyCode::Space,
-        8 => KeyCode::KeyE,
-        9 => KeyCode::KeyQ,
-        10 => KeyCode::KeyF,
-        11 => KeyCode::KeyR,
-        12 => KeyCode::KeyG,
-        13 => KeyCode::Escape,
-        _ => KeyCode::ShiftLeft,
-    }
-}
-
-fn u32_to_mouse_button(v: u32) -> MouseButton {
-    match v {
-        0 => MouseButton::Left,
-        1 => MouseButton::Right,
-        2 => MouseButton::Middle,
-        3 => MouseButton::Back,
-        4 => MouseButton::Forward,
-        _ => MouseButton::Right,
     }
 }
 
@@ -343,64 +233,6 @@ impl UserData for LuaCamera {
             this.queue.lock().unwrap().push(CameraCommand::ClearSubject);
             Ok(())
         });
-
-        // camera:SetLookBinding("Mouse", "Right")
-        // camera:SetLookBinding("Keyboard", "KeyF")
-        methods.add_method(
-            "SetLookBinding",
-            |_, this, (device, name): (String, String)| {
-                let (kb, code) = parse_binding(&device, &name);
-                this.queue
-                    .lock()
-                    .unwrap()
-                    .push(CameraCommand::SetLookBinding { keyboard: kb, code });
-                Ok(())
-            },
-        );
-        methods.add_method(
-            "SetLockBinding",
-            |_, this, (device, name): (String, String)| {
-                let (kb, code) = parse_binding(&device, &name);
-                this.queue
-                    .lock()
-                    .unwrap()
-                    .push(CameraCommand::SetLockBinding { keyboard: kb, code });
-                Ok(())
-            },
-        );
-    }
-}
-
-fn parse_binding(device: &str, name: &str) -> (bool, u32) {
-    if device.eq_ignore_ascii_case("mouse") {
-        let code = match name.to_lowercase().as_str() {
-            "left" => 0,
-            "right" => 1,
-            "middle" => 2,
-            "back" => 3,
-            "forward" => 4,
-            _ => 1,
-        };
-        (false, code)
-    } else {
-        let code = match name.to_lowercase().as_str() {
-            "w" | "keyw" => 0,
-            "a" | "keya" => 1,
-            "s" | "keys" => 2,
-            "d" | "keyd" => 3,
-            "shiftleft" | "shift" => 4,
-            "shiftright" => 5,
-            "controlleft" => 6,
-            "space" => 7,
-            "e" | "keye" => 8,
-            "q" | "keyq" => 9,
-            "f" | "keyf" => 10,
-            "r" | "keyr" => 11,
-            "g" | "keyg" => 12,
-            "escape" => 13,
-            _ => 4,
-        };
-        (true, code)
     }
 }
 
@@ -416,14 +248,8 @@ impl LuaModule for CameraModule {
     }
 
     fn register(lua: &Lua, _queue: &LuaQueue) -> mlua::Result<()> {
-        // CameraQueue is inserted as a Bevy resource separately in main.rs.
-        // Here we expose a global `Camera` singleton that wraps it.
-        // The queue Arc is passed in via a closure captured at registration time.
-        // main.rs must call Camera::init(queue) before registering this module.
-        // We store the queue in a Lua registry value so the singleton can share it.
         let cam_queue: Arc<Mutex<Vec<CameraCommand>>> = Arc::new(Mutex::new(Vec::new()));
 
-        // Store the Arc in the Lua registry so main.rs can retrieve it
         lua.set_named_registry_value(
             "__camera_queue",
             lua.create_userdata(CameraQueueHolder(cam_queue.clone()))?,
