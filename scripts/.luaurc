@@ -1,0 +1,10 @@
+{
+  "languageMode": "strict",
+  "lint": { "*": true },
+  "lintErrors": false,
+  "typeErrors": true,
+  "globals": ["Vector3", "Color3", "Part", "task"],
+  "aliases": {
+    "luau_engine": "./luau_engine.d"
+  }
+}
