@@ -13,7 +13,12 @@ pub struct LuaPart(pub BasePartData);
 
 impl UserData for LuaPart {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
-        fields.add_field_method_get("Position", |_, this| Ok(this.0.get_position()));
+        // Getters — read from local cache, always accurate
+        fields.add_field_method_get("Position", |_, this| Ok(this.0.position));
+        fields.add_field_method_get("Size", |_, this| Ok(this.0.size));
+        fields.add_field_method_get("Color", |_, this| Ok(this.0.color));
+
+        // Setters — update cache + push command
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.0.set_position(v);
             Ok(())
