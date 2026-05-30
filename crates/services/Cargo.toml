@@ -9,3 +9,4 @@ mlua = { workspace = true }
 luau_runtime = { workspace = true }
 luau_classes = { workspace = true }
 log = { workspace = true }
+engine_core = { workspace = true }
