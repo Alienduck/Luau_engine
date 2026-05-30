@@ -1,0 +1,11 @@
+[package]
+name = "services"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+mlua = { workspace = true }
+luau_runtime = { workspace = true }
+luau_classes = { workspace = true }
+log = { workspace = true }
