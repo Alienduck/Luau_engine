@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
         camera::{
@@ -18,6 +19,9 @@ use luau_runtime::{
     scheduler::{LuaScheduler, tick_scheduler},
     vm::LuaVm,
 };
+use services::context_action::{
+    ContextActionModule, InputQueue, InputQueueHolder, process_input_queue,
+};
 use std::fs;
 
 fn main() {
@@ -25,11 +29,8 @@ fn main() {
     let vm = LuaVm::new().expect("failed to create Lua VM");
     let mut scheduler = LuaScheduler::new();
 
-    // Register all Luau globals (including Camera, which deposits its queue
-    // into the Lua registry under "__camera_queue")
     register_all(vm.lua(), &queue);
 
-    // Retrieve the camera Arc that CameraModule stored in the Lua registry
     let cam_queue: CameraQueue = {
         let holder = vm
             .lua()
@@ -39,7 +40,15 @@ fn main() {
         CameraQueue(arc)
     };
 
-    // Load and launch the user entry-point script
+    let input_queue: InputQueue = {
+        let holder = vm
+            .lua()
+            .named_registry_value::<mlua::AnyUserData>("__input_queue")
+            .unwrap();
+        let arc = holder.borrow::<InputQueueHolder>().unwrap().0.clone();
+        InputQueue(arc)
+    };
+
     let script =
         fs::read_to_string("scripts/startup.luau").expect("scripts/startup.luau not found");
     let thread = vm
@@ -66,8 +75,14 @@ fn main() {
         .insert_resource(queue)
         .insert_resource(cam_queue)
         .insert_resource(HandleMap::default())
+        .insert_resource(ActionMap::default())
+        .insert_resource(input_queue)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
+        .add_systems(
+            PreUpdate,
+            (update_action_states, process_input_queue).chain(),
+        )
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
@@ -83,6 +98,7 @@ fn register_all(lua: &mlua::Lua, queue: &LuaQueue) {
         (CFrameModule::name(), CFrameModule::register),
         (PartModule::name(), PartModule::register),
         (CameraModule::name(), CameraModule::register),
+        (ContextActionModule::name(), ContextActionModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
@@ -92,8 +108,6 @@ fn register_all(lua: &mlua::Lua, queue: &LuaQueue) {
 }
 
 fn setup_scene(mut commands: Commands) {
-    // Spawn the camera entity with SmartCamera component.
-    // Luau controls it via the `Camera` global.
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
