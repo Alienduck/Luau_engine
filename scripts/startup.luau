@@ -19,36 +19,31 @@ Camera:SetSubject(subject)
 
 task.wait(2)
 
--- Swap to first-person with:
--- Camera.FirstPerson = true
+ContextActionService:BindAction("CameraToggleLock", "Mouse", "left")
 
--- Override bindings (optional):
--- Camera:SetLookBinding("Mouse", "Right")   -- default
-Camera:SetLockBinding("Keyboard", "Shift") -- default
+-- NOT WORKING
+-- task.spawn(function()
+--     local t = 0
+--     while true do
+--         task.wait(1/60)
+--         t += 1/60
+--         subject.Position = Vector3.new(
+--             math.sin(t * 0.5) * 3,
+--             1 + math.sin(t) * 0.5,
+--             math.cos(t * 0.5) * 3
+--         )
+--         subject.Color = Color3.new(
+--             0.3 + math.sin(t) * 0.3,
+--             0.6,
+--             0.9
+--         )
+--     end
+-- end)
 
--- Bob the subject and print its position every second
-task.spawn(function()
-    local t = 0
-    while true do
-        task.wait(1/60)
-        t += 1/60
-        subject.Position = Vector3.new(
-            math.sin(t * 0.5) * 3,
-            1 + math.sin(t) * 0.5,
-            math.cos(t * 0.5) * 3
-        )
-        subject.Color = Color3.new(
-            0.3 + math.sin(t) * 0.3,
-            0.6,
-            0.9
-        )
-    end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(1)
-        local p = subject.Position
-        print(string.format("Position: (%.2f, %.2f, %.2f)", p.X, p.Y, p.Z))
-    end
-end)
+-- task.spawn(function()
+--     while true do
+--         task.wait(1)
+--         local p = subject.Position
+--         print(string.format("Position: (%.2f, %.2f, %.2f)", p.X, p.Y, p.Z))
+--     end
+-- end)
