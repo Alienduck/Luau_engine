@@ -25,3 +25,27 @@ local function test_context_action(str: string)
 end
 
 ContextActionService:BindAction("TestAction", test_context_action, "Keyboard", "f")
+
+ContextActionService:BindAction("Forward", function()
+    local look_vector = Camera.CFrame.LookVector
+    subject.Position += look_vector
+end, "Keyboard", "w")
+
+ContextActionService:BindAction("Backward", function()
+    local look_vector = Camera.CFrame.LookVector
+    subject.Position -= look_vector
+end, "Keyboard", "s")
+
+ContextActionService:BindAction("Left", function()
+    local right_vector = Camera.CFrame.RightVector
+    subject.Position -= right_vector
+end, "Keyboard", "a")
+
+ContextActionService:BindAction("Right", function()
+    local right_vector = Camera.CFrame.RightVector
+    subject.Position += right_vector
+end, "Keyboard", "d")
+
+ContextActionService:BindAction("test", function()
+    print(Camera.CFrame)
+end, "Keyboard", "e")
