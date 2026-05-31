@@ -47,10 +47,9 @@ export type Camera = {
     Distance: number,
     Sensitivity: number,
     Fov: number,
+    CFrame: CFrame,
     SetSubject: (self: Camera, part: Part) -> (),
     ClearSubject: (self: Camera) -> (),
-    --- device = "Mouse" | "Keyboard"
-    --- name   = "Left"|"Right"|"Middle" for mouse, "W"|"ShiftLeft"|… for keyboard
     SetLookBinding: (self: Camera, device: string, name: string) -> (),
     SetLockBinding: (self: Camera, device: string, name: string) -> (),
 }
