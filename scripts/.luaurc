@@ -3,7 +3,7 @@
   "lint": { "*": true },
   "lintErrors": false,
   "typeErrors": true,
-  "globals": ["Vector3", "Color3", "CFrame", "Part", "Camera", "task"],
+  "globals": ["Vector3", "Color3", "CFrame", "Part", "Camera", "task", "ContextActionService"],
   "aliases": {
     "luau_engine": "./luau_engine.d"
   }
