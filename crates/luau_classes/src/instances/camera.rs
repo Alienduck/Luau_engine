@@ -9,6 +9,8 @@ use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
 use std::f32::consts::FRAC_PI_2;
 use std::sync::{Arc, Mutex};
 
+use crate::types::cframe::LuaCFrame;
+
 // ─────────────────────────────────────────────
 // Bevy component
 // ─────────────────────────────────────────────
@@ -39,7 +41,7 @@ impl Default for SmartCamera {
             pitch: 0.0,
             yaw: 0.0,
             fov: std::f32::consts::FRAC_PI_3,
-            fp_offset: Vec3::new(0.0, 1.6, 0.0),
+            fp_offset: Vec3::new(0.0, 0.0, 0.0),
             mouse_locked: false,
             look_action: "CameraLook".into(),
             lock_action: "CameraToggleLock".into(),
@@ -99,35 +101,39 @@ pub fn camera_toggle_lock(
     }
 }
 
+#[derive(Resource, Clone, Default)]
+pub struct CameraCFrame(pub Arc<Mutex<LuaCFrame>>);
+
+pub struct CameraCFrameHolder(pub Arc<Mutex<LuaCFrame>>);
+impl UserData for CameraCFrameHolder {}
+
 pub fn camera_update_transform(
     mut cam_query: Query<(&SmartCamera, &mut Transform, &mut Projection)>,
     subject_query: Query<&Transform, Without<SmartCamera>>,
+    cframe_sync: Res<CameraCFrame>,
 ) {
     let Ok((cam, mut cam_tf, mut proj)) = cam_query.single_mut() else {
         return;
     };
-
-    // Sync FOV
     if let Projection::Perspective(ref mut p) = *proj {
         p.fov = cam.fov;
     }
-
-    let Some(subject) = cam.subject else {
-        return;
-    };
-    let Ok(subject_tf) = subject_query.get(subject) else {
-        return;
-    };
-
-    let rot = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
-
-    if cam.first_person {
-        cam_tf.translation = subject_tf.translation + cam.fp_offset;
-    } else {
-        let offset = rot * Vec3::new(0.0, 0.0, cam.distance);
-        cam_tf.translation = subject_tf.translation + Vec3::Y + offset;
+    if let Some(subject) = cam.subject {
+        if let Ok(subject_tf) = subject_query.get(subject) {
+            let rot = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
+            if cam.first_person {
+                cam_tf.translation = subject_tf.translation + cam.fp_offset;
+            } else {
+                let offset = rot * Vec3::new(0.0, 0.0, cam.distance);
+                cam_tf.translation = subject_tf.translation + Vec3::Y + offset;
+            }
+            cam_tf.rotation = rot;
+        }
     }
-    cam_tf.rotation = rot;
+
+    let mut s = cframe_sync.0.lock().unwrap();
+    s.position = cam_tf.translation;
+    s.rotation = cam_tf.rotation;
 }
 
 /// Bevy plugin — adds all camera systems.
@@ -189,6 +195,7 @@ pub fn process_camera_queue(
 
 pub struct LuaCamera {
     pub queue: Arc<Mutex<Vec<CameraCommand>>>,
+    pub cframe: Arc<Mutex<LuaCFrame>>,
     pub first_person: bool,
     pub distance: f32,
     pub sensitivity: f32,
@@ -199,6 +206,7 @@ impl LuaCamera {
     fn default(queue: Arc<Mutex<Vec<CameraCommand>>>) -> Self {
         LuaCamera {
             queue,
+            cframe: Arc::new(Mutex::new(LuaCFrame::default())),
             first_person: false,
             distance: 8.0,
             sensitivity: 1.0,
@@ -213,6 +221,7 @@ impl UserData for LuaCamera {
         fields.add_field_method_get("Distance", |_, this| Ok(this.distance));
         fields.add_field_method_get("Sensitivity", |_, this| Ok(this.sensitivity));
         fields.add_field_method_get("Fov", |_, this| Ok(this.fov));
+        fields.add_field_method_get("CFrame", |_, this| Ok(this.cframe.lock().unwrap().clone()));
 
         fields.add_field_method_set("FirstPerson", |_, this, v: bool| {
             this.first_person = v;
@@ -278,6 +287,12 @@ impl LuaModule for CameraModule {
         lua.set_named_registry_value(
             "__camera_queue",
             lua.create_userdata(CameraQueueHolder(cam_queue.clone()))?,
+        )?;
+        lua.set_named_registry_value(
+            "__camera_cframe",
+            lua.create_userdata(CameraCFrameHolder(Arc::new(Mutex::new(
+                LuaCFrame::default(),
+            ))))?,
         )?;
 
         let cam = LuaCamera::default(cam_queue);
