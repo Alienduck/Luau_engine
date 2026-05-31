@@ -39,7 +39,9 @@ pub fn trigger_context_actions(vm: NonSend<LuaVm>, action_map: Res<ActionMap>) {
 
     for action in &action_map.just_pressed_actions {
         if let Ok(callback) = table.get::<mlua::Function>(action.as_str()) {
-            let _ = callback.call::<()>(action.clone());
+            if let Err(e) = callback.call::<()>(action.clone()) {
+                log::error!("[ContextAction] error in '{}': {}", action, e);
+            }
         }
     }
 }
