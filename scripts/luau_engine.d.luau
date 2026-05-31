@@ -60,7 +60,8 @@ export type Camera = {
 -- ─────────────────────────────────────────────
 
 export type ContextActionService = {
-    BindAction: (string, string, string) -> (),
+    BindAction: (self: ContextActionService, actionName: string, callback: (string) -> (), device: string, name: string) -> (),
+    UnbindAction: (self: ContextActionService, actionName: string) -> (),
 }
 
 -- ─────────────────────────────────────────────
