@@ -19,7 +19,13 @@ Camera:SetSubject(subject)
 
 task.wait(2)
 
-ContextActionService:BindAction("CameraToggleLock", "Mouse", "left")
+local function test_context_action()
+    print("F press")
+    Camera.FirstPerson = not Camera.FirstPerson
+    print(Camera)
+end
+
+ContextActionService:BindAction("TestAction", test_context_action, "Keyboard", "f")
 
 -- NOT WORKING
 -- task.spawn(function()
