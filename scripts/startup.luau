@@ -25,30 +25,3 @@ local function test_context_action(str: string)
 end
 
 ContextActionService:BindAction("TestAction", test_context_action, "Keyboard", "f")
-
--- NOT WORKING
--- task.spawn(function()
---     local t = 0
---     while true do
---         task.wait(1/60)
---         t += 1/60
---         subject.Position = Vector3.new(
---             math.sin(t * 0.5) * 3,
---             1 + math.sin(t) * 0.5,
---             math.cos(t * 0.5) * 3
---         )
---         subject.Color = Color3.new(
---             0.3 + math.sin(t) * 0.3,
---             0.6,
---             0.9
---         )
---     end
--- end)
-
--- task.spawn(function()
---     while true do
---         task.wait(1)
---         local p = subject.Position
---         print(string.format("Position: (%.2f, %.2f, %.2f)", p.X, p.Y, p.Z))
---     end
--- end)
