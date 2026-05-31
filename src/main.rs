@@ -3,8 +3,8 @@ use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
         camera::{
-            CameraModule, CameraQueue, CameraQueueHolder, SmartCamera, SmartCameraPlugin,
-            process_camera_queue,
+            CameraCFrame, CameraCFrameHolder, CameraModule, CameraQueue, CameraQueueHolder,
+            SmartCamera, SmartCameraPlugin, process_camera_queue,
         },
         part::PartModule,
     },
@@ -63,6 +63,15 @@ fn main() {
         .unwrap();
     scheduler.spawn(thread);
 
+    let cam_cframe: CameraCFrame = {
+        let holder = vm
+            .lua()
+            .named_registry_value::<mlua::AnyUserData>("__camera_cframe")
+            .unwrap();
+        let arc = holder.borrow::<CameraCFrameHolder>().unwrap().0.clone();
+        CameraCFrame(arc)
+    };
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -77,6 +86,7 @@ fn main() {
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(input_queue)
+        .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
         .add_systems(
