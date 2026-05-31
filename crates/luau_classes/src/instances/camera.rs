@@ -189,11 +189,33 @@ pub fn process_camera_queue(
 
 pub struct LuaCamera {
     pub queue: Arc<Mutex<Vec<CameraCommand>>>,
+    pub first_person: bool,
+    pub distance: f32,
+    pub sensitivity: f32,
+    pub fov: f32,
+}
+
+impl LuaCamera {
+    fn default(queue: Arc<Mutex<Vec<CameraCommand>>>) -> Self {
+        LuaCamera {
+            queue,
+            first_person: false,
+            distance: 8.0,
+            sensitivity: 1.0,
+            fov: 70.0,
+        }
+    }
 }
 
 impl UserData for LuaCamera {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
+        fields.add_field_method_get("FirstPerson", |_, this| Ok(this.first_person));
+        fields.add_field_method_get("Distance", |_, this| Ok(this.distance));
+        fields.add_field_method_get("Sensitivity", |_, this| Ok(this.sensitivity));
+        fields.add_field_method_get("Fov", |_, this| Ok(this.fov));
+
         fields.add_field_method_set("FirstPerson", |_, this, v: bool| {
+            this.first_person = v;
             this.queue
                 .lock()
                 .unwrap()
@@ -201,6 +223,7 @@ impl UserData for LuaCamera {
             Ok(())
         });
         fields.add_field_method_set("Distance", |_, this, v: f32| {
+            this.distance = v;
             this.queue
                 .lock()
                 .unwrap()
@@ -208,6 +231,7 @@ impl UserData for LuaCamera {
             Ok(())
         });
         fields.add_field_method_set("Sensitivity", |_, this, v: f32| {
+            this.sensitivity = v;
             this.queue
                 .lock()
                 .unwrap()
@@ -215,6 +239,7 @@ impl UserData for LuaCamera {
             Ok(())
         });
         fields.add_field_method_set("Fov", |_, this, v: f32| {
+            this.fov = v;
             this.queue.lock().unwrap().push(CameraCommand::SetFov(v));
             Ok(())
         });
@@ -255,7 +280,7 @@ impl LuaModule for CameraModule {
             lua.create_userdata(CameraQueueHolder(cam_queue.clone()))?,
         )?;
 
-        let cam = LuaCamera { queue: cam_queue };
+        let cam = LuaCamera::default(cam_queue);
         lua.globals().set("Camera", lua.create_userdata(cam)?)
     }
 }
