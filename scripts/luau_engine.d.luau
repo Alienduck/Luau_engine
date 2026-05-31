@@ -56,6 +56,14 @@ export type Camera = {
 }
 
 -- ─────────────────────────────────────────────
+-- Services types
+-- ─────────────────────────────────────────────
+
+export type ContextActionService = {
+    BindAction: (string, string, string) -> (),
+}
+
+-- ─────────────────────────────────────────────
 -- Global constructors
 -- ─────────────────────────────────────────────
 
@@ -93,3 +101,7 @@ declare task: {
     spawn: <T...>(f: (T...) -> (), T...) -> thread,
     defer: <T...>(f: (T...) -> (), T...) -> thread,
 }
+
+-- Services
+
+declare ContextActionService: ContextActionService
