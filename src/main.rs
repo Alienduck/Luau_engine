@@ -20,7 +20,7 @@ use luau_runtime::{
     vm::LuaVm,
 };
 use services::context_action::{
-    ContextActionModule, InputQueue, InputQueueHolder, process_input_queue,
+    ContextActionModule, InputQueue, InputQueueHolder, process_input_queue, trigger_context_actions,
 };
 use std::fs;
 
@@ -86,7 +86,13 @@ fn main() {
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
-            (tick_scheduler, process_lua_queue, process_camera_queue).chain(),
+            (
+                tick_scheduler,
+                process_lua_queue,
+                process_camera_queue,
+                trigger_context_actions,
+            )
+                .chain(),
         )
         .run();
 }
