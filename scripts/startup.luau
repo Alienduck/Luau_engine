@@ -19,10 +19,9 @@ Camera:SetSubject(subject)
 
 task.wait(2)
 
-local function test_context_action()
-    print("F press")
+local function test_context_action(str: string)
+    print("F press, receive -> " .. str)
     Camera.FirstPerson = not Camera.FirstPerson
-    print(Camera)
 end
 
 ContextActionService:BindAction("TestAction", test_context_action, "Keyboard", "f")
