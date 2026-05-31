@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use engine_core::input::{ActionMap, BoundKey};
-use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule};
+use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule, vm::LuaVm};
 use mlua::{Lua, UserData, UserDataMethods};
 use std::sync::{Arc, Mutex};
 
@@ -26,6 +26,24 @@ pub fn process_input_queue(queue: Res<InputQueue>, mut action_map: ResMut<Action
     }
 }
 
+pub fn trigger_context_actions(vm: NonSend<LuaVm>, action_map: Res<ActionMap>) {
+    if action_map.just_pressed_actions.is_empty() {
+        return;
+    }
+    let Ok(table) = vm
+        .lua()
+        .named_registry_value::<mlua::Table>("__context_callbacks")
+    else {
+        return;
+    };
+
+    for action in &action_map.just_pressed_actions {
+        if let Ok(callback) = table.get::<mlua::Function>(action.as_str()) {
+            let _ = callback.call::<()>(action.clone());
+        }
+    }
+}
+
 pub struct ContextActionService {
     pub queue: Arc<Mutex<Vec<InputAction>>>,
 }
@@ -34,7 +52,9 @@ impl UserData for ContextActionService {
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_method(
             "BindAction",
-            |_, this, (action, device, name): (String, String, String)| {
+            |lua, this, (action, callback, device, name): (String, mlua::Function, String, String)| {
+                let table = lua.named_registry_value::<mlua::Table>("__context_callbacks")?;
+                table.set(action.clone(), callback)?;
                 let key = parse_binding(&device, &name);
                 this.queue
                     .lock()
@@ -43,7 +63,10 @@ impl UserData for ContextActionService {
                 Ok(())
             },
         );
-        methods.add_method("UnbindAction", |_, this, action: String| {
+        methods.add_method("UnbindAction", |lua, this, action: String| {
+            if let Ok(table) = lua.named_registry_value::<mlua::Table>("__context_callbacks") {
+                let _ = table.set(action.clone(), mlua::Value::Nil);
+            }
             this.queue
                 .lock()
                 .unwrap()
@@ -65,6 +88,7 @@ impl LuaModule for ContextActionModule {
             "__input_queue",
             lua.create_userdata(InputQueueHolder(queue.clone()))?,
         )?;
+        lua.set_named_registry_value("__context_callbacks", lua.create_table()?)?;
         lua.globals().set(
             "ContextActionService",
             lua.create_userdata(ContextActionService { queue })?,
@@ -75,7 +99,6 @@ impl LuaModule for ContextActionModule {
 pub struct InputQueueHolder(pub Arc<Mutex<Vec<InputAction>>>);
 impl UserData for InputQueueHolder {}
 
-// L'ancien parseur de la caméra est déplacé ici !
 pub fn parse_binding(device: &str, name: &str) -> BoundKey {
     if device.eq_ignore_ascii_case("mouse") {
         let code = match name.to_lowercase().as_str() {
