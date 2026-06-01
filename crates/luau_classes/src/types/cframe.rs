@@ -1,5 +1,5 @@
 use crate::types::vector3::LuaVector3;
-use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule};
+use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{FromLua, Lua, UserData, UserDataFields, UserDataMethods};
 
 /// CFrame = position (Vec3) + rotation (Quat).
@@ -120,7 +120,7 @@ impl LuaModule for CFrameModule {
         "CFrame"
     }
 
-    fn register(lua: &Lua, _queue: &LuaQueue) -> mlua::Result<()> {
+    fn register(lua: &Lua, _queue: &EngineQueue) -> mlua::Result<()> {
         let t = lua.create_table()?;
 
         // CFrame.new(x, y, z)  — identity rotation at position

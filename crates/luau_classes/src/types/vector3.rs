@@ -1,4 +1,4 @@
-use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule};
+use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{FromLua, Lua, UserData, UserDataFields, UserDataMethods};
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -74,7 +74,7 @@ impl LuaModule for Vector3Module {
         "Vector3"
     }
 
-    fn register(lua: &Lua, _queue: &LuaQueue) -> mlua::Result<()> {
+    fn register(lua: &Lua, _queue: &EngineQueue) -> mlua::Result<()> {
         let t = lua.create_table()?;
         t.set(
             "new",
