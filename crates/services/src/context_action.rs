@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use engine_core::input::{ActionMap, BoundKey};
-use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule, vm::LuaVm};
+use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule, vm::LuaVm};
 use mlua::{Lua, UserData, UserDataMethods};
 use std::sync::{Arc, Mutex};
 
@@ -84,7 +84,7 @@ impl LuaModule for ContextActionModule {
     fn name() -> &'static str {
         "ContextActionService"
     }
-    fn register(lua: &Lua, _queue: &LuaQueue) -> mlua::Result<()> {
+    fn register(lua: &Lua, _queue: &EngineQueue) -> mlua::Result<()> {
         let queue: Arc<Mutex<Vec<InputAction>>> = Arc::new(Mutex::new(Vec::new()));
         lua.set_named_registry_value(
             "__input_queue",
