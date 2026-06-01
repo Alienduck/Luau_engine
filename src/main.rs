@@ -2,10 +2,7 @@ use bevy::prelude::*;
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
-        camera::{
-            CameraCFrame, CameraCFrameHolder, CameraModule, CameraQueue, CameraQueueHolder,
-            SmartCamera, SmartCameraPlugin, process_camera_queue,
-        },
+        camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         part::PartModule,
     },
     types::{cframe::CFrameModule, color3::Color3Module, vector3::Vector3Module},
@@ -13,7 +10,7 @@ use luau_classes::{
 use luau_runtime::{
     bridge::{
         handle::HandleMap,
-        queue::{LuaQueue, process_lua_queue},
+        queue::{EngineQueue, process_engine_queue},
     },
     registry::LuaModule,
     scheduler::{LuaScheduler, tick_scheduler},
@@ -25,20 +22,11 @@ use services::context_action::{
 use std::fs;
 
 fn main() {
-    let queue = LuaQueue::new();
+    let engine_queue = EngineQueue::default();
     let vm = LuaVm::new().expect("failed to create Lua VM");
     let mut scheduler = LuaScheduler::new();
 
-    register_all(vm.lua(), &queue);
-
-    let cam_queue: CameraQueue = {
-        let holder = vm
-            .lua()
-            .named_registry_value::<mlua::AnyUserData>("__camera_queue")
-            .expect("__camera_queue not found in registry");
-        let arc = holder.borrow::<CameraQueueHolder>().unwrap().0.clone();
-        CameraQueue(arc)
-    };
+    register_all(vm.lua(), &engine_queue);
 
     let input_queue: InputQueue = {
         let holder = vm
@@ -47,6 +35,15 @@ fn main() {
             .unwrap();
         let arc = holder.borrow::<InputQueueHolder>().unwrap().0.clone();
         InputQueue(arc)
+    };
+
+    let cam_cframe: CameraCFrame = {
+        let holder = vm
+            .lua()
+            .named_registry_value::<mlua::AnyUserData>("__camera_cframe")
+            .unwrap();
+        let arc = holder.borrow::<CameraCFrameHolder>().unwrap().0.clone();
+        CameraCFrame(arc)
     };
 
     let script =
@@ -63,15 +60,6 @@ fn main() {
         .unwrap();
     scheduler.spawn(thread);
 
-    let cam_cframe: CameraCFrame = {
-        let holder = vm
-            .lua()
-            .named_registry_value::<mlua::AnyUserData>("__camera_cframe")
-            .unwrap();
-        let arc = holder.borrow::<CameraCFrameHolder>().unwrap().0.clone();
-        CameraCFrame(arc)
-    };
-
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -81,8 +69,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(SmartCameraPlugin)
-        .insert_resource(queue)
-        .insert_resource(cam_queue)
+        .insert_resource(engine_queue)
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(input_queue)
@@ -98,8 +85,7 @@ fn main() {
             Update,
             (
                 tick_scheduler,
-                process_lua_queue,
-                process_camera_queue,
+                process_engine_queue,
                 trigger_context_actions,
             )
                 .chain(),
@@ -107,8 +93,8 @@ fn main() {
         .run();
 }
 
-fn register_all(lua: &mlua::Lua, queue: &LuaQueue) {
-    let modules: &[(&str, fn(&mlua::Lua, &LuaQueue) -> mlua::Result<()>)] = &[
+fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
+    let modules: &[(&str, fn(&mlua::Lua, &EngineQueue) -> mlua::Result<()>)] = &[
         (Vector3Module::name(), Vector3Module::register),
         (Color3Module::name(), Color3Module::register),
         (CFrameModule::name(), CFrameModule::register),
