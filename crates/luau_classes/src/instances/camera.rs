@@ -4,7 +4,10 @@ use bevy::{
     window::{CursorGrabMode, CursorOptions},
 };
 use engine_core::input::ActionMap;
-use luau_runtime::{bridge::queue::LuaQueue, registry::LuaModule};
+use luau_runtime::{
+    bridge::{handle::HandleMap, queue::EngineQueue},
+    registry::LuaModule,
+};
 use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
 use std::f32::consts::FRAC_PI_2;
 use std::sync::{Arc, Mutex};
@@ -147,54 +150,11 @@ impl Plugin for SmartCameraPlugin {
 }
 
 // ─────────────────────────────────────────────
-// Luau-side handle
-// ─────────────────────────────────────────────
-
-/// Commands the camera system can receive from Luau scripts.
-pub enum CameraCommand {
-    SetFirstPerson(bool),
-    SetDistance(f32),
-    SetSensitivity(f32),
-    SetFov(f32),
-    SetSubject(u64), // handle → resolved to Entity in the system
-    ClearSubject,
-}
-
-/// Shared queue for camera commands (parallel to LuaQueue for world commands).
-#[derive(Resource, Clone, Default)]
-pub struct CameraQueue(pub Arc<Mutex<Vec<CameraCommand>>>);
-
-/// System that drains CameraQueue and applies changes to SmartCamera.
-pub fn process_camera_queue(
-    queue: Res<CameraQueue>,
-    handle_map: Res<luau_runtime::bridge::handle::HandleMap>,
-    mut query: Query<&mut SmartCamera>,
-) {
-    let Ok(mut cam) = query.single_mut() else {
-        return;
-    };
-    let commands: Vec<CameraCommand> = queue.0.lock().unwrap().drain(..).collect();
-
-    for cmd in commands {
-        match cmd {
-            CameraCommand::SetFirstPerson(v) => cam.first_person = v,
-            CameraCommand::SetDistance(v) => cam.distance = v.max(0.1),
-            CameraCommand::SetSensitivity(v) => cam.sensitivity = v,
-            CameraCommand::SetFov(deg) => cam.fov = deg.to_radians(),
-            CameraCommand::SetSubject(h) => {
-                cam.subject = handle_map.get_entity(h);
-            }
-            CameraCommand::ClearSubject => cam.subject = None,
-        }
-    }
-}
-
-// ─────────────────────────────────────────────
 // Luau UserData handle
 // ─────────────────────────────────────────────
 
 pub struct LuaCamera {
-    pub queue: Arc<Mutex<Vec<CameraCommand>>>,
+    pub queue: EngineQueue,
     pub cframe: Arc<Mutex<LuaCFrame>>,
     pub first_person: bool,
     pub distance: f32,
@@ -203,10 +163,10 @@ pub struct LuaCamera {
 }
 
 impl LuaCamera {
-    fn default(queue: Arc<Mutex<Vec<CameraCommand>>>) -> Self {
+    fn default(queue: EngineQueue, cframe: Arc<Mutex<LuaCFrame>>) -> Self {
         LuaCamera {
             queue,
-            cframe: Arc::new(Mutex::new(LuaCFrame::default())),
+            cframe,
             first_person: false,
             distance: 8.0,
             sensitivity: 1.0,
@@ -226,30 +186,57 @@ impl UserData for LuaCamera {
         fields.add_field_method_set("FirstPerson", |_, this, v: bool| {
             this.first_person = v;
             this.queue
+                .0
                 .lock()
                 .unwrap()
-                .push(CameraCommand::SetFirstPerson(v));
+                .push(Box::new(move |w: &mut World| {
+                    let mut q = w.query::<&mut SmartCamera>();
+                    if let Ok(mut cam) = q.single_mut(w) {
+                        cam.first_person = v;
+                    }
+                }));
             Ok(())
         });
         fields.add_field_method_set("Distance", |_, this, v: f32| {
             this.distance = v;
             this.queue
+                .0
                 .lock()
                 .unwrap()
-                .push(CameraCommand::SetDistance(v));
+                .push(Box::new(move |w: &mut World| {
+                    let mut q = w.query::<&mut SmartCamera>();
+                    if let Ok(mut cam) = q.single_mut(w) {
+                        cam.distance = v
+                    }
+                }));
             Ok(())
         });
         fields.add_field_method_set("Sensitivity", |_, this, v: f32| {
             this.sensitivity = v;
             this.queue
+                .0
                 .lock()
                 .unwrap()
-                .push(CameraCommand::SetSensitivity(v));
+                .push(Box::new(move |w: &mut World| {
+                    let mut q = w.query::<&mut SmartCamera>();
+                    if let Ok(mut cam) = q.single_mut(w) {
+                        cam.sensitivity = v;
+                    }
+                }));
             Ok(())
         });
         fields.add_field_method_set("Fov", |_, this, v: f32| {
             this.fov = v;
-            this.queue.lock().unwrap().push(CameraCommand::SetFov(v));
+            this.queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    let mut q = w.query::<&mut SmartCamera>();
+                    if let Ok(mut cam) = q.single_mut(w) {
+                        cam.fov = v;
+                    }
+                }));
             Ok(())
         });
     }
@@ -258,13 +245,30 @@ impl UserData for LuaCamera {
         methods.add_method("SetSubject", |_, this, part: mlua::AnyUserData| {
             let handle = part.borrow::<crate::instances::part::LuaPart>()?.0.handle;
             this.queue
+                .0
                 .lock()
                 .unwrap()
-                .push(CameraCommand::SetSubject(handle));
+                .push(Box::new(move |w: &mut World| {
+                    let mut q = w.query::<&mut SmartCamera>();
+                    let entity = w.resource::<HandleMap>().get_entity(handle);
+                    if let Ok(mut cam) = q.single_mut(w) {
+                        cam.subject = entity;
+                    }
+                }));
+
             Ok(())
         });
         methods.add_method("ClearSubject", |_, this, ()| {
-            this.queue.lock().unwrap().push(CameraCommand::ClearSubject);
+            this.queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    let mut q = w.query::<&mut SmartCamera>();
+                    if let Ok(mut cam) = q.single_mut(w) {
+                        cam.subject = None;
+                    }
+                }));
             Ok(())
         });
     }
@@ -281,25 +285,14 @@ impl LuaModule for CameraModule {
         "Camera"
     }
 
-    fn register(lua: &Lua, _queue: &LuaQueue) -> mlua::Result<()> {
-        let cam_queue: Arc<Mutex<Vec<CameraCommand>>> = Arc::new(Mutex::new(Vec::new()));
-
-        lua.set_named_registry_value(
-            "__camera_queue",
-            lua.create_userdata(CameraQueueHolder(cam_queue.clone()))?,
-        )?;
+    fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
+        let cframe = Arc::new(Mutex::new(LuaCFrame::default()));
         lua.set_named_registry_value(
             "__camera_cframe",
-            lua.create_userdata(CameraCFrameHolder(Arc::new(Mutex::new(
-                LuaCFrame::default(),
-            ))))?,
+            lua.create_userdata(CameraCFrameHolder(cframe.clone()))?,
         )?;
 
-        let cam = LuaCamera::default(cam_queue);
+        let cam = LuaCamera::default(queue.clone(), cframe);
         lua.globals().set("Camera", lua.create_userdata(cam)?)
     }
 }
-
-/// Thin holder so we can store the Arc in the Lua registry.
-pub struct CameraQueueHolder(pub Arc<Mutex<Vec<CameraCommand>>>);
-impl UserData for CameraQueueHolder {}
