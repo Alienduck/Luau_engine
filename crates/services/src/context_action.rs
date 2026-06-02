@@ -1,8 +1,31 @@
 use bevy::prelude::*;
 use engine_core::input::{ActionMap, BoundKey};
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule, vm::LuaVm};
-use mlua::{Lua, UserData, UserDataMethods};
+use mlua::{IntoLua, Lua, UserData, UserDataMethods};
 use std::sync::{Arc, Mutex};
+
+pub enum InputState {
+    Begin,
+    End,
+}
+
+impl IntoLua for InputState {
+    fn into_lua(self, lua: &Lua) -> mlua::prelude::LuaResult<mlua::prelude::LuaValue> {
+        match self {
+            InputState::Begin => "Begin".into_lua(lua),
+            InputState::End => "End".into_lua(lua),
+        }
+    }
+}
+
+impl Into<String> for InputState {
+    fn into(self) -> String {
+        match self {
+            InputState::Begin => "Begin".into(),
+            InputState::End => "End".into(),
+        }
+    }
+}
 
 pub enum InputAction {
     Bind { action: String, key: BoundKey },
@@ -27,9 +50,10 @@ pub fn process_input_queue(queue: Res<InputQueue>, mut action_map: ResMut<Action
 }
 
 pub fn trigger_context_actions(vm: NonSend<LuaVm>, action_map: Res<ActionMap>) {
-    if action_map.just_pressed_actions.is_empty() {
+    if action_map.just_pressed_actions.is_empty() && action_map.just_released_actions.is_empty() {
         return;
     }
+
     let Ok(table) = vm
         .lua()
         .named_registry_value::<mlua::Table>("__context_callbacks")
@@ -39,7 +63,19 @@ pub fn trigger_context_actions(vm: NonSend<LuaVm>, action_map: Res<ActionMap>) {
 
     for action in &action_map.just_pressed_actions {
         if let Ok(callback) = table.get::<mlua::Function>(action.as_str()) {
-            if let Err(e) = callback.call::<()>(action.clone()) {
+            if let Err(e) =
+                callback.call::<()>((action.clone(), InputState::Begin.into()) as (String, String))
+            {
+                log::error!("[ContextAction] error in '{}': {}", action, e);
+            }
+        }
+    }
+
+    for action in &action_map.just_released_actions {
+        if let Ok(callback) = table.get::<mlua::Function>(action.as_str()) {
+            if let Err(e) =
+                callback.call::<()>((action.clone(), InputState::End.into()) as (String, String))
+            {
                 log::error!("[ContextAction] error in '{}': {}", action, e);
             }
         }
