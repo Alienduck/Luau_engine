@@ -19,8 +19,9 @@ Camera:SetSubject(subject)
 
 task.wait(2)
 
-local function test_context_action(str: string)
+local function test_context_action(str: string, state: "Begin" | "End")
     print("F press, receive -> " .. str)
+    print("Input state -> " .. state)
     Camera.FirstPerson = not Camera.FirstPerson
 end
 
