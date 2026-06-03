@@ -75,9 +75,9 @@ export type RBXScriptSignal<T...> = {
 -- Services types
 -- ─────────────────────────────────────────────
 
-export type ContextActionService = {
-    BindAction: (self: ContextActionService, actionName: string, callback: (string) -> (), device: string, name: string) -> (),
-    UnbindAction: (self: ContextActionService, actionName: string) -> (),
+export type UserInputService = {
+    InputBegan: RBXScriptSignal<string, string>,
+    InputEnded: RBXScriptSignal<string, string>,
 }
 
 export type RunService = {
@@ -133,6 +133,6 @@ declare task: {
 
 -- Services
 
-declare ContextActionService: ContextActionService
+declare UserInputService: UserInputService
 
 declare RunService: RunService
