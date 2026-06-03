@@ -11,7 +11,7 @@ use luau_runtime::{
     },
     registry::LuaModule,
 };
-use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
+use mlua::{Lua, UserData, UserDataFields, UserDataMethods, prelude::*};
 
 pub struct LuaPart(pub BasePartData);
 
@@ -28,6 +28,7 @@ impl UserData for LuaPart {
         fields.add_field_method_get("CFrame", |_, this| Ok(this.0.cframe));
         fields.add_field_method_get("Size", |_, this| Ok(this.0.size));
         fields.add_field_method_get("Color", |_, this| Ok(this.0.color));
+        fields.add_field_method_get("Transparency", |_, this| Ok(this.0.transparency.clone()));
 
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.0.set_position(v);
@@ -43,6 +44,10 @@ impl UserData for LuaPart {
         });
         fields.add_field_method_set("Color", |_, this, c: LuaColor3| {
             this.0.set_color(c);
+            Ok(())
+        });
+        fields.add_field_method_set("Transparency", |_, this, t: LuaValue| {
+            this.0.set_transparency(t);
             Ok(())
         });
     }
@@ -72,7 +77,10 @@ impl LuaModule for PartModule {
                 q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
                     let mat = w
                         .resource_mut::<Assets<StandardMaterial>>()
-                        .add(StandardMaterial::from_color(Color::srgb(0.8, 0.8, 0.8)));
+                        .add(StandardMaterial {
+                            base_color: Color::srgb(0.8, 0.8, 0.8),
+                            ..default()
+                        });
                     let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
                     let entity = w
                         .spawn((
