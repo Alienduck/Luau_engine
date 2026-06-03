@@ -1,24 +1,18 @@
 use bevy::prelude::*;
+use luau_classes::types::signal::LuaSignal;
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule, vm::LuaVm};
-use mlua::{Lua, UserData, UserDataMethods};
+use mlua::{Lua, UserData, UserDataFields};
 
-pub struct RunService;
+pub struct RunService {
+    pub render_stepped_id: u64,
+}
 
 impl UserData for RunService {
-    fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_method(
-            "BindToRenderStep",
-            |lua, _, (name, _priority, callback): (String, i32, mlua::Function)| {
-                let table = lua.named_registry_value::<mlua::Table>("__runservice_callbacks")?;
-                table.set(name, callback)?;
-                Ok(())
-            },
-        );
-        methods.add_method("UnbindFromRenderStep", |lua, _, name: String| {
-            if let Ok(table) = lua.named_registry_value::<mlua::Table>("__runservice_callbacks") {
-                let _ = table.set(name, mlua::Value::Nil);
-            }
-            Ok(())
+    fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
+        fields.add_field_method_get("RenderStepped", |_, this| {
+            Ok(LuaSignal {
+                id: this.render_stepped_id,
+            })
         });
     }
 }
@@ -29,29 +23,22 @@ impl LuaModule for RunServiceModule {
     fn name() -> &'static str {
         "RunService"
     }
-
     fn register(lua: &Lua, _queue: &EngineQueue) -> mlua::Result<()> {
-        lua.set_named_registry_value("__runservice_callbacks", lua.create_table()?)?;
-        lua.globals()
-            .set("RunService", lua.create_userdata(RunService)?)
+        let render_stepped = LuaSignal::new(lua)?;
+        lua.set_named_registry_value("__rs_render_stepped", render_stepped.id)?;
+
+        let rs = RunService {
+            render_stepped_id: render_stepped.id,
+        };
+        lua.globals().set("RunService", lua.create_userdata(rs)?)
     }
 }
 
 pub fn trigger_run_service(vm: NonSend<LuaVm>, time: Res<Time>) {
-    let Ok(table) = vm
-        .lua()
-        .named_registry_value::<mlua::Table>("__runservice_callbacks")
-    else {
-        return;
-    };
-
-    let dt = time.delta().as_secs_f64();
-
-    for pair in table.pairs::<String, mlua::Function>() {
-        if let Ok((name, callback)) = pair {
-            if let Err(e) = callback.call::<()>(dt) {
-                log::error!("[RunService] error in '{}': {}", name, e);
-            }
-        }
+    let lua = vm.lua();
+    if let Ok(id) = lua.named_registry_value::<u64>("__rs_render_stepped") {
+        let signal = LuaSignal { id };
+        let dt = time.delta().as_secs_f64();
+        let _ = signal.fire(lua, dt);
     }
 }
