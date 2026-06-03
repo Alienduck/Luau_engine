@@ -1,9 +1,12 @@
 use bevy::prelude::*;
+use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
+        collider::ColliderModule,
         part::PartModule,
+        rigidbody::RigidbodyModule,
     },
     types::{cframe::CFrameModule, color3::Color3Module, vector3::Vector3Module},
 };
@@ -68,6 +71,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
         .insert_resource(engine_queue)
         .insert_resource(HandleMap::default())
@@ -101,6 +105,8 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (PartModule::name(), PartModule::register),
         (CameraModule::name(), CameraModule::register),
         (ContextActionModule::name(), ContextActionModule::register),
+        (RigidbodyModule::name(), RigidbodyModule::register),
+        (ColliderModule::name(), ColliderModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
