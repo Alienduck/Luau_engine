@@ -20,11 +20,8 @@ use luau_runtime::{
     vm::LuaVm,
 };
 use services::{
-    context_action::{
-        ContextActionModule, InputQueue, InputQueueHolder, process_input_queue,
-        trigger_context_actions,
-    },
     run_service::{RunServiceModule, trigger_run_service},
+    user_input::{UserInputModule, trigger_user_input},
 };
 use std::fs;
 
@@ -34,15 +31,6 @@ fn main() {
     let mut scheduler = LuaScheduler::new();
 
     register_all(vm.lua(), &engine_queue);
-
-    let input_queue: InputQueue = {
-        let holder = vm
-            .lua()
-            .named_registry_value::<mlua::AnyUserData>("__input_queue")
-            .unwrap();
-        let arc = holder.borrow::<InputQueueHolder>().unwrap().0.clone();
-        InputQueue(arc)
-    };
 
     let cam_cframe: CameraCFrame = {
         let holder = vm
@@ -80,21 +68,17 @@ fn main() {
         .insert_resource(engine_queue)
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
-        .insert_resource(input_queue)
         .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
-        .add_systems(
-            PreUpdate,
-            (update_action_states, process_input_queue).chain(),
-        )
+        .add_systems(PreUpdate, (update_action_states).chain())
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
             (
                 tick_scheduler,
                 process_engine_queue,
-                trigger_context_actions,
+                trigger_user_input,
                 trigger_run_service,
             )
                 .chain(),
@@ -109,7 +93,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (CFrameModule::name(), CFrameModule::register),
         (PartModule::name(), PartModule::register),
         (CameraModule::name(), CameraModule::register),
-        (ContextActionModule::name(), ContextActionModule::register),
+        (UserInputModule::name(), UserInputModule::register),
         (RigidbodyModule::name(), RigidbodyModule::register),
         (ColliderModule::name(), ColliderModule::register),
         (RunServiceModule::name(), RunServiceModule::register),
