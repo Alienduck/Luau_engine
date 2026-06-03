@@ -2,7 +2,7 @@ local subject = Part.new()
 subject.Position = Vector3.new(0, 0, 0)
 subject.Size = Vector3.new(1, 1, 1)
 
-Camera.Distance = 10
+Camera.Distance = 12
 Camera.Sensitivity = 1.2
 Camera.Fov = 70
 Camera:SetSubject(subject)
@@ -22,7 +22,8 @@ local connection = RunService.RenderStepped:Connect(function(dt)
         accumulator -= 1.0
 
         local falling_part = Part.new()
-        falling_part.Size = Vector3.new(1, 1, 1)
+        local random_size = math.random(1, 2)
+        falling_part.Size = Vector3.new(random_size, random_size, random_size)
         falling_part.Color = Color3.fromRGB(100, 100, 255)
         falling_part.Position = Vector3.new(math.random(-4, 4), 5, math.random(-4, 4))
         falling_part.Transparency = math.random(0, 100) / 100
@@ -34,6 +35,6 @@ local connection = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
-task.wait(5)
+task.wait(10)
 print("disconnect")
 connection:Disconnect()
