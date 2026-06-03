@@ -1,6 +1,7 @@
 use crate::types::{cframe::LuaCFrame, color3::LuaColor3, vector3::LuaVector3};
 use bevy::{ecs::world::World, math::Vec3, prelude::*, transform::components::Transform};
 use luau_runtime::bridge::{handle::HandleMap, queue::EngineQueue};
+use mlua::prelude::*;
 
 /// Data shared by every Part-like instance.
 ///
@@ -13,6 +14,7 @@ pub struct BasePartData {
     pub cframe: LuaCFrame,
     pub size: LuaVector3,
     pub color: LuaColor3,
+    pub transparency: LuaValue,
 }
 
 impl BasePartData {
@@ -31,6 +33,7 @@ impl BasePartData {
                 g: 0.8,
                 b: 0.8,
             },
+            transparency: LuaValue::Number(0.0),
         }
     }
 
@@ -115,6 +118,38 @@ impl BasePartData {
                             .get_mut(&mat_handle)
                         {
                             mat.base_color = Color::srgb(c.r, c.g, c.b);
+                        }
+                    }
+                }
+            }));
+    }
+
+    pub fn set_transparency(&mut self, v: LuaValue) {
+        let Some(t) = v.as_f32() else { return };
+        self.transparency = v;
+        let target_handle = self.handle;
+
+        self.queue
+            .0
+            .lock()
+            .unwrap()
+            .push(Box::new(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(target_handle) {
+                    let cloned_handle = w
+                        .get::<MeshMaterial3d<StandardMaterial>>(e)
+                        .map(|mat| mat.0.clone());
+
+                    if let Some(mat_handle) = cloned_handle {
+                        if let Some(mat) = w
+                            .resource_mut::<Assets<StandardMaterial>>()
+                            .get_mut(&mat_handle)
+                        {
+                            mat.base_color.set_alpha(1.0 - t);
+                            if mat.base_color.alpha() < 1.0 {
+                                mat.alpha_mode = AlphaMode::Blend;
+                            } else {
+                                mat.alpha_mode = AlphaMode::Opaque
+                            }
                         }
                     }
                 }
