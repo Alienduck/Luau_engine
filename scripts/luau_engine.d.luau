@@ -54,6 +54,14 @@ export type Camera = {
     SetLockBinding: (self: Camera, device: string, name: string) -> (),
 }
 
+export type Rigidbody<t> = {
+    Parent: t
+}
+
+export type Collider<t> = {
+    Parent: t
+}
+
 -- ─────────────────────────────────────────────
 -- Services types
 -- ─────────────────────────────────────────────
@@ -87,6 +95,14 @@ declare CFrame: {
 
 declare Part: {
     new: () -> Part,
+}
+
+declare Rigidbody: {
+    new: <t>() -> Rigidbody<t>
+}
+
+declare Collider: {
+    new: <t>() -> Collider<t>
 }
 
 --- Singleton camera — one per scene, configured from Luau.
