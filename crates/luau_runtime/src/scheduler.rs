@@ -1,14 +1,17 @@
 use bevy::prelude::*;
 use mlua::{MultiValue, Thread, ThreadStatus, Value};
+use std::{cell::RefCell, rc::Rc};
 
-struct ScheduledThread {
-    thread: Thread,
-    resume_at: f64,
+pub struct ScheduledThread {
+    pub thread: Thread,
+    pub resume_at: f64,
 }
 
-/// Holds all live Luau coroutines. Non-Send because Thread is not Send.
+#[derive(Clone, Default)]
+pub struct SpawnerQueue(pub Rc<RefCell<Vec<(Thread, f64)>>>);
+
 pub struct LuaScheduler {
-    threads: Vec<ScheduledThread>,
+    pub threads: Vec<ScheduledThread>,
 }
 
 impl LuaScheduler {
@@ -17,7 +20,6 @@ impl LuaScheduler {
             threads: Vec::new(),
         }
     }
-
     pub fn spawn(&mut self, thread: Thread) {
         self.threads.push(ScheduledThread {
             thread,
@@ -32,17 +34,29 @@ impl Default for LuaScheduler {
     }
 }
 
-/// Bevy system — resumes every coroutine whose wait timer has expired.
-pub fn tick_scheduler(mut scheduler: NonSendMut<LuaScheduler>, time: Res<Time>) {
+pub fn tick_scheduler(
+    mut scheduler: NonSendMut<LuaScheduler>,
+    vm: NonSend<crate::vm::LuaVm>,
+    time: Res<Time>,
+) {
     let elapsed = time.elapsed_secs_f64();
-    let mut i = 0;
 
+    {
+        let mut queue = vm.spawner_queue.0.borrow_mut();
+        for (thread, delay) in queue.drain(..) {
+            scheduler.threads.push(ScheduledThread {
+                thread,
+                resume_at: elapsed + delay,
+            });
+        }
+    }
+
+    let mut i = 0;
     while i < scheduler.threads.len() {
         if scheduler.threads[i].resume_at > elapsed {
             i += 1;
             continue;
         }
-
         match scheduler.threads[i].thread.status() {
             ThreadStatus::Resumable => match scheduler.threads[i].thread.resume::<MultiValue>(()) {
                 Ok(values) => {
@@ -56,7 +70,10 @@ pub fn tick_scheduler(mut scheduler: NonSendMut<LuaScheduler>, time: Res<Time>) 
                             scheduler.threads[i].resume_at = elapsed + secs;
                             i += 1;
                         }
-                        _ => i += 1,
+                        _ => {
+                            scheduler.threads[i].resume_at = elapsed;
+                            i += 1;
+                        }
                     }
                 }
                 Err(e) => {

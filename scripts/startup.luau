@@ -1,44 +1,40 @@
--- local p = Part.new()
--- p.Position = Vector3.new(0, 0, 0)
--- p.Color = Color3.new(1, 0.2, 0.2)
+local subject = Part.new()
+subject.Position = Vector3.new(0, 0, 0)
+subject.Size = Vector3.new(1, 1, 1)
 
--- local p2 = Part.new()
--- p2.Position = Vector3.new(0, 3, 0)
--- p2.Size = Vector3.new(1, 2, 1)
--- p2.Color = Color3.new(0.5, 0.5, 1)
+Camera.Distance = 12
+Camera.Sensitivity = 1.2
+Camera.Fov = 70
+Camera:SetSubject(subject)
 
--- task.wait(1)
--- p2:Destroy()
+local floor = Part.new()
+floor.Size = Vector3.new(10, 1, 10)
+floor.Position = Vector3.new(0, 0, 0)
 
--- local forward = true
--- while true do
---     task.wait(1/60)
---     if forward then
---         for i = 1, 100 do
---             task.wait(1/60)
---             p.Position = Vector3.new(0, 0, i * 0.05)
---             p.Color = Color3.new(1 - i / 100, 0.2, 0.2)
---         end
---     else
---         for i = 100, 1, -1 do
---             task.wait(1/60)
---             p.Position = Vector3.new(0, 0, i * 0.05)
---             p.Color = Color3.new(1 - i / 100, 0.2, 0.2)
---         end
---     end
---     forward = not forward
--- end
+local floor_collider = Collider.new()
+floor_collider.Parent = floor
 
--- Plusieurs coroutines indépendantes qui bougent chacune un cube
-for i = 1, 5 do
-    local p = Part.new()
-    p.Position = Vector3.new(i * 2, 0, 0)
-    task.spawn(function()
-        local t = 0
-        while true do
-            task.wait(1/60)
-            t += 1/60
-            p.Position = Vector3.new(i * 2, math.sin(t + i) * 2, 0)
-        end
-    end)
-end
+local accumulator = 0
+
+local connection = RunService.RenderStepped:Connect(function(dt)
+    accumulator += dt
+    if accumulator >= 1.0 then
+        accumulator -= 1.0
+
+        local falling_part = Part.new()
+        local random_size = math.random(1, 2)
+        falling_part.Size = Vector3.new(random_size, random_size, random_size)
+        falling_part.Color = Color3.fromRGB(100, 100, 255)
+        falling_part.Position = Vector3.new(math.random(-4, 4), 5, math.random(-4, 4))
+        falling_part.Transparency = math.random(0, 100) / 100
+
+        local col = Collider.new()
+        col.Parent = falling_part
+        local rb = Rigidbody.new()
+        rb.Parent = falling_part
+    end
+end)
+
+task.wait(10)
+print("disconnect")
+connection:Disconnect()

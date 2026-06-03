@@ -1,4 +1,5 @@
+pub mod cframe;
 pub mod color3;
+pub mod signal;
 pub mod vector3;
-//TODO: pub mod cframe; -- future
-//TODO: pub mod udim2; -- future (UI)
+//TODO: pub mod udim2;
