@@ -1,6 +1,7 @@
 local subject = Part.new()
-subject.Position = Vector3.new(0, 0, 0)
+subject.Position = Vector3.new(0, 2, 0)
 subject.Size = Vector3.new(1, 1, 1)
+subject.Transparency = 0
 
 Camera.Distance = 12
 Camera.Sensitivity = 1.2
@@ -33,6 +34,10 @@ local connection = RunService.RenderStepped:Connect(function(dt)
         local rb = Rigidbody.new()
         rb.Parent = falling_part
     end
+end)
+
+UserInputService.InputBegan:Connect(function(key: string, device: string)
+    if key == "KeyF" then Camera.FirstPerson = not Camera.FirstPerson end
 end)
 
 task.wait(10)
