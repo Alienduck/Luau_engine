@@ -16,9 +16,8 @@ floor_collider.Parent = floor
 
 local accumulator = 0
 
-RunService:BindToRenderStep("SpawnFallingCubes", 1, function(dt)
+local connection = RunService.RenderStepped:Connect(function(dt)
     accumulator += dt
-
     if accumulator >= 1.0 then
         accumulator -= 1.0
 
@@ -28,10 +27,13 @@ RunService:BindToRenderStep("SpawnFallingCubes", 1, function(dt)
         falling_part.Position = Vector3.new(math.random(-4, 4), 5, math.random(-4, 4))
         falling_part.Transparency = math.random(0, 100) / 100
 
-        local fp_collider = Collider.new()
-        fp_collider.Parent = falling_part
-
-        local fp_rb = Rigidbody.new()
-        fp_rb.Parent = falling_part
+        local col = Collider.new()
+        col.Parent = falling_part
+        local rb = Rigidbody.new()
+        rb.Parent = falling_part
     end
 end)
+
+task.wait(5)
+print("disconnect")
+connection:Disconnect()
