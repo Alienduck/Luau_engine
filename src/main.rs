@@ -19,8 +19,12 @@ use luau_runtime::{
     scheduler::{LuaScheduler, tick_scheduler},
     vm::LuaVm,
 };
-use services::context_action::{
-    ContextActionModule, InputQueue, InputQueueHolder, process_input_queue, trigger_context_actions,
+use services::{
+    context_action::{
+        ContextActionModule, InputQueue, InputQueueHolder, process_input_queue,
+        trigger_context_actions,
+    },
+    run_service::{RunServiceModule, trigger_run_service},
 };
 use std::fs;
 
@@ -91,6 +95,7 @@ fn main() {
                 tick_scheduler,
                 process_engine_queue,
                 trigger_context_actions,
+                trigger_run_service,
             )
                 .chain(),
         )
@@ -107,6 +112,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (ContextActionModule::name(), ContextActionModule::register),
         (RigidbodyModule::name(), RigidbodyModule::register),
         (ColliderModule::name(), ColliderModule::register),
+        (RunServiceModule::name(), RunServiceModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
