@@ -72,6 +72,11 @@ export type ContextActionService = {
     UnbindAction: (self: ContextActionService, actionName: string) -> (),
 }
 
+export type RunService = {
+    BindToRenderStep: (self: RunService, name: string, priority: number, callback: (number) -> ()) -> (),
+    UnbindFromRenderStep: (self: RunService, name: string) -> (),
+}
+
 -- ─────────────────────────────────────────────
 -- Global constructors
 -- ─────────────────────────────────────────────
@@ -122,3 +127,5 @@ declare task: {
 -- Services
 
 declare ContextActionService: ContextActionService
+
+declare RunService: RunService
