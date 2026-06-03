@@ -63,6 +63,14 @@ export type Collider<t> = {
     Parent: t
 }
 
+export type RBXScriptConnection = {
+    Disconnect: (self: RBXScriptConnection) -> (),
+}
+
+export type RBXScriptSignal<T...> = {
+    Connect: (self: RBXScriptSignal<T...>, callback: (T...) -> ()) -> RBXScriptConnection,
+}
+
 -- ─────────────────────────────────────────────
 -- Services types
 -- ─────────────────────────────────────────────
@@ -73,8 +81,7 @@ export type ContextActionService = {
 }
 
 export type RunService = {
-    BindToRenderStep: (self: RunService, name: string, priority: number, callback: (number) -> ()) -> (),
-    UnbindFromRenderStep: (self: RunService, name: string) -> (),
+    RenderStepped: RBXScriptSignal<number>,
 }
 
 -- ─────────────────────────────────────────────
