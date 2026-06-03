@@ -18,6 +18,7 @@ authors = ["Alienudck"]
 bevy = { version = "0.18.1", features = ["jpeg"] }
 mlua = { version = "0.11.6", features = ["luau"] }
 log = "0.4"
+bevy_rapier3d = "0.34.0"
 
 engine_core = { path = "crates/engine_core" }
 luau_runtime = { path = "crates/luau_runtime" }
@@ -41,3 +42,4 @@ services = { workspace = true }
 bevy = { workspace = true }
 mlua = { workspace = true }
 log = { workspace = true }
+bevy_rapier3d = { workspace = true }
