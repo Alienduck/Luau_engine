@@ -39,6 +39,7 @@ export type Part = {
     Size: Vector3,
     Handle: number,
     Color: Color3,
+    Transparency: number,
     Destroy: (self: Part) -> (),
 }
 
