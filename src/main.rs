@@ -11,10 +11,7 @@ use luau_classes::{
         screen_gui::ScreenGuiModule,
     },
     types::{
-        cframe::CFrameModule,
-        color3::Color3Module,
-        udim2::{self, Udim2Module},
-        vector3::Vector3Module,
+        cframe::CFrameModule, color3::Color3Module, udim2::Udim2Module, vector3::Vector3Module,
     },
 };
 use luau_runtime::{
@@ -118,10 +115,10 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
+        Camera2d::default(),
         Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
         SmartCamera::default(),
     ));
-    commands.spawn(Camera2d::default());
 
     commands.spawn((
         DirectionalLight {
