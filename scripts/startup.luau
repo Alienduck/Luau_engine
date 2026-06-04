@@ -17,7 +17,7 @@ floor_collider.Parent = floor
 
 local accumulator = 0
 
-local connection = RunService.RenderStepped:Connect(function(dt)
+local connection = RunService.RenderStepped:Connect(function(dt: number)
     accumulator += dt
     if accumulator >= 1.0 then
         accumulator -= 1.0
@@ -39,6 +39,14 @@ end)
 UserInputService.InputBegan:Connect(function(key: string, device: string)
     if key == "KeyF" then Camera.FirstPerson = not Camera.FirstPerson end
 end)
+
+local screen_gui = ScreenGui.new()
+
+local container = Frame.new()
+container.Parent = screen_gui
+container.Position = Udim2.fromScale(0, 0)
+container.Size = Udim2.fromScale(.5, .5)
+container.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
 
 task.wait(10)
 print("disconnect")
