@@ -5,10 +5,17 @@ use luau_classes::{
     instances::{
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         collider::ColliderModule,
+        frame::FrameModule,
         part::PartModule,
         rigidbody::RigidbodyModule,
+        screen_gui::ScreenGuiModule,
     },
-    types::{cframe::CFrameModule, color3::Color3Module, vector3::Vector3Module},
+    types::{
+        cframe::CFrameModule,
+        color3::Color3Module,
+        udim2::{self, Udim2Module},
+        vector3::Vector3Module,
+    },
 };
 use luau_runtime::{
     bridge::{
@@ -97,6 +104,9 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (RigidbodyModule::name(), RigidbodyModule::register),
         (ColliderModule::name(), ColliderModule::register),
         (RunServiceModule::name(), RunServiceModule::register),
+        (ScreenGuiModule::name(), ScreenGuiModule::register),
+        (FrameModule::name(), FrameModule::register),
+        (Udim2Module::name(), Udim2Module::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
@@ -111,6 +121,7 @@ fn setup_scene(mut commands: Commands) {
         Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
         SmartCamera::default(),
     ));
+    commands.spawn(Camera2d::default());
 
     commands.spawn((
         DirectionalLight {
