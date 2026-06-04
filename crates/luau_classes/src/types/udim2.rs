@@ -1,6 +1,6 @@
 use bevy::ui::Val;
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
-use mlua::{FromLua, Lua, UserData, UserDataFields, prelude::*};
+use mlua::{FromLua, Lua, UserData, UserDataFields};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LuaUDim2 {
