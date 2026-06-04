@@ -76,7 +76,23 @@ impl UserData for LuaFrame {
                 }));
             Ok(())
         });
-        fields.add_field_method_set("Transparency", ||);
+        fields.add_field_method_set("Transparency", |_, this, v: LuaValue| {
+            let t = if let Some(t) = v.as_f32() { t } else { 0.0 };
+            this.transparency = v;
+            let h = this.handle;
+            this.queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                        if let Some(mut bg) = w.get_mut::<BackgroundColor>(e) {
+                            bg.0.set_alpha(1.0 - t);
+                        }
+                    }
+                }));
+            Ok(())
+        });
 
         fields.add_field_method_set("Parent", |_, this, parent: mlua::AnyUserData| {
             let parent_handle =
@@ -141,6 +157,7 @@ impl LuaModule for FrameModule {
                         g: 1.0,
                         b: 1.0,
                     },
+                    transparency: LuaValue::Number(0.0),
                 })
             })?,
         )?;
