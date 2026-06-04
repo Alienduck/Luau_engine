@@ -30,6 +30,13 @@ export type CFrame = {
     ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
 }
 
+export type Udim2 = {
+    -- x_scale: number,
+    -- y_scale: number,
+    -- x_offset: number,
+    -- y_offset: number
+}
+
 -- ─────────────────────────────────────────────
 -- Instance types
 -- ─────────────────────────────────────────────
@@ -42,6 +49,15 @@ export type Part = {
     Transparency: number,
     Destroy: (self: Part) -> (),
 }
+
+export type Frame<t> = {
+    Size: Udim2,
+    Position: Udim2,
+    BackgroundColor3: Color3,
+    Parent: t,
+}
+
+export type ScreenGui = {}
 
 export type Camera = {
     FirstPerson: boolean,
@@ -106,8 +122,22 @@ declare CFrame: {
     identity: CFrame,
 }
 
+declare Udim2: {
+    new: (xs: number, ys: number, xo: number, yo: number) -> Udim2,
+    fromScale: (xs: number, ys: number) -> Udim2,
+    fromOffset: (xo: number, yo: number) -> Udim2,
+}
+
 declare Part: {
     new: () -> Part,
+}
+
+declare Frame: {
+    new: <t>() -> Frame<t>,
+}
+
+declare ScreenGui: {
+    new: () -> ScreenGui,
 }
 
 declare Rigidbody: {
