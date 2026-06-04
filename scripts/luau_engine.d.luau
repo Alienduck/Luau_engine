@@ -54,6 +54,7 @@ export type Frame<t> = {
     Size: Udim2,
     Position: Udim2,
     BackgroundColor3: Color3,
+    Transparency: number,
     Parent: t,
 }
 
