@@ -11,24 +11,23 @@ use luau_runtime::{
     },
     registry::LuaModule,
 };
-use mlua::{Lua, UserData, UserDataFields, UserDataMethods, prelude::*};
+use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
 
 pub struct LuaPart(pub BasePartData);
 
 impl UserData for LuaPart {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("Position", |_, this| {
-            let position = this.0.cframe.position;
             Ok(LuaVector3 {
-                x: position.x,
-                y: position.y,
-                z: position.z,
+                x: this.0.cframe.position.x,
+                y: this.0.cframe.position.y,
+                z: this.0.cframe.position.z,
             })
         });
         fields.add_field_method_get("CFrame", |_, this| Ok(this.0.cframe));
         fields.add_field_method_get("Size", |_, this| Ok(this.0.size));
         fields.add_field_method_get("Color", |_, this| Ok(this.0.color));
-        fields.add_field_method_get("Transparency", |_, this| Ok(this.0.transparency.clone()));
+        fields.add_field_method_get("Transparency", |_, this| Ok(this.0.transparency));
 
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.0.set_position(v);
@@ -46,12 +45,11 @@ impl UserData for LuaPart {
             this.0.set_color(c);
             Ok(())
         });
-        fields.add_field_method_set("Transparency", |_, this, t: LuaValue| {
+        fields.add_field_method_set("Transparency", |_, this, t: f32| {
             this.0.set_transparency(t);
             Ok(())
         });
     }
-
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("Destroy", |_, this, ()| {
             this.0.destroy();
@@ -66,7 +64,6 @@ impl LuaModule for PartModule {
     fn name() -> &'static str {
         "Part"
     }
-
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let q = queue.clone();
         let t = lua.create_table()?;

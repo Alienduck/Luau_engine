@@ -7,14 +7,14 @@ use luau_runtime::{
     },
     registry::LuaModule,
 };
-use mlua::{Lua, UserData, UserDataFields, prelude::*};
+use mlua::{Lua, UserData, UserDataFields};
 
 pub struct LuaFrame {
     pub handle: u64,
     pub queue: EngineQueue,
     pub size: LuaUDim2,
     pub position: LuaUDim2,
-    pub transparency: LuaValue,
+    pub transparency: f32,
     pub bg_color: LuaColor3,
 }
 
@@ -22,8 +22,9 @@ impl UserData for LuaFrame {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("Size", |_, this| Ok(this.size));
         fields.add_field_method_get("Position", |_, this| Ok(this.position));
-        fields.add_field_method_get("Transparency", |_, this| Ok(this.transparency.clone()));
+        fields.add_field_method_get("Transparency", |_, this| Ok(this.transparency));
         fields.add_field_method_get("BackgroundColor3", |_, this| Ok(this.bg_color));
+
         fields.add_field_method_set("Size", |_, this, v: LuaUDim2| {
             this.size = v;
             let h = this.handle;
@@ -63,6 +64,7 @@ impl UserData for LuaFrame {
         fields.add_field_method_set("BackgroundColor3", |_, this, c: LuaColor3| {
             this.bg_color = c;
             let h = this.handle;
+            let t = this.transparency;
             this.queue
                 .0
                 .lock()
@@ -70,16 +72,17 @@ impl UserData for LuaFrame {
                 .push(Box::new(move |w: &mut World| {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
                         if let Some(mut bg) = w.get_mut::<BackgroundColor>(e) {
-                            bg.0 = Color::srgb(c.r, c.g, c.b);
+                            bg.0 = Color::srgba(c.r, c.g, c.b, 1.0 - t);
                         }
                     }
                 }));
             Ok(())
         });
-        fields.add_field_method_set("Transparency", |_, this, v: LuaValue| {
-            let t = if let Some(t) = v.as_f32() { t } else { 0.0 };
-            this.transparency = v;
+
+        fields.add_field_method_set("Transparency", |_, this, t: f32| {
+            this.transparency = t;
             let h = this.handle;
+            let c = this.bg_color;
             this.queue
                 .0
                 .lock()
@@ -87,7 +90,7 @@ impl UserData for LuaFrame {
                 .push(Box::new(move |w: &mut World| {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
                         if let Some(mut bg) = w.get_mut::<BackgroundColor>(e) {
-                            bg.0.set_alpha(1.0 - t);
+                            bg.0 = Color::srgba(c.r, c.g, c.b, 1.0 - t);
                         }
                     }
                 }));
@@ -103,7 +106,6 @@ impl UserData for LuaFrame {
                 } else {
                     return Err(mlua::Error::runtime("Invalid parent for Frame"));
                 };
-
             let h = this.handle;
             this.queue
                 .0
@@ -157,7 +159,7 @@ impl LuaModule for FrameModule {
                         g: 1.0,
                         b: 1.0,
                     },
-                    transparency: LuaValue::Number(0.0),
+                    transparency: 0.0,
                 })
             })?,
         )?;
