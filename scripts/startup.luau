@@ -48,8 +48,8 @@ container.Parent = screen_gui
 container.Position = Udim2.fromScale(.25, .25)
 container.Size = Udim2.fromScale(.5, .5)
 container.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-container.Transparency = 0.5
+container.Transparency = 0.8
 
+require("scripts/test_require.luau").test()
 task.wait(10)
-require("scripts/test_require").test()
 connection:Disconnect()
