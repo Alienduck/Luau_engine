@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowMode};
 use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
@@ -63,6 +63,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Luau Engine".into(),
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
                 ..default()
             }),
             ..default()
