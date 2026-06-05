@@ -1,4 +1,8 @@
-use crate::types::{color3::LuaColor3, udim2::LuaUDim2};
+use std::fmt::format;
+
+use crate::types::{
+    color3::LuaColor3, gui_object::GuiObject, udim2::LuaUDim2, vector2::LuaVector2,
+};
 use bevy::prelude::*;
 use luau_runtime::{
     bridge::{
@@ -7,57 +11,78 @@ use luau_runtime::{
     },
     registry::LuaModule,
 };
-use mlua::{Lua, UserData, UserDataFields};
+use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields};
 
 pub struct LuaFrame {
     pub handle: u64,
     pub queue: EngineQueue,
-    pub size: LuaUDim2,
-    pub position: LuaUDim2,
+    pub base: GuiObject,
     pub transparency: f32,
     pub bg_color: LuaColor3,
 }
 
+impl LuaFrame {
+    fn update_layout(&self) {
+        let h = self.handle;
+        let s = self.base.size;
+        let p = self.base.position;
+        let a = self.base.anchor_point;
+
+        let scale_x = p.x_scale - (s.x_scale * a.x);
+        let offset_x = p.x_offset - (s.x_offset * a.x);
+        let scale_y = p.y_scale - (s.y_scale * a.y);
+        let offset_y = p.y_offset - (s.y_offset * a.y);
+
+        self.queue
+            .0
+            .lock()
+            .unwrap()
+            .push(Box::new(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut n) = w.get_mut::<Node>(e) {
+                        n.width = if s.x_scale != 0.0 {
+                            Val::Percent(s.x_scale * 100.0)
+                        } else {
+                            Val::Px(s.x_offset)
+                        };
+                        n.height = if s.y_scale != 0.0 {
+                            Val::Percent(s.y_scale * 100.0)
+                        } else {
+                            Val::Px(s.y_offset)
+                        };
+                        n.left = Val::Percent(scale_x * 100.0);
+                        n.margin.left = Val::Px(offset_x);
+                        n.top = Val::Percent(scale_y * 100.0);
+                        n.margin.top = Val::Px(offset_y);
+                    }
+                }
+            }));
+    }
+}
+
 impl UserData for LuaFrame {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
-        fields.add_field_method_get("Size", |_, this| Ok(this.size));
-        fields.add_field_method_get("Position", |_, this| Ok(this.position));
+        fields.add_field_method_get("Size", |_, this| Ok(this.base.size));
+        fields.add_field_method_get("Position", |_, this| Ok(this.base.position));
+        fields.add_field_method_get("AnchorPoint", |_, this| Ok(this.base.anchor_point));
         fields.add_field_method_get("Transparency", |_, this| Ok(this.transparency));
         fields.add_field_method_get("BackgroundColor3", |_, this| Ok(this.bg_color));
 
         fields.add_field_method_set("Size", |_, this, v: LuaUDim2| {
-            this.size = v;
-            let h = this.handle;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut n) = w.get_mut::<Node>(e) {
-                            n.width = v.to_bevy_val_x();
-                            n.height = v.to_bevy_val_y();
-                        }
-                    }
-                }));
+            this.base.size = v;
+            this.update_layout();
             Ok(())
         });
 
         fields.add_field_method_set("Position", |_, this, v: LuaUDim2| {
-            this.position = v;
-            let h = this.handle;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut n) = w.get_mut::<Node>(e) {
-                            n.left = v.to_bevy_val_x();
-                            n.top = v.to_bevy_val_y();
-                        }
-                    }
-                }));
+            this.base.position = v;
+            this.update_layout();
+            Ok(())
+        });
+
+        fields.add_field_method_set("AnchorPoint", |_, this, v: LuaVector2| {
+            this.base.anchor_point = v;
+            this.update_layout();
             Ok(())
         });
 
@@ -122,6 +147,10 @@ impl UserData for LuaFrame {
             Ok(())
         });
     }
+
+    fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
+        methods.add_meta_method(ToString, |_, this, ()| Ok(format!("Frame").to_owned()));
+    }
 }
 
 pub struct FrameModule;
@@ -152,8 +181,7 @@ impl LuaModule for FrameModule {
                 Ok(LuaFrame {
                     handle,
                     queue: q.clone(),
-                    size: LuaUDim2::default(),
-                    position: LuaUDim2::default(),
+                    base: GuiObject::default(),
                     bg_color: LuaColor3 {
                         r: 1.0,
                         g: 1.0,
