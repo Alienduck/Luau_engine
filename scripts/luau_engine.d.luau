@@ -153,7 +153,7 @@ declare Collider: {
 declare Camera: Camera
 
 -- ─────────────────────────────────────────────
--- task library
+-- libraries
 -- ─────────────────────────────────────────────
 
 declare task: {
@@ -161,6 +161,12 @@ declare task: {
     spawn: <T...>(f: (T...) -> (), T...) -> thread,
     defer: <T...>(f: (T...) -> (), T...) -> thread,
 }
+
+--[[
+    @param target: string
+    @return T (where T is the module require)
+]]
+declare function require(target: string): any
 
 -- Services
 

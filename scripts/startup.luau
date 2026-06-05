@@ -1,4 +1,3 @@
--- Can not be transparent for unknown reason
 local subject = Part.new()
 subject.Position = Vector3.new(0, 2, 0)
 subject.Size = Vector3.new(1, 1, 1)
@@ -44,14 +43,13 @@ end)
 
 local screen_gui = ScreenGui.new()
 
--- Transparency not working
 local container = Frame.new()
 container.Parent = screen_gui
-container.Position = Udim2.fromScale(0, 0)
+container.Position = Udim2.fromScale(.25, .25)
 container.Size = Udim2.fromScale(.5, .5)
-container.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+container.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 container.Transparency = 0.5
 
 task.wait(10)
-print("disconnect")
+require("scripts/test_require").test()
 connection:Disconnect()
