@@ -11,7 +11,8 @@ use luau_classes::{
         screen_gui::ScreenGuiModule,
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, udim2::Udim2Module, vector3::Vector3Module,
+        cframe::CFrameModule, color3::Color3Module, gui_object::apply_anchor_point_optimized,
+        udim2::Udim2Module, vector2::Vector2Module, vector3::Vector3Module,
     },
 };
 use luau_runtime::{
@@ -88,11 +89,13 @@ fn main() {
             )
                 .chain(),
         )
+        // .add_systems(PostUpdate, (apply_anchor_point_optimized).chain())
         .run();
 }
 
 fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
     let modules: &[(&str, fn(&mlua::Lua, &EngineQueue) -> mlua::Result<()>)] = &[
+        (Vector2Module::name(), Vector2Module::register),
         (Vector3Module::name(), Vector3Module::register),
         (Color3Module::name(), Color3Module::register),
         (CFrameModule::name(), CFrameModule::register),
