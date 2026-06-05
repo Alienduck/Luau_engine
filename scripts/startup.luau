@@ -45,11 +45,36 @@ local screen_gui = ScreenGui.new()
 
 local container = Frame.new()
 container.Parent = screen_gui
-container.Position = Udim2.fromScale(.25, .25)
+container.AnchorPoint = Vector2.new(1, .5)
+container.Position = Udim2.fromScale(1, .5)
 container.Size = Udim2.fromScale(.5, .5)
 container.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 container.Transparency = 0.8
 
+local t = {
+    actual = 1,
+    [1] = Vector2.zero,
+    [2] = Vector2.new(1, 0),
+    [3] = Vector2.one,
+    [4] = Vector2.new(0, 1),
+}
+
+function t.next(self)
+    if self.actual == 4 then
+        self.actual = 1
+        return
+    end
+    self.actual += 1
+end
+
+UserInputService.InputBegan:Connect(function(key: string, device: string)
+    if key == "KeyQ" then
+        t:next()
+        local corner = t[t.actual]
+        container.AnchorPoint = corner
+        container.Position = Udim2.new(corner.X, 0, corner.Y, 0)
+    end
+end)
 local test = require("scripts/test_require")
 task.wait(10)
 connection:Disconnect()
