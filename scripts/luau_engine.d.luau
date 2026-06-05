@@ -5,6 +5,15 @@
 -- Primitive types
 -- ─────────────────────────────────────────────
 
+export type Vector2 = {
+    X: number, Y: number,
+    Dot: (self: Vector3, other: Vector3) -> number,
+    Cross: (self: Vector3, other: Vector3) -> Vector3,
+    Magnitude: (self: Vector3) -> number,
+    Normalize: (self: Vector3) -> Vector3,
+    Lerp: (self: Vector3, goal: Vector3, alpha: number) -> Vector3,
+}
+
 export type Vector3 = {
     X: number, Y: number, Z: number,
     Dot: (self: Vector3, other: Vector3) -> number,
@@ -53,6 +62,7 @@ export type Part = {
 export type Frame<t> = {
     Size: Udim2,
     Position: Udim2,
+    AnchorPoint: Vector2,
     BackgroundColor3: Color3,
     Transparency: number,
     Parent: t,
@@ -104,6 +114,12 @@ export type RunService = {
 -- ─────────────────────────────────────────────
 -- Global constructors
 -- ─────────────────────────────────────────────
+
+declare Vector2: {
+    new: (x: number, y: number) -> Vector2,
+    zero: Vector2,
+    one: Vector2,
+}
 
 declare Vector3: {
     new: (x: number, y: number, z: number) -> Vector3,
