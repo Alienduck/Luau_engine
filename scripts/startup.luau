@@ -53,14 +53,15 @@ container.Transparency = 0.8
 
 local t = {
     actual = 1,
-    [1] = Vector2.zero,
+    [1] = Vector2.zero(),
     [2] = Vector2.new(1, 0),
-    [3] = Vector2.one,
+    [3] = Vector2.one(),
     [4] = Vector2.new(0, 1),
+    [5] = Vector2.new(.5, .5),
 }
 
 function t.next(self)
-    if self.actual == 4 then
+    if self.actual == 5 then
         self.actual = 1
         return
     end
@@ -72,9 +73,15 @@ UserInputService.InputBegan:Connect(function(key: string, device: string)
         t:next()
         local corner = t[t.actual]
         container.AnchorPoint = corner
-        container.Position = Udim2.new(corner.X, 0, corner.Y, 0)
+        container.Position = Udim2.fromScale(corner.X, corner.Y)
     end
 end)
+
+local f = Frame.new()
+f.Parent = container
+f.AnchorPoint = Vector2.new(.5, .5)
+f.Position = Udim2.fromScale(.5, .5)
+
 local test = require("scripts/test_require")
 task.wait(10)
 connection:Disconnect()
