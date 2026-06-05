@@ -30,3 +30,9 @@ impl Default for EngineApp {
         Self::new()
     }
 }
+
+/// An object to compute the Gui Anchor point when the window is resized
+#[derive(Component, Default)]
+pub struct GuiObjectData {
+    pub anchor_point: Vec2,
+}
