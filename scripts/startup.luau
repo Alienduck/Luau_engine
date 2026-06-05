@@ -50,7 +50,7 @@ container.Parent = screen_gui
 container.Position = Udim2.fromScale(0, 0)
 container.Size = Udim2.fromScale(.5, .5)
 container.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
-container.Transparency = 1
+container.Transparency = 0.5
 
 task.wait(10)
 print("disconnect")
