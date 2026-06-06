@@ -82,6 +82,6 @@ f.Parent = container
 f.AnchorPoint = Vector2.new(.5, .5)
 f.Position = Udim2.fromScale(.5, .5)
 
-local test = require("scripts/test_require")
+local _test = require("scripts/test_require")
 task.wait(10)
 connection:Disconnect()
