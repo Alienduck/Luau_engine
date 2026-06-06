@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use crate::types::{
     color3::LuaColor3, gui_object::GuiObject, udim2::LuaUDim2, vector2::LuaVector2,
 };
@@ -149,7 +147,7 @@ impl UserData for LuaFrame {
     }
 
     fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
-        methods.add_meta_method(ToString, |_, this, ()| Ok(format!("Frame").to_owned()));
+        methods.add_meta_method(ToString, |_, _this, ()| Ok(format!("Frame").to_owned()));
     }
 }
 
