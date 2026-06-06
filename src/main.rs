@@ -11,8 +11,8 @@ use luau_classes::{
         screen_gui::ScreenGuiModule,
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, gui_object::apply_anchor_point_optimized,
-        udim2::Udim2Module, vector2::Vector2Module, vector3::Vector3Module,
+        cframe::CFrameModule, color3::Color3Module, udim2::Udim2Module, vector2::Vector2Module,
+        vector3::Vector3Module,
     },
 };
 use luau_runtime::{
