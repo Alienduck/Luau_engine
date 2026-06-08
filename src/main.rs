@@ -3,6 +3,7 @@ use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
+        base_part::{BasePartTouchedMessage, process_touched_msg, rapier_collision_bridge},
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         collider::ColliderModule,
         frame::FrameModule,
@@ -71,13 +72,17 @@ fn main() {
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
+        .add_message::<BasePartTouchedMessage>()
         .insert_resource(engine_queue)
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
-        .add_systems(PreUpdate, (update_action_states).chain())
+        .add_systems(
+            PreUpdate,
+            (update_action_states, rapier_collision_bridge).chain(),
+        )
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
@@ -86,10 +91,10 @@ fn main() {
                 process_engine_queue,
                 trigger_user_input,
                 trigger_run_service,
+                process_touched_msg,
             )
                 .chain(),
         )
-        // .add_systems(PostUpdate, (apply_anchor_point_optimized).chain())
         .run();
 }
 
