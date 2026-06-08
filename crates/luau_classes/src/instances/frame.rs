@@ -1,5 +1,6 @@
 use crate::types::{
-    color3::LuaColor3, gui_object::GuiObject, udim2::LuaUDim2, vector2::LuaVector2,
+    color3::LuaColor3, gui_object::GuiObject, instance::InstanceData, udim2::LuaUDim2,
+    vector2::LuaVector2,
 };
 use bevy::prelude::*;
 use luau_runtime::{
@@ -12,26 +13,26 @@ use luau_runtime::{
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields};
 
 pub struct LuaFrame {
-    pub handle: u64,
-    pub queue: EngineQueue,
-    pub base: GuiObject,
+    pub base: InstanceData,
+    pub gui: GuiObject,
     pub transparency: f32,
     pub bg_color: LuaColor3,
 }
 
 impl LuaFrame {
     fn update_layout(&self) {
-        let h = self.handle;
-        let s = self.base.size;
-        let p = self.base.position;
-        let a = self.base.anchor_point;
+        let h = self.base.handle;
+        let s = self.gui.size;
+        let p = self.gui.position;
+        let a = self.gui.anchor_point;
 
         let scale_x = p.x_scale - (s.x_scale * a.x);
         let offset_x = p.x_offset - (s.x_offset * a.x);
         let scale_y = p.y_scale - (s.y_scale * a.y);
         let offset_y = p.y_offset - (s.y_offset * a.y);
 
-        self.queue
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
@@ -60,35 +61,36 @@ impl LuaFrame {
 
 impl UserData for LuaFrame {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
-        fields.add_field_method_get("Size", |_, this| Ok(this.base.size));
-        fields.add_field_method_get("Position", |_, this| Ok(this.base.position));
-        fields.add_field_method_get("AnchorPoint", |_, this| Ok(this.base.anchor_point));
+        fields.add_field_method_get("Size", |_, this| Ok(this.gui.size));
+        fields.add_field_method_get("Position", |_, this| Ok(this.gui.position));
+        fields.add_field_method_get("AnchorPoint", |_, this| Ok(this.gui.anchor_point));
         fields.add_field_method_get("Transparency", |_, this| Ok(this.transparency));
         fields.add_field_method_get("BackgroundColor3", |_, this| Ok(this.bg_color));
 
         fields.add_field_method_set("Size", |_, this, v: LuaUDim2| {
-            this.base.size = v;
+            this.gui.size = v;
             this.update_layout();
             Ok(())
         });
 
         fields.add_field_method_set("Position", |_, this, v: LuaUDim2| {
-            this.base.position = v;
+            this.gui.position = v;
             this.update_layout();
             Ok(())
         });
 
         fields.add_field_method_set("AnchorPoint", |_, this, v: LuaVector2| {
-            this.base.anchor_point = v;
+            this.gui.anchor_point = v;
             this.update_layout();
             Ok(())
         });
 
         fields.add_field_method_set("BackgroundColor3", |_, this, c: LuaColor3| {
             this.bg_color = c;
-            let h = this.handle;
+            let h = this.base.handle;
             let t = this.transparency;
-            this.queue
+            this.base
+                .queue
                 .0
                 .lock()
                 .unwrap()
@@ -104,9 +106,10 @@ impl UserData for LuaFrame {
 
         fields.add_field_method_set("Transparency", |_, this, t: f32| {
             this.transparency = t;
-            let h = this.handle;
+            let h = this.base.handle;
             let c = this.bg_color;
-            this.queue
+            this.base
+                .queue
                 .0
                 .lock()
                 .unwrap()
@@ -123,14 +126,15 @@ impl UserData for LuaFrame {
         fields.add_field_method_set("Parent", |_, this, parent: mlua::AnyUserData| {
             let parent_handle =
                 if let Ok(sg) = parent.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
-                    sg.handle
+                    sg.base.handle
                 } else if let Ok(f) = parent.borrow::<LuaFrame>() {
-                    f.handle
+                    f.base.handle
                 } else {
                     return Err(mlua::Error::runtime("Invalid parent for Frame"));
                 };
-            let h = this.handle;
-            this.queue
+            let h = this.base.handle;
+            this.base
+                .queue
                 .0
                 .lock()
                 .unwrap()
@@ -177,9 +181,8 @@ impl LuaModule for FrameModule {
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
                 }));
                 Ok(LuaFrame {
-                    handle,
-                    queue: q.clone(),
-                    base: GuiObject::default(),
+                    base: InstanceData::new(handle, q.clone(), "Frame"),
+                    gui: GuiObject::default(),
                     bg_color: LuaColor3 {
                         r: 1.0,
                         g: 1.0,

@@ -1,16 +1,18 @@
-use crate::types::vector3::LuaVector3;
+use crate::types::{instance::InstanceData, vector3::LuaVector3};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use luau_runtime::{
-    bridge::{handle::HandleMap, queue::EngineQueue},
+    bridge::{
+        handle::{HandleMap, next_handle},
+        queue::EngineQueue,
+    },
     registry::LuaModule,
 };
 use mlua::{Lua, UserData, UserDataFields};
 
 pub struct LuaCollider {
-    pub queue: EngineQueue,
+    pub base: InstanceData,
     pub size: LuaVector3,
-    pub parent_handle: Option<u64>,
 }
 
 impl UserData for LuaCollider {
@@ -19,13 +21,14 @@ impl UserData for LuaCollider {
 
         fields.add_field_method_set("Size", |_, this, v: LuaVector3| {
             this.size = v;
-            let current_parent = this.parent_handle;
+            let current_parent = this.base.parent_handle;
             let hx = v.x / 2.0;
             let hy = v.y / 2.0;
             let hz = v.z / 2.0;
 
             if let Some(handle) = current_parent {
-                this.queue
+                this.base
+                    .queue
                     .0
                     .lock()
                     .unwrap()
@@ -44,19 +47,19 @@ impl UserData for LuaCollider {
         });
 
         fields.add_field_method_set("Parent", |_, this, parent: Option<mlua::AnyUserData>| {
-            let new_handle = match parent {
-                Some(p) => Some(p.borrow::<crate::instances::part::LuaPart>()?.0.base.handle),
-                None => None,
-            };
+            let old_handle = this.base.parent_handle;
+            let new_handle = parent
+                .as_ref()
+                .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
 
-            let old_handle = this.parent_handle;
-            this.parent_handle = new_handle;
+            this.base.set_parent(parent);
 
             let hx = this.size.x / 2.0;
             let hy = this.size.y / 2.0;
             let hz = this.size.z / 2.0;
 
-            this.queue
+            this.base
+                .queue
                 .0
                 .lock()
                 .unwrap()
@@ -64,7 +67,7 @@ impl UserData for LuaCollider {
                     if let Some(old) = old_handle {
                         if let Some(old_entity) = w.resource::<HandleMap>().get_entity(old) {
                             if let Ok(mut e) = w.get_entity_mut(old_entity) {
-                                e.remove::<Collider>();
+                                e.remove::<(Collider, ActiveEvents)>();
                             }
                         }
                     }
@@ -97,14 +100,19 @@ impl LuaModule for ColliderModule {
         t.set(
             "new",
             lua.create_function(move |_, ()| {
+                let handle = next_handle();
+                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                    let entity = w.spawn((Transform::default(),)).id();
+                    w.resource_mut::<HandleMap>().insert(handle, entity, None);
+                }));
+
                 Ok(LuaCollider {
-                    queue: q.clone(),
+                    base: InstanceData::new(handle, q.clone(), "Collider"),
                     size: LuaVector3 {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    parent_handle: None,
                 })
             })?,
         )?;

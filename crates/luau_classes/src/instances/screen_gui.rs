@@ -1,3 +1,4 @@
+use crate::types::instance::InstanceData;
 use bevy::prelude::*;
 use luau_runtime::{
     bridge::{
@@ -9,7 +10,7 @@ use luau_runtime::{
 use mlua::{Lua, UserData};
 
 pub struct LuaScreenGui {
-    pub handle: u64,
+    pub base: InstanceData,
 }
 
 impl UserData for LuaScreenGui {}
@@ -37,7 +38,9 @@ impl LuaModule for ScreenGuiModule {
                         .id();
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
                 }));
-                Ok(LuaScreenGui { handle })
+                Ok(LuaScreenGui {
+                    base: InstanceData::new(handle, q.clone(), "ScreenGui"),
+                })
             })?,
         )?;
         lua.globals().set("ScreenGui", t)

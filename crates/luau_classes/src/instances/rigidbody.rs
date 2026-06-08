@@ -1,14 +1,18 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use luau_runtime::{
-    bridge::{handle::HandleMap, queue::EngineQueue},
+    bridge::{
+        handle::{HandleMap, next_handle},
+        queue::EngineQueue,
+    },
     registry::LuaModule,
 };
 use mlua::{Lua, UserData, UserDataFields};
 
+use crate::types::instance::InstanceData;
+
 pub struct LuaRigidbody {
-    pub queue: EngineQueue,
-    pub handle_parent: Option<u64>,
+    pub base: InstanceData,
 }
 
 impl UserData for LuaRigidbody {
@@ -18,9 +22,10 @@ impl UserData for LuaRigidbody {
                 Some(p) => Some(p.borrow::<crate::instances::part::LuaPart>()?.0.base.handle),
                 None => None,
             };
-            let old_handle = this.handle_parent;
-            this.handle_parent = new_handle;
-            this.queue
+            let old_handle = this.base.parent_handle;
+            this.base.parent_handle = new_handle;
+            this.base
+                .queue
                 .0
                 .lock()
                 .unwrap()
@@ -58,9 +63,13 @@ impl LuaModule for RigidbodyModule {
         t.set(
             "new",
             lua.create_function(move |_, ()| {
+                let handle = next_handle();
+                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                    let entity = w.spawn(RigidBody::default()).id();
+                    w.resource_mut::<HandleMap>().insert(handle, entity, None);
+                }));
                 Ok(LuaRigidbody {
-                    queue: q.clone(),
-                    handle_parent: None,
+                    base: InstanceData::new(handle, q.clone(), "Rigidbody"),
                 })
             })?,
         )?;
