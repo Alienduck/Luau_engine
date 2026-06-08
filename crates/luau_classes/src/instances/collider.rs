@@ -45,7 +45,7 @@ impl UserData for LuaCollider {
 
         fields.add_field_method_set("Parent", |_, this, parent: Option<mlua::AnyUserData>| {
             let new_handle = match parent {
-                Some(p) => Some(p.borrow::<crate::instances::part::LuaPart>()?.0.handle),
+                Some(p) => Some(p.borrow::<crate::instances::part::LuaPart>()?.0.base.handle),
                 None => None,
             };
 
