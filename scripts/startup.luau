@@ -10,12 +10,9 @@ Camera.Fov = 70
 Camera:SetSubject(subject)
 
 local floor = Part.new()
+floor.Name = "Floor"
 floor.Size = Vector3.new(10, 1, 10)
 floor.Position = Vector3.new(0, 0, 0)
-
-floor.Touched:Connect(function (hit: Part)
-  print("Touched")
-end)
 
 local floor_collider = Collider.new()
 floor_collider.Parent = floor
@@ -30,6 +27,7 @@ local connection = RunService.RenderStepped:Connect(function(dt: number)
 
         local falling_part = Part.new()
         table.insert(parts, falling_part)
+        falling_part.Name = `{#parts}FallingPart`
         local random_size = math.random(1, 2)
         falling_part.Size = Vector3.new(random_size, random_size, random_size)
         falling_part.Color = Color3.fromRGB(100, 100, 255)
@@ -41,7 +39,7 @@ local connection = RunService.RenderStepped:Connect(function(dt: number)
         local rb = Rigidbody.new()
         rb.Parent = falling_part
         falling_part.Touched:Connect(function(hit: Part)
-            print(`{#parts} Touched {hit}`)
+            print(`{falling_part.Name} Touched {hit.Name}`)
         end)
     end
 end)
