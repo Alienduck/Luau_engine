@@ -1,12 +1,12 @@
 use super::base_part::BasePartData;
-use crate::types::{cframe::LuaCFrame, color3::LuaColor3, vector3::LuaVector3};
+use crate::types::{cframe::LuaCFrame, color3::LuaColor3, signal::LuaSignal, vector3::LuaVector3};
 use bevy::{
     asset::Assets, color::Color, ecs::world::World, math::primitives::Cuboid,
     pbr::StandardMaterial, prelude::*,
 };
 use luau_runtime::{
     bridge::{
-        handle::{HandleMap, next_handle},
+        handle::{HandleMap, LuauHandle, next_handle},
         queue::EngineQueue,
     },
     registry::LuaModule,
@@ -28,6 +28,11 @@ impl UserData for LuaPart {
         fields.add_field_method_get("Size", |_, this| Ok(this.0.size));
         fields.add_field_method_get("Color", |_, this| Ok(this.0.color));
         fields.add_field_method_get("Transparency", |_, this| Ok(this.0.transparency));
+        fields.add_field_method_get("Touched", |_, this| {
+            Ok(LuaSignal {
+                id: this.0.touched_signal_id,
+            })
+        });
 
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.0.set_position(v);
@@ -69,8 +74,10 @@ impl LuaModule for PartModule {
         let t = lua.create_table()?;
         t.set(
             "new",
-            lua.create_function(move |_, ()| {
+            lua.create_function(move |lua_cache, ()| {
                 let handle = next_handle();
+                let touched_signal = LuaSignal::new(lua_cache)?;
+
                 q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
                     let mat = w
                         .resource_mut::<Assets<StandardMaterial>>()
@@ -84,12 +91,21 @@ impl LuaModule for PartModule {
                             Mesh3d(mesh),
                             MeshMaterial3d(mat.clone()),
                             Transform::default(),
+                            LuauHandle(handle),
                         ))
                         .id();
                     w.resource_mut::<HandleMap>()
                         .insert(handle, entity, Some(mat));
                 }));
-                Ok(LuaPart(BasePartData::new(handle, q.clone())))
+
+                let part = LuaPart(BasePartData::new(handle, q.clone(), touched_signal.id));
+                let userdata = lua_cache.clone().create_userdata(part)?;
+
+                if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
+                {
+                    let _ = cache.set(handle, userdata.clone());
+                }
+                Ok(userdata)
             })?,
         )?;
         lua.globals().set("Part", t)
