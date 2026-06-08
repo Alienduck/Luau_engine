@@ -19,14 +19,8 @@ pub struct BasePartData {
     pub transparency: f32,
 }
 
-#[derive(Message)]
-pub struct BasePartTouchedMessage {
-    pub entity: Entity,
-    pub other_entity: Entity,
-}
-
-pub fn process_touched_msg(
-    mut messages: MessageReader<BasePartTouchedMessage>,
+pub fn process_collisions(
+    mut rapier_msg: MessageReader<CollisionEvent>,
     vm: NonSend<LuaVm>,
     handle_query: Query<&LuauHandle>,
 ) {
@@ -37,43 +31,32 @@ pub fn process_touched_msg(
         return;
     };
 
-    // Just find this, Rust is GOATED
-    'test: for msg in messages.read() {
-        let Ok(handle_self) = handle_query.get(msg.entity) else {
-            continue 'test; // Can name the f*cking core loop (https://doc.rust-lang.org/std/keyword.continue.html)
+    for msg in rapier_msg.read() {
+        let CollisionEvent::Started(e1, e2, _) = msg else {
+            continue;
         };
-        let Ok(handle_other) = handle_query.get(msg.other_entity) else {
-            continue 'test;
-        };
-        let Ok(self_instance) = cache.get::<mlua::AnyUserData>(handle_self.0) else {
-            continue 'test;
-        };
-        let Ok(other_instance) = cache.get::<mlua::AnyUserData>(handle_other.0) else {
-            continue 'test;
-        };
-        if let Ok(self_part) = self_instance.borrow::<crate::instances::part::LuaPart>() {
-            let signal = LuaSignal {
-                id: self_part.0.touched_signal_id,
-            };
-            let _ = signal.fire(&vm.lua, other_instance);
-        }
-    }
-}
 
-pub fn rapier_collision_bridge(
-    mut rapier_events: MessageReader<CollisionEvent>,
-    mut touched_messages: MessageWriter<BasePartTouchedMessage>,
-) {
-    for event in rapier_events.read() {
-        if let CollisionEvent::Started(e1, e2, _) = event {
-            touched_messages.write(BasePartTouchedMessage {
-                entity: *e1,
-                other_entity: *e2,
-            });
-            touched_messages.write(BasePartTouchedMessage {
-                entity: *e2,
-                other_entity: *e1,
-            });
+        for (self_e, other_e) in [(*e1, *e2), (*e2, *e1)] {
+            let Ok(handle_self) = handle_query.get(self_e) else {
+                continue;
+            };
+            let Ok(handle_other) = handle_query.get(other_e) else {
+                continue;
+            };
+
+            let Ok(self_ud) = cache.get::<mlua::AnyUserData>(handle_self.0) else {
+                continue;
+            };
+            let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other.0) else {
+                continue;
+            };
+
+            if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
+                let signal = LuaSignal {
+                    id: part.0.touched_signal_id,
+                };
+                let _ = signal.fire(&vm.lua, other_ud);
+            }
         }
     }
 }
