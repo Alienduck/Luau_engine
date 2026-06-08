@@ -11,12 +11,13 @@ use luau_runtime::{
     },
     registry::LuaModule,
 };
-use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
+use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
 
 pub struct LuaPart(pub BasePartData);
 
 impl UserData for LuaPart {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
+        fields.add_field_method_get("Name", |_, this| Ok(this.0.base.name.clone()));
         fields.add_field_method_get("Position", |_, this| {
             Ok(LuaVector3 {
                 x: this.0.cframe.position.x,
@@ -33,7 +34,21 @@ impl UserData for LuaPart {
                 id: this.0.touched_signal_id,
             })
         });
+        fields.add_field_method_get("Parent", |lua, this| {
+            if let Some(parent_handle) = this.0.base.parent_handle {
+                let instances_map: mlua::Table = lua.named_registry_value("__instance_cache")?;
+                let parent_userdata: Option<mlua::AnyUserData> =
+                    instances_map.get(parent_handle)?;
+                Ok(parent_userdata)
+            } else {
+                Ok(None)
+            }
+        });
 
+        fields.add_field_method_set("Name", |_, this, v: String| {
+            this.0.base.set_name(v);
+            Ok(())
+        });
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.0.set_position(v);
             Ok(())
@@ -54,8 +69,13 @@ impl UserData for LuaPart {
             this.0.set_transparency(t);
             Ok(())
         });
+        fields.add_field_method_set("Parent", |_, this, parent: Option<mlua::AnyUserData>| {
+            this.0.base.set_parent(parent);
+            Ok(())
+        });
     }
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_meta_method(ToString, |_, this, ()| Ok(this.0.base.name.clone()));
         methods.add_method("Destroy", |_, this, ()| {
             this.0.destroy();
             Ok(())
