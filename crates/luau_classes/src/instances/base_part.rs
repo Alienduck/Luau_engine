@@ -1,9 +1,17 @@
-use crate::types::{cframe::LuaCFrame, color3::LuaColor3, vector3::LuaVector3};
+use crate::types::{cframe::LuaCFrame, color3::LuaColor3, signal::LuaSignal, vector3::LuaVector3};
 use bevy::{ecs::world::World, math::Vec3, prelude::*, transform::components::Transform};
-use luau_runtime::bridge::{handle::HandleMap, queue::EngineQueue};
+use bevy_rapier3d::pipeline::CollisionEvent;
+use luau_runtime::{
+    bridge::{
+        handle::{HandleMap, LuauHandle},
+        queue::EngineQueue,
+    },
+    vm::LuaVm,
+};
 
 pub struct BasePartData {
     pub handle: u64,
+    pub touched_signal_id: u64,
     pub queue: EngineQueue,
     pub cframe: LuaCFrame,
     pub size: LuaVector3,
@@ -11,10 +19,70 @@ pub struct BasePartData {
     pub transparency: f32,
 }
 
+#[derive(Message)]
+pub struct BasePartTouchedMessage {
+    pub entity: Entity,
+    pub other_entity: Entity,
+}
+
+pub fn process_touched_msg(
+    mut messages: MessageReader<BasePartTouchedMessage>,
+    vm: NonSend<LuaVm>,
+    handle_query: Query<&LuauHandle>,
+) {
+    let Ok(cache) = vm
+        .lua
+        .named_registry_value::<mlua::Table>("__instance_cache")
+    else {
+        return;
+    };
+
+    // Just find this, Rust is GOATED
+    'test: for msg in messages.read() {
+        let Ok(handle_self) = handle_query.get(msg.entity) else {
+            continue 'test; // Can name the f*cking core loop (https://doc.rust-lang.org/std/keyword.continue.html)
+        };
+        let Ok(handle_other) = handle_query.get(msg.other_entity) else {
+            continue 'test;
+        };
+        let Ok(self_instance) = cache.get::<mlua::AnyUserData>(handle_self.0) else {
+            continue 'test;
+        };
+        let Ok(other_instance) = cache.get::<mlua::AnyUserData>(handle_other.0) else {
+            continue 'test;
+        };
+        if let Ok(self_part) = self_instance.borrow::<crate::instances::part::LuaPart>() {
+            let signal = LuaSignal {
+                id: self_part.0.touched_signal_id,
+            };
+            let _ = signal.fire(&vm.lua, other_instance);
+        }
+    }
+}
+
+pub fn rapier_collision_bridge(
+    mut rapier_events: MessageReader<CollisionEvent>,
+    mut touched_messages: MessageWriter<BasePartTouchedMessage>,
+) {
+    for event in rapier_events.read() {
+        if let CollisionEvent::Started(e1, e2, _) = event {
+            touched_messages.write(BasePartTouchedMessage {
+                entity: *e1,
+                other_entity: *e2,
+            });
+            touched_messages.write(BasePartTouchedMessage {
+                entity: *e2,
+                other_entity: *e1,
+            });
+        }
+    }
+}
+
 impl BasePartData {
-    pub fn new(handle: u64, queue: EngineQueue) -> Self {
+    pub fn new(handle: u64, queue: EngineQueue, touched_signal_id: u64) -> Self {
         Self {
             handle,
+            touched_signal_id,
             queue,
             cframe: LuaCFrame::default(),
             size: LuaVector3 {
