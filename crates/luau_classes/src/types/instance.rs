@@ -59,10 +59,10 @@ pub fn instance_handle_from_any(ud: &mlua::AnyUserData) -> Option<u64> {
         return Some(p.0.base.handle);
     }
     if let Ok(f) = ud.borrow::<crate::instances::frame::LuaFrame>() {
-        return Some(f.handle);
+        return Some(f.base.handle);
     }
     if let Ok(sg) = ud.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
-        return Some(sg.handle);
+        return Some(sg.base.handle);
     }
     None
 }
