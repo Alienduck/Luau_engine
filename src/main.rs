@@ -3,7 +3,7 @@ use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
-        base_part::{BasePartTouchedMessage, process_touched_msg, rapier_collision_bridge},
+        base_part::process_collisions,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         collider::ColliderModule,
         frame::FrameModule,
@@ -65,14 +65,13 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Luau Engine".into(),
-                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                mode: WindowMode::Windowed,
                 ..default()
             }),
             ..default()
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
-        .add_message::<BasePartTouchedMessage>()
         .insert_resource(engine_queue)
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
@@ -81,7 +80,7 @@ fn main() {
         .insert_non_send_resource(scheduler)
         .add_systems(
             PreUpdate,
-            (update_action_states, rapier_collision_bridge).chain(),
+            (update_action_states, process_collisions).chain(),
         )
         .add_systems(Startup, setup_scene)
         .add_systems(
@@ -91,7 +90,6 @@ fn main() {
                 process_engine_queue,
                 trigger_user_input,
                 trigger_run_service,
-                process_touched_msg,
             )
                 .chain(),
         )
