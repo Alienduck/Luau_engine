@@ -29,7 +29,7 @@ local connection = RunService.RenderStepped:Connect(function(dt: number)
         accumulator -= 1.0
 
         local falling_part = Part.new()
-        parts[#parts] = falling_part
+        table.insert(parts, falling_part)
         local random_size = math.random(1, 2)
         falling_part.Size = Vector3.new(random_size, random_size, random_size)
         falling_part.Color = Color3.fromRGB(100, 100, 255)
@@ -40,6 +40,9 @@ local connection = RunService.RenderStepped:Connect(function(dt: number)
         col.Parent = falling_part
         local rb = Rigidbody.new()
         rb.Parent = falling_part
+        falling_part.Touched:Connect(function(hit: Part)
+            print(`{#parts} Touched {hit}`)
+        end)
     end
 end)
 
