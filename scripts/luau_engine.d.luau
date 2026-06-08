@@ -7,11 +7,11 @@
 
 export type Vector2 = {
     X: number, Y: number,
-    Dot: (self: Vector3, other: Vector3) -> number,
-    Cross: (self: Vector3, other: Vector3) -> Vector3,
-    Magnitude: (self: Vector3) -> number,
-    Normalize: (self: Vector3) -> Vector3,
-    Lerp: (self: Vector3, goal: Vector3, alpha: number) -> Vector3,
+    Dot: (self: Vector2, other: Vector2) -> number,
+    Cross: (self: Vector2, other: Vector2) -> Vector2,
+    Magnitude: (self: Vector2) -> number,
+    Normalize: (self: Vector2) -> Vector2,
+    Lerp: (self: Vector2, goal: Vector2, alpha: number) -> Vector2,
 }
 
 export type Vector3 = {
@@ -50,7 +50,13 @@ export type Udim2 = {
 -- Instance types
 -- ─────────────────────────────────────────────
 
-export type Part = {
+export type Instance = {
+    Name: string,
+    ClassName: string,
+    Parent: Instance
+}
+
+export type Part = Instance & {
     Position: Vector3,
     Size: Vector3,
     Handle: number,
@@ -60,16 +66,15 @@ export type Part = {
     Destroy: (self: Part) -> (),
 }
 
-export type Frame<t> = {
+export type Frame = Instance & {
     Size: Udim2,
     Position: Udim2,
     AnchorPoint: Vector2,
     BackgroundColor3: Color3,
     Transparency: number,
-    Parent: t,
 }
 
-export type ScreenGui = {}
+export type ScreenGui = Instance & {}
 
 export type Camera = {
     FirstPerson: boolean,
@@ -83,13 +88,9 @@ export type Camera = {
     SetLockBinding: (self: Camera, device: string, name: string) -> (),
 }
 
-export type Rigidbody<t> = {
-    Parent: t
-}
+export type Rigidbody = Instance & {}
 
-export type Collider<t> = {
-    Parent: t
-}
+export type Collider = Instance & {}
 
 export type RBXScriptConnection = {
     Disconnect: (self: RBXScriptConnection) -> (),
@@ -151,7 +152,7 @@ declare Part: {
 }
 
 declare Frame: {
-    new: <t>() -> Frame<t>,
+    new: () -> Frame,
 }
 
 declare ScreenGui: {
@@ -159,11 +160,11 @@ declare ScreenGui: {
 }
 
 declare Rigidbody: {
-    new: <t>() -> Rigidbody<t>
+    new: () -> Rigidbody
 }
 
 declare Collider: {
-    new: <t>() -> Collider<t>
+    new: () -> Collider
 }
 
 --- Singleton camera — one per scene, configured from Luau.
