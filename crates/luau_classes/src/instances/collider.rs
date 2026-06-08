@@ -32,7 +32,10 @@ impl UserData for LuaCollider {
                     .push(Box::new(move |w: &mut World| {
                         if let Some(entity) = w.resource::<HandleMap>().get_entity(handle) {
                             if let Ok(mut e) = w.get_entity_mut(entity) {
-                                e.insert(Collider::cuboid(hx, hy, hz));
+                                e.insert((
+                                    Collider::cuboid(hx, hy, hz),
+                                    ActiveEvents::COLLISION_EVENTS,
+                                ));
                             }
                         }
                     }));
@@ -69,7 +72,10 @@ impl UserData for LuaCollider {
                     if let Some(new_h) = new_handle {
                         if let Some(new_entity) = w.resource::<HandleMap>().get_entity(new_h) {
                             if let Ok(mut e) = w.get_entity_mut(new_entity) {
-                                e.insert(Collider::cuboid(hx, hy, hz));
+                                e.insert((
+                                    Collider::cuboid(hx, hy, hz),
+                                    ActiveEvents::COLLISION_EVENTS,
+                                ));
                             }
                         }
                     }
