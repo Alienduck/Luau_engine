@@ -1,4 +1,7 @@
-use crate::types::{cframe::LuaCFrame, color3::LuaColor3, signal::LuaSignal, vector3::LuaVector3};
+use crate::types::{
+    cframe::LuaCFrame, color3::LuaColor3, instance::InstanceData, signal::LuaSignal,
+    vector3::LuaVector3,
+};
 use bevy::{ecs::world::World, math::Vec3, prelude::*, transform::components::Transform};
 use bevy_rapier3d::pipeline::CollisionEvent;
 use luau_runtime::{
@@ -10,9 +13,8 @@ use luau_runtime::{
 };
 
 pub struct BasePartData {
-    pub handle: u64,
+    pub base: InstanceData,
     pub touched_signal_id: u64,
-    pub queue: EngineQueue,
     pub cframe: LuaCFrame,
     pub size: LuaVector3,
     pub color: LuaColor3,
@@ -64,9 +66,8 @@ pub fn process_collisions(
 impl BasePartData {
     pub fn new(handle: u64, queue: EngineQueue, touched_signal_id: u64) -> Self {
         Self {
-            handle,
+            base: InstanceData::new(handle, queue, "Part"),
             touched_signal_id,
-            queue,
             cframe: LuaCFrame::default(),
             size: LuaVector3 {
                 x: 1.0,
@@ -84,8 +85,9 @@ impl BasePartData {
 
     pub fn set_position(&mut self, p: LuaVector3) {
         self.cframe.position = Vec3::new(p.x, p.y, p.z);
-        let h = self.handle;
-        self.queue
+        let h = self.base.handle;
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
@@ -100,8 +102,9 @@ impl BasePartData {
 
     pub fn set_cframe(&mut self, cf: LuaCFrame) {
         self.cframe = cf;
-        let h = self.handle;
-        self.queue
+        let h = self.base.handle;
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
@@ -117,8 +120,9 @@ impl BasePartData {
 
     pub fn set_size(&mut self, v: LuaVector3) {
         self.size = v;
-        let h = self.handle;
-        self.queue
+        let h = self.base.handle;
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
@@ -133,9 +137,10 @@ impl BasePartData {
 
     pub fn set_color(&mut self, c: LuaColor3) {
         self.color = c;
-        let h = self.handle;
+        let h = self.base.handle;
         let t = self.transparency;
-        self.queue
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
@@ -157,9 +162,10 @@ impl BasePartData {
 
     pub fn set_transparency(&mut self, t: f32) {
         self.transparency = t;
-        let h = self.handle;
+        let h = self.base.handle;
         let c = self.color;
-        self.queue
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
@@ -185,8 +191,9 @@ impl BasePartData {
     }
 
     pub fn destroy(&self) {
-        let h = self.handle;
-        self.queue
+        let h = self.base.handle;
+        self.base
+            .queue
             .0
             .lock()
             .unwrap()
