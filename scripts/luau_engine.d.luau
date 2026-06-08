@@ -56,6 +56,7 @@ export type Part = {
     Handle: number,
     Color: Color3,
     Transparency: number,
+    Touched: RBXScriptSignal<Part>,
     Destroy: (self: Part) -> (),
 }
 
