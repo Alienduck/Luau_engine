@@ -10,6 +10,7 @@ use luau_classes::{
         part::PartModule,
         rigidbody::RigidbodyModule,
         screen_gui::ScreenGuiModule,
+        workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
         cframe::CFrameModule, color3::Color3Module, udim2::Udim2Module, vector2::Vector2Module,
@@ -90,6 +91,7 @@ fn main() {
                 process_engine_queue,
                 trigger_user_input,
                 trigger_run_service,
+                sync_dormancy_system,
             )
                 .chain(),
         )
@@ -111,6 +113,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (ScreenGuiModule::name(), ScreenGuiModule::register),
         (FrameModule::name(), FrameModule::register),
         (Udim2Module::name(), Udim2Module::register),
+        (WorkspaceModule::name(), WorkspaceModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
