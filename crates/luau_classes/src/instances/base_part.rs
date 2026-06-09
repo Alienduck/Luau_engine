@@ -12,6 +12,7 @@ use luau_runtime::{
     vm::LuaVm,
 };
 
+#[derive(Clone)]
 pub struct BasePartData {
     pub base: InstanceData,
     pub touched_signal_id: u64,
@@ -81,6 +82,52 @@ impl BasePartData {
             },
             transparency: 0.0,
         }
+    }
+
+    pub fn clone_with_new_ids(&self, new_handle: u64, new_sig: u64) -> Self {
+        let mut cloned = self.clone();
+        cloned.base.handle = new_handle;
+        cloned.base.parent_handle = None;
+        cloned.base.children_handles.clear();
+        cloned.touched_signal_id = new_sig;
+        cloned
+    }
+
+    pub fn apply_to_bevy(&self, entity: Entity, w: &mut World) {
+        let mat = w
+            .resource_mut::<Assets<StandardMaterial>>()
+            .add(StandardMaterial {
+                base_color: Color::srgba(
+                    self.color.r,
+                    self.color.g,
+                    self.color.b,
+                    1.0 - self.transparency,
+                ),
+                alpha_mode: if self.transparency > 0.0 {
+                    AlphaMode::Blend
+                } else {
+                    AlphaMode::Opaque
+                },
+                ..default()
+            });
+
+        let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
+
+        if let Ok(mut e) = w.get_entity_mut(entity) {
+            e.insert((
+                Mesh3d(mesh),
+                MeshMaterial3d(mat.clone()),
+                Transform {
+                    translation: self.cframe.position,
+                    rotation: self.cframe.rotation,
+                    scale: Vec3::new(self.size.x, self.size.y, self.size.z),
+                },
+                Visibility::Hidden,
+                LuauHandle(self.base.handle),
+            ));
+        }
+        w.resource_mut::<HandleMap>()
+            .insert(self.base.handle, entity, Some(mat));
     }
 
     pub fn set_position(&mut self, p: LuaVector3) {
