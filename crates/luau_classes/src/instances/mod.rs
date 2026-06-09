@@ -5,5 +5,5 @@ pub mod frame;
 pub mod part;
 pub mod rigidbody;
 pub mod screen_gui;
+pub mod workspace;
 //TODO: pub mod model; -- future
-//TODO: pub mod workspace; -- future
