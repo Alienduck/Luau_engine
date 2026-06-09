@@ -30,3 +30,9 @@ part_rb.Parent = part
 task.wait(2)
 
 part.Parent = workspace
+
+task.wait(2)
+
+local clone_part = part:Clone()
+clone_part.Parent = workspace
+clone_part.Position = Vector3.new(0, 10, 0)
