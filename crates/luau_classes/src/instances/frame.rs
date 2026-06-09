@@ -12,6 +12,7 @@ use luau_runtime::{
 };
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields};
 
+#[derive(Clone)]
 pub struct LuaFrame {
     pub base: InstanceData,
     pub gui: GuiObject,

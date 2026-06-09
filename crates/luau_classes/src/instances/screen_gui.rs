@@ -9,6 +9,7 @@ use luau_runtime::{
 };
 use mlua::{Lua, UserData};
 
+#[derive(Clone)]
 pub struct LuaScreenGui {
     pub base: InstanceData,
 }

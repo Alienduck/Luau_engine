@@ -11,6 +11,7 @@ use mlua::{Lua, UserData, UserDataFields};
 
 use crate::types::instance::InstanceData;
 
+#[derive(Clone)]
 pub struct LuaRigidbody {
     pub base: InstanceData,
 }

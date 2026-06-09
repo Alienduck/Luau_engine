@@ -19,7 +19,7 @@ use crate::types::cframe::LuaCFrame;
 // ─────────────────────────────────────────────
 
 /// The smart camera component. Attach to the camera entity.
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct SmartCamera {
     pub subject: Option<Entity>,
     pub first_person: bool,
@@ -153,6 +153,7 @@ impl Plugin for SmartCameraPlugin {
 // Luau UserData handle
 // ─────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct LuaCamera {
     pub queue: EngineQueue,
     pub cframe: Arc<Mutex<LuaCFrame>>,

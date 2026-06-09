@@ -10,6 +10,7 @@ use luau_runtime::{
 };
 use mlua::{Lua, UserData, UserDataFields};
 
+#[derive(Clone)]
 pub struct LuaCollider {
     pub base: InstanceData,
     pub size: LuaVector3,
