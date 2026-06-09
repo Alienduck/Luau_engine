@@ -61,6 +61,74 @@ impl InstanceData {
                 }
             }));
     }
+
+    pub fn prepare_clone(&self) -> Self {
+        let mut c = self.clone();
+        c.handle = luau_runtime::bridge::handle::next_handle();
+        c.parent_handle = None;
+        c.children_handles.clear();
+        c
+    }
+
+    pub fn spawn_base_entity(&self, w: &mut World) -> Entity {
+        let entity = w
+            .spawn((
+                Transform::default(),
+                Visibility::Hidden,
+                luau_runtime::bridge::handle::LuauHandle(self.handle),
+            ))
+            .id();
+        w.resource_mut::<luau_runtime::bridge::handle::HandleMap>()
+            .insert(self.handle, entity, None);
+        entity
+    }
+}
+
+pub trait CloneableInstance: Clone + mlua::UserData {
+    fn base(&self) -> &InstanceData;
+    fn base_mut(&mut self) -> &mut InstanceData;
+
+    fn on_cloned(&mut self, _lua: &mlua::Lua) -> mlua::Result<()> {
+        Ok(())
+    }
+
+    fn apply_bevy_components(&self, entity: Entity, w: &mut World);
+}
+
+#[macro_export]
+macro_rules! impl_lua_clone {
+    ($methods:ident) => {
+        $methods.add_method("__clone_data", |lua, this, ()| {
+            use crate::types::instance::CloneableInstance;
+            let mut new_instance = this.clone();
+
+            *new_instance.base_mut() = new_instance.base().prepare_clone();
+
+            new_instance.on_cloned(lua)?;
+
+            let c = new_instance.clone();
+            new_instance.base().queue.0.lock().unwrap().push(Box::new(
+                move |w: &mut bevy::prelude::World| {
+                    let entity = c.base().spawn_base_entity(w);
+                    c.apply_bevy_components(entity, w);
+                },
+            ));
+
+            Ok(lua.create_userdata(new_instance)?)
+        });
+
+        $methods.add_method("__get_children", |_, this, ()| {
+            use crate::types::instance::CloneableInstance;
+            Ok(this.base().children_handles.clone())
+        });
+
+        $methods.add_method("Clone", |lua, this, ()| {
+            use crate::types::instance::CloneableInstance;
+            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+            let original_ud: mlua::AnyUserData = cache.get(this.base().handle)?;
+            crate::types::instance::universal_clone(lua, &original_ud, None)
+        });
+    };
 }
 
 pub fn instance_handle_from_any(ud: &mlua::AnyUserData) -> Option<u64> {
