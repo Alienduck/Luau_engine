@@ -77,11 +77,24 @@ impl UserData for LuaPart {
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.0.base.name.clone()));
         methods.add_method("Clone", |lua, this_ref, ()| {
-            let handle = this_ref.0.base.handle;
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
-            let original_ud: mlua::AnyUserData = cache.get(handle)?;
-
+            let original_ud: mlua::AnyUserData = cache.get(this_ref.0.base.handle)?;
             crate::types::instance::universal_clone(lua, &original_ud, None)
+        });
+        methods.add_method("__clone_data", |lua, this, ()| {
+            let h = luau_runtime::bridge::handle::next_handle();
+            let sig = crate::types::signal::LuaSignal::new(lua)?.id;
+            let data = this.0.clone_with_new_ids(h, sig);
+            let c = data.clone();
+            data.base.queue.0.lock().unwrap().push(Box::new(
+                move |w: &mut bevy::prelude::World| {
+                    c.apply_to_bevy(w.spawn_empty().id(), w);
+                },
+            ));
+            Ok(lua.create_userdata(LuaPart(data))?)
+        });
+        methods.add_method("__get_children", |_, this, ()| {
+            Ok(this.0.base.children_handles.clone())
         });
         methods.add_method("Destroy", |_, this, ()| {
             this.0.destroy();
