@@ -119,14 +119,14 @@ export type RunService = {
 
 declare Vector2: {
     new: (x: number, y: number) -> Vector2,
-    zero: () -> Vector2,
-    one: () -> Vector2,
+    zero: Vector2,
+    one: Vector2,
 }
 
 declare Vector3: {
     new: (x: number, y: number, z: number) -> Vector3,
-    zero: () -> Vector3,
-    one: () -> Vector3,
+    zero: Vector3,
+    one: Vector3,
 }
 
 declare Color3: {
@@ -187,6 +187,8 @@ declare task: {
 declare function require(target: string): any
 
 -- Services
+
+declare workspace: Instance
 
 declare UserInputService: UserInputService
 
