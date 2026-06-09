@@ -76,6 +76,13 @@ impl UserData for LuaPart {
     }
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.0.base.name.clone()));
+        methods.add_method("Clone", |lua, this_ref, ()| {
+            let handle = this_ref.0.base.handle;
+            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+            let original_ud: mlua::AnyUserData = cache.get(handle)?;
+
+            crate::types::instance::universal_clone(lua, &original_ud, None)
+        });
         methods.add_method("Destroy", |_, this, ()| {
             this.0.destroy();
             Ok(())
