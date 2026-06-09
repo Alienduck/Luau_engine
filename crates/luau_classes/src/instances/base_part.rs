@@ -84,50 +84,6 @@ impl BasePartData {
         }
     }
 
-    pub fn clone_with_new_ids(&self, new_handle: u64, new_sig: u64) -> Self {
-        let mut c = self.clone();
-        c.base.handle = new_handle;
-        c.base.parent_handle = None;
-        c.base.children_handles.clear();
-        c.touched_signal_id = new_sig;
-        c
-    }
-
-    pub fn apply_to_bevy(&self, entity: Entity, w: &mut World) {
-        let mat = w
-            .resource_mut::<Assets<StandardMaterial>>()
-            .add(StandardMaterial {
-                base_color: Color::srgba(
-                    self.color.r,
-                    self.color.g,
-                    self.color.b,
-                    1.0 - self.transparency,
-                ),
-                alpha_mode: if self.transparency > 0.0 {
-                    AlphaMode::Blend
-                } else {
-                    AlphaMode::Opaque
-                },
-                ..default()
-            });
-        let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
-        if let Ok(mut e) = w.get_entity_mut(entity) {
-            e.insert((
-                Mesh3d(mesh),
-                MeshMaterial3d(mat.clone()),
-                Transform {
-                    translation: self.cframe.position,
-                    rotation: self.cframe.rotation,
-                    scale: Vec3::new(self.size.x, self.size.y, self.size.z),
-                },
-                Visibility::Hidden,
-                luau_runtime::bridge::handle::LuauHandle(self.base.handle),
-            ));
-        }
-        w.resource_mut::<luau_runtime::bridge::handle::HandleMap>()
-            .insert(self.base.handle, entity, Some(mat));
-    }
-
     pub fn set_position(&mut self, p: LuaVector3) {
         self.cframe.position = Vec3::new(p.x, p.y, p.z);
         let h = self.base.handle;
