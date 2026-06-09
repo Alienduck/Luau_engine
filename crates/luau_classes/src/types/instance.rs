@@ -35,7 +35,7 @@ impl InstanceData {
             .0
             .lock()
             .unwrap()
-            .push(Box::new(move |w: &mut World| {
+            .push(Box::new(move |w: &mut bevy::prelude::World| {
                 let map = w.resource::<HandleMap>();
                 let child_e = map.get_entity(handle);
                 let parent_e = new_parent_handle.and_then(|h| map.get_entity(h));
@@ -43,7 +43,14 @@ impl InstanceData {
                 if let Some(child) = child_e {
                     if let Ok(mut e_mut) = w.get_entity_mut(child) {
                         e_mut.remove_parent_in_place();
+
+                        if parent_e.is_some() {
+                            e_mut.insert(Visibility::Inherited);
+                        } else {
+                            e_mut.insert(Visibility::Hidden);
+                        }
                     }
+
                     if let Some(parent) = parent_e {
                         if let Ok(mut p_mut) = w.get_entity_mut(parent) {
                             p_mut.add_child(child);
@@ -63,6 +70,15 @@ pub fn instance_handle_from_any(ud: &mlua::AnyUserData) -> Option<u64> {
     }
     if let Ok(sg) = ud.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
         return Some(sg.base.handle);
+    }
+    if let Ok(rb) = ud.borrow::<crate::instances::rigidbody::LuaRigidbody>() {
+        return Some(rb.base.handle);
+    }
+    if let Ok(cd) = ud.borrow::<crate::instances::collider::LuaCollider>() {
+        return Some(cd.base.handle);
+    }
+    if let Ok(ws) = ud.borrow::<crate::instances::workspace::LuaWorkspace>() {
+        return Some(ws.base.handle);
     }
     None
 }
