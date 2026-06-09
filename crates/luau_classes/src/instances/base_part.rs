@@ -85,12 +85,12 @@ impl BasePartData {
     }
 
     pub fn clone_with_new_ids(&self, new_handle: u64, new_sig: u64) -> Self {
-        let mut cloned = self.clone();
-        cloned.base.handle = new_handle;
-        cloned.base.parent_handle = None;
-        cloned.base.children_handles.clear();
-        cloned.touched_signal_id = new_sig;
-        cloned
+        let mut c = self.clone();
+        c.base.handle = new_handle;
+        c.base.parent_handle = None;
+        c.base.children_handles.clear();
+        c.touched_signal_id = new_sig;
+        c
     }
 
     pub fn apply_to_bevy(&self, entity: Entity, w: &mut World) {
@@ -110,9 +110,7 @@ impl BasePartData {
                 },
                 ..default()
             });
-
         let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
-
         if let Ok(mut e) = w.get_entity_mut(entity) {
             e.insert((
                 Mesh3d(mesh),
@@ -123,10 +121,10 @@ impl BasePartData {
                     scale: Vec3::new(self.size.x, self.size.y, self.size.z),
                 },
                 Visibility::Hidden,
-                LuauHandle(self.base.handle),
+                luau_runtime::bridge::handle::LuauHandle(self.base.handle),
             ));
         }
-        w.resource_mut::<HandleMap>()
+        w.resource_mut::<luau_runtime::bridge::handle::HandleMap>()
             .insert(self.base.handle, entity, Some(mat));
     }
 
