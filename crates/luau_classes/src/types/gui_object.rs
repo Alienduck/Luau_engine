@@ -1,5 +1,6 @@
 use crate::types::{udim2::LuaUDim2, vector2::LuaVector2};
 
+#[derive(Clone)]
 pub struct GuiObject {
     pub anchor_point: LuaVector2,
     pub position: LuaUDim2,
