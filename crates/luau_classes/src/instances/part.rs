@@ -1,19 +1,66 @@
 use super::base_part::BasePartData;
-use crate::types::{cframe::LuaCFrame, color3::LuaColor3, signal::LuaSignal, vector3::LuaVector3};
+use crate::types::{
+    cframe::LuaCFrame,
+    color3::LuaColor3,
+    instance::{CloneableInstance, InstanceData},
+    signal::LuaSignal,
+    vector3::LuaVector3,
+};
 use bevy::{
     asset::Assets, color::Color, ecs::world::World, math::primitives::Cuboid,
     pbr::StandardMaterial, prelude::*,
 };
 use luau_runtime::{
-    bridge::{
-        handle::{HandleMap, LuauHandle, next_handle},
-        queue::EngineQueue,
-    },
+    bridge::{handle::next_handle, queue::EngineQueue},
     registry::LuaModule,
 };
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
 
+#[derive(Clone)]
 pub struct LuaPart(pub BasePartData);
+
+impl CloneableInstance for LuaPart {
+    fn base(&self) -> &InstanceData {
+        &self.0.base
+    }
+    fn base_mut(&mut self) -> &mut InstanceData {
+        &mut self.0.base
+    }
+
+    fn on_cloned(&mut self, lua: &mlua::Lua) -> mlua::Result<()> {
+        self.0.touched_signal_id = crate::types::signal::LuaSignal::new(lua)?.id;
+        Ok(())
+    }
+
+    fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
+        let mat = w
+            .resource_mut::<Assets<StandardMaterial>>()
+            .add(StandardMaterial {
+                base_color: Color::srgba(
+                    self.0.color.r,
+                    self.0.color.g,
+                    self.0.color.b,
+                    1.0 - self.0.transparency,
+                ),
+                alpha_mode: if self.0.transparency > 0.0 {
+                    AlphaMode::Blend
+                } else {
+                    AlphaMode::Opaque
+                },
+                ..default()
+            });
+        let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
+
+        if let Ok(mut e) = w.get_entity_mut(entity) {
+            e.insert((Mesh3d(mesh), MeshMaterial3d(mat)));
+            if let Some(mut t) = e.get_mut::<Transform>() {
+                t.translation = self.0.cframe.position;
+                t.rotation = self.0.cframe.rotation;
+                t.scale = Vec3::new(self.0.size.x, self.0.size.y, self.0.size.z);
+            }
+        }
+    }
+}
 
 impl UserData for LuaPart {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
@@ -76,26 +123,7 @@ impl UserData for LuaPart {
     }
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.0.base.name.clone()));
-        methods.add_method("Clone", |lua, this_ref, ()| {
-            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
-            let original_ud: mlua::AnyUserData = cache.get(this_ref.0.base.handle)?;
-            crate::types::instance::universal_clone(lua, &original_ud, None)
-        });
-        methods.add_method("__clone_data", |lua, this, ()| {
-            let h = luau_runtime::bridge::handle::next_handle();
-            let sig = crate::types::signal::LuaSignal::new(lua)?.id;
-            let data = this.0.clone_with_new_ids(h, sig);
-            let c = data.clone();
-            data.base.queue.0.lock().unwrap().push(Box::new(
-                move |w: &mut bevy::prelude::World| {
-                    c.apply_to_bevy(w.spawn_empty().id(), w);
-                },
-            ));
-            Ok(lua.create_userdata(LuaPart(data))?)
-        });
-        methods.add_method("__get_children", |_, this, ()| {
-            Ok(this.0.base.children_handles.clone())
-        });
+        crate::impl_lua_clone!(methods);
         methods.add_method("Destroy", |_, this, ()| {
             this.0.destroy();
             Ok(())
@@ -118,28 +146,15 @@ impl LuaModule for PartModule {
                 let handle = next_handle();
                 let touched_signal = LuaSignal::new(lua_cache)?;
 
+                let part = LuaPart(BasePartData::new(handle, q.clone(), touched_signal.id));
+
+                let clone_for_spawn = part.clone();
+
                 q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
-                    let mat = w
-                        .resource_mut::<Assets<StandardMaterial>>()
-                        .add(StandardMaterial {
-                            base_color: Color::srgb(0.8, 0.8, 0.8),
-                            ..default()
-                        });
-                    let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
-                    let entity = w
-                        .spawn((
-                            Mesh3d(mesh),
-                            MeshMaterial3d(mat.clone()),
-                            Transform::default(),
-                            LuauHandle(handle),
-                            Visibility::Hidden,
-                        ))
-                        .id();
-                    w.resource_mut::<HandleMap>()
-                        .insert(handle, entity, Some(mat));
+                    let entity = clone_for_spawn.base().spawn_base_entity(w);
+                    clone_for_spawn.apply_bevy_components(entity, w);
                 }));
 
-                let part = LuaPart(BasePartData::new(handle, q.clone(), touched_signal.id));
                 let userdata = lua_cache.clone().create_userdata(part)?;
 
                 if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
