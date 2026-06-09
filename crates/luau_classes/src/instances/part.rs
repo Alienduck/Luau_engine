@@ -112,6 +112,7 @@ impl LuaModule for PartModule {
                             MeshMaterial3d(mat.clone()),
                             Transform::default(),
                             LuauHandle(handle),
+                            Visibility::Hidden,
                         ))
                         .id();
                     w.resource_mut::<HandleMap>()
