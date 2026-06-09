@@ -53,7 +53,9 @@ export type Udim2 = {
 export type Instance = {
     Name: string,
     ClassName: string,
-    Parent: Instance
+    Parent: Instance,
+
+    Clone: <T>(self: T) -> T
 }
 
 export type Part = Instance & {
