@@ -1,4 +1,7 @@
-use crate::types::instance::InstanceData;
+use crate::{
+    impl_lua_clone,
+    types::instance::{CloneableInstance, InstanceData},
+};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ColliderDisabled, RigidBodyDisabled};
 use luau_runtime::{
@@ -13,8 +16,25 @@ use mlua::{Lua, UserData, UserDataFields};
 #[derive(Component)]
 pub struct WorkspaceRoot;
 
+#[derive(Clone)]
 pub struct LuaWorkspace {
     pub base: InstanceData,
+}
+
+impl CloneableInstance for LuaWorkspace {
+    fn base(&self) -> &InstanceData {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut InstanceData {
+        &mut self.base
+    }
+
+    fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
+        if let Ok(mut e) = w.get_entity_mut(entity) {
+            e.insert((WorkspaceRoot, Visibility::Inherited));
+        }
+    }
 }
 
 impl UserData for LuaWorkspace {
@@ -28,6 +48,14 @@ impl UserData for LuaWorkspace {
         fields.add_field_method_get("Parent", |_, _| Ok(None::<mlua::AnyUserData>));
         fields.add_field_method_set("Parent", |_, _, _: Option<mlua::AnyUserData>| {
             Err(mlua::Error::runtime("Workspace cannot be parented"))
+        });
+    }
+
+    fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
+        impl_lua_clone!(methods);
+
+        methods.add_method("Clone", |_, _, ()| -> mlua::Result<()> {
+            Err(mlua::Error::runtime("Workspace cannot be cloned"))
         });
     }
 }
@@ -44,7 +72,12 @@ impl LuaModule for WorkspaceModule {
 
         q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
             let entity = w
-                .spawn((Transform::default(), Visibility::Inherited, WorkspaceRoot))
+                .spawn((
+                    Transform::default(),
+                    Visibility::Inherited,
+                    WorkspaceRoot,
+                    LuauHandle(handle),
+                ))
                 .id();
             w.resource_mut::<HandleMap>().insert(handle, entity, None);
         }));
