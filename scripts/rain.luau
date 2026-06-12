@@ -65,7 +65,8 @@ function module.Start()
 
         part.Touched:Connect(function(hit: Part)
             if hit.Name == "floor" then
-                part.Parent = nil
+                print("destroy")
+                part:Destroy()
             else
                 print(`hit name -> {hit.Name}`)
             end
