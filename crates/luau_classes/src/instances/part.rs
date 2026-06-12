@@ -116,8 +116,8 @@ impl UserData for LuaPart {
             this.0.set_transparency(t);
             Ok(())
         });
-        fields.add_field_method_set("Parent", |_, this, parent: Option<mlua::AnyUserData>| {
-            this.0.base.set_parent(parent);
+        fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
+            this.0.base.set_parent(lua, parent);
             Ok(())
         });
     }
