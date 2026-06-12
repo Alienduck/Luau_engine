@@ -28,10 +28,27 @@ impl InstanceData {
         self.name = v;
     }
 
-    pub fn set_parent(&mut self, parent: Option<mlua::AnyUserData>) {
-        let new_parent_handle = parent.and_then(|ud| instance_handle_from_any(&ud));
+    pub fn set_parent(&mut self, lua: &mlua::Lua, parent: Option<mlua::AnyUserData>) {
+        let new_parent_handle = parent.as_ref().and_then(|ud| instance_handle_from_any(ud));
+        let old_parent_handle = self.parent_handle;
+        let self_handle = self.handle;
+
+        if old_parent_handle == new_parent_handle {
+            return;
+        }
+
+        if let Ok(cache) = lua.named_registry_value::<mlua::Table>("__instance_cache") {
+            if let Some(old_h) = old_parent_handle {
+                if let Ok(old_ud) = cache.get::<mlua::AnyUserData>(old_h) {
+                    let _ = old_ud.call_method::<()>("__remove_child_handle", self_handle);
+                }
+            }
+            if let Some(new_ud) = &parent {
+                let _ = new_ud.call_method::<()>("__add_child_handle", self_handle);
+            }
+        }
+
         self.parent_handle = new_parent_handle;
-        let handle = self.handle;
 
         self.queue
             .0
@@ -39,7 +56,7 @@ impl InstanceData {
             .unwrap()
             .push(Box::new(move |w: &mut bevy::prelude::World| {
                 let map = w.resource::<HandleMap>();
-                let child_e = map.get_entity(handle);
+                let child_e = map.get_entity(self_handle);
                 let parent_e = new_parent_handle.and_then(|h| map.get_entity(h));
 
                 if let Some(child) = child_e {
@@ -127,6 +144,20 @@ macro_rules! impl_lua_clone {
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
             let original_ud: mlua::AnyUserData = cache.get(this.base().handle)?;
             crate::types::instance::universal_clone(lua, &original_ud, None)
+        });
+
+        $methods.add_method_mut("__add_child_handle", |_, this, child_handle: u64| {
+            use crate::types::instance::CloneableInstance;
+            this.base_mut().children_handles.push(child_handle);
+            Ok(())
+        });
+
+        $methods.add_method_mut("__remove_child_handle", |_, this, child_handle: u64| {
+            use crate::types::instance::CloneableInstance;
+            this.base_mut()
+                .children_handles
+                .retain(|&h| h != child_handle);
+            Ok(())
         });
     };
 }
