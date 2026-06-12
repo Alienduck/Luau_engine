@@ -1,4 +1,10 @@
-use crate::types::{instance::InstanceData, vector3::LuaVector3};
+use crate::{
+    impl_lua_clone,
+    types::{
+        instance::{CloneableInstance, InstanceData},
+        vector3::LuaVector3,
+    },
+};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use luau_runtime::{
@@ -14,6 +20,16 @@ use mlua::{Lua, UserData, UserDataFields};
 pub struct LuaCollider {
     pub base: InstanceData,
     pub size: LuaVector3,
+}
+
+impl CloneableInstance for LuaCollider {
+    fn base(&self) -> &InstanceData {
+        &self.base
+    }
+    fn base_mut(&mut self) -> &mut InstanceData {
+        &mut self.base
+    }
+    fn apply_bevy_components(&self, _entity: Entity, _w: &mut World) {}
 }
 
 impl UserData for LuaCollider {
@@ -47,13 +63,13 @@ impl UserData for LuaCollider {
             Ok(())
         });
 
-        fields.add_field_method_set("Parent", |_, this, parent: Option<mlua::AnyUserData>| {
+        fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
             let old_handle = this.base.parent_handle;
             let new_handle = parent
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
 
-            this.base.set_parent(parent);
+            this.base.set_parent(lua, parent);
 
             let hx = this.size.x / 2.0;
             let hy = this.size.y / 2.0;
@@ -87,6 +103,9 @@ impl UserData for LuaCollider {
             Ok(())
         });
     }
+    fn add_methods<M: mlua::prelude::LuaUserDataMethods<LuaCollider>>(methods: &mut M) {
+        impl_lua_clone!(methods);
+    }
 }
 
 pub struct ColliderModule;
@@ -100,21 +119,31 @@ impl LuaModule for ColliderModule {
         let t = lua.create_table()?;
         t.set(
             "new",
-            lua.create_function(move |_, ()| {
+            lua.create_function(move |lua_cache, ()| {
                 let handle = next_handle();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
-                    let entity = w.spawn((Transform::default(),)).id();
-                    w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
-
-                Ok(LuaCollider {
+                let collider = LuaCollider {
                     base: InstanceData::new(handle, q.clone(), "Collider"),
                     size: LuaVector3 {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                })
+                };
+
+                let clone_for_spawn = collider.clone();
+                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                    let entity = clone_for_spawn.base().spawn_base_entity(w);
+                    clone_for_spawn.apply_bevy_components(entity, w);
+                }));
+
+                let userdata = lua_cache.create_userdata(collider)?;
+
+                if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
+                {
+                    let _ = cache.set(handle, userdata.clone());
+                }
+
+                Ok(userdata)
             })?,
         )?;
         lua.globals().set("Collider", t)

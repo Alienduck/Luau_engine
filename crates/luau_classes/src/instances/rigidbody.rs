@@ -9,22 +9,35 @@ use luau_runtime::{
 };
 use mlua::{Lua, UserData, UserDataFields};
 
-use crate::types::instance::InstanceData;
+use crate::{
+    impl_lua_clone,
+    types::instance::{CloneableInstance, InstanceData},
+};
 
 #[derive(Clone)]
 pub struct LuaRigidbody {
     pub base: InstanceData,
 }
 
+impl CloneableInstance for LuaRigidbody {
+    fn base(&self) -> &InstanceData {
+        &self.base
+    }
+    fn base_mut(&mut self) -> &mut InstanceData {
+        &mut self.base
+    }
+    fn apply_bevy_components(&self, _entity: Entity, _w: &mut World) {}
+}
+
 impl UserData for LuaRigidbody {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
-        fields.add_field_method_set("Parent", |_, this, parent: Option<mlua::AnyUserData>| {
-            let new_handle = match parent {
-                Some(p) => Some(p.borrow::<crate::instances::part::LuaPart>()?.0.base.handle),
-                None => None,
-            };
+        fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
             let old_handle = this.base.parent_handle;
-            this.base.parent_handle = new_handle;
+            let new_handle = parent
+                .as_ref()
+                .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
+
+            this.base.set_parent(lua, parent);
             this.base
                 .queue
                 .0
@@ -50,6 +63,10 @@ impl UserData for LuaRigidbody {
             Ok(())
         });
     }
+
+    fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
+        impl_lua_clone!(methods);
+    }
 }
 
 pub struct RigidbodyModule;
@@ -63,15 +80,26 @@ impl LuaModule for RigidbodyModule {
         let t = lua.create_table()?;
         t.set(
             "new",
-            lua.create_function(move |_, ()| {
+            lua.create_function(move |lua_cache, ()| {
                 let handle = next_handle();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
-                    let entity = w.spawn(RigidBody::default()).id();
-                    w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
-                Ok(LuaRigidbody {
+                let rb = LuaRigidbody {
                     base: InstanceData::new(handle, q.clone(), "Rigidbody"),
-                })
+                };
+
+                let clone_for_spawn = rb.clone();
+                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                    let entity = clone_for_spawn.base().spawn_base_entity(w);
+                    clone_for_spawn.apply_bevy_components(entity, w);
+                }));
+
+                let userdata = lua_cache.create_userdata(rb)?;
+
+                if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
+                {
+                    let _ = cache.set(handle, userdata.clone());
+                }
+
+                Ok(userdata)
             })?,
         )?;
         lua.globals().set("Rigidbody", t)
