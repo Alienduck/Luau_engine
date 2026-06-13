@@ -37,6 +37,7 @@ fn main() {
     let vm = LuaVm::new().expect("failed to create Lua VM");
     let mut scheduler = LuaScheduler::new();
 
+    vm.lua().set_app_data(engine_queue.clone());
     register_all(vm.lua(), &engine_queue);
 
     let cam_cframe: CameraCFrame = {
