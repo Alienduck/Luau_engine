@@ -97,6 +97,8 @@ export type Lighting = Instance & {
     Ambient: Color3,
     Brightness: number,
     GlobalShadows: boolean,
+    ClockTime: number,
+    TimeOfDay: string,
 }
 
 export type RunService = {
