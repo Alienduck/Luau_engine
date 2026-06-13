@@ -99,6 +99,9 @@ export type Lighting = Instance & {
     GlobalShadows: boolean,
     ClockTime: number,
     TimeOfDay: string,
+    FogColor: Color3,
+    FogEnd: number,
+    FogStart: number,
 }
 
 export type RunService = {
