@@ -2,7 +2,7 @@ use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
     color3::LuaColor3,
-    instance::{CloneableInstance, InstanceData},
+    instance::{CloneableInstance, InstanceBase, InstanceData, inject_base_methods},
     signal::LuaSignal,
     vector3::LuaVector3,
 };
@@ -18,6 +18,12 @@ use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods}
 
 #[derive(Clone)]
 pub struct LuaPart(pub BasePartData);
+
+impl InstanceBase for LuaPart {
+    fn get_handle(&self) -> u64 {
+        self.0.base.handle
+    }
+}
 
 impl CloneableInstance for LuaPart {
     fn base(&self) -> &InstanceData {
@@ -122,12 +128,9 @@ impl UserData for LuaPart {
         });
     }
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
+        inject_base_methods(methods);
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.0.base.name.clone()));
         crate::impl_lua_clone!(methods);
-        methods.add_method("Destroy", |_, this, ()| {
-            this.0.destroy();
-            Ok(())
-        });
     }
 }
 
