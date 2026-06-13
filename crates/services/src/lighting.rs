@@ -5,12 +5,13 @@ use luau_classes::types::{
 };
 use luau_runtime::{
     bridge::{
-        handle::{next_handle, HandleMap},
+        handle::{HandleMap, next_handle},
         queue::EngineQueue,
     },
     registry::LuaModule,
 };
 use mlua::{Lua, UserData, UserDataFields};
+use std::f32::consts::{FRAC_PI_2, TAU};
 
 #[derive(Component)]
 pub struct LightingRoot;
@@ -21,6 +22,39 @@ pub struct LuaLighting {
     pub ambient: LuaColor3,
     pub brightness: f32,
     pub global_shadows: bool,
+    pub clock_time: f32,
+}
+
+fn format_time(t: f32) -> String {
+    let h = t.floor() as u32 % 24;
+    let m = ((t * 60.0).floor() as u32) % 60;
+    let s = ((t * 3600.0).floor() as u32) % 60;
+    format!("{:02}:{:02}:{:02}", h, m, s)
+}
+
+fn parse_time(s: &str) -> f32 {
+    let p: Vec<&str> = s.split(':').collect();
+    let mut t = 0.0;
+    if !p.is_empty() {
+        t += p[0].parse::<f32>().unwrap_or(0.0);
+    }
+    if p.len() > 1 {
+        t += p[1].parse::<f32>().unwrap_or(0.0) / 60.0;
+    }
+    if p.len() > 2 {
+        t += p[2].parse::<f32>().unwrap_or(0.0) / 3600.0;
+    }
+    t % 24.0
+}
+
+fn update_sun_rotation(w: &mut World, time: f32) {
+    if let Ok(mut transform) = w
+        .query_filtered::<&mut Transform, With<DirectionalLight>>()
+        .single_mut(w)
+    {
+        let angle = (time / 24.0) * TAU;
+        transform.rotation = Quat::from_euler(EulerRot::XYZ, angle - FRAC_PI_2, 0.0, 0.0);
+    }
 }
 
 impl CloneableInstance for LuaLighting {
@@ -96,6 +130,39 @@ impl UserData for LuaLighting {
                 }));
             Ok(())
         });
+
+        fields.add_field_method_get("ClockTime", |_, this| Ok(this.clock_time));
+        fields.add_field_method_set("ClockTime", |_, this, mut t: f32| {
+            t %= 24.0;
+            if t < 0.0 {
+                t += 24.0;
+            }
+            this.clock_time = t;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    update_sun_rotation(w, t);
+                }));
+            Ok(())
+        });
+
+        fields.add_field_method_get("TimeOfDay", |_, this| Ok(format_time(this.clock_time)));
+        fields.add_field_method_set("TimeOfDay", |_, this, s: String| {
+            let t = parse_time(&s);
+            this.clock_time = t;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    update_sun_rotation(w, t);
+                }));
+            Ok(())
+        });
     }
 
     fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
@@ -132,6 +199,7 @@ impl LuaModule for LightingModule {
             },
             brightness: 10.0,
             global_shadows: true,
+            clock_time: 14.0,
         };
 
         let userdata = lua.create_userdata(lighting)?;
