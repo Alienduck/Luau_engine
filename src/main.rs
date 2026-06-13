@@ -4,6 +4,7 @@ use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
         base_part::process_collisions,
+        bloom_effect::BloomEffectModule,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         collider::ColliderModule,
         frame::FrameModule,
@@ -27,7 +28,7 @@ use luau_runtime::{
     vm::LuaVm,
 };
 use services::{
-    lighting::LightingModule,
+    lighting::{LightingModule, sync_post_processing_system},
     run_service::{RunServiceModule, trigger_run_service},
     user_input::{UserInputModule, trigger_user_input},
 };
@@ -101,6 +102,7 @@ fn main() {
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
+                sync_post_processing_system,
             )
                 .chain(),
         )
@@ -126,6 +128,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (RunServiceModule::name(), RunServiceModule::register),
         (ScreenGuiModule::name(), ScreenGuiModule::register),
         (FrameModule::name(), FrameModule::register),
+        (BloomEffectModule::name(), BloomEffectModule::register),
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
