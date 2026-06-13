@@ -1,4 +1,5 @@
 pub mod base_part;
+pub mod bloom_effect;
 pub mod camera;
 pub mod collider;
 pub mod frame;
