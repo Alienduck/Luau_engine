@@ -19,5 +19,15 @@ Lighting.GlobalShadows = true
 Lighting.ClockTime = 23
 print(Lighting.TimeOfDay)
 
+local CLOCK_MULTIPLIER = 2.4
+
+RunService.RenderStepped:Connect(function(delta: number)
+    Lighting.ClockTime += (delta / 3600) * CLOCK_MULTIPLIER
+end)
+
+Lighting.FogStart = 5
+Lighting.FogEnd = 20
+Lighting.FogColor = Color3.fromRGB(20, 20, 150)
+
 local rain = require("scripts/rain")
 rain.Start()
