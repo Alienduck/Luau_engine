@@ -27,6 +27,7 @@ use luau_runtime::{
     vm::LuaVm,
 };
 use services::{
+    lighting::LightingModule,
     run_service::{RunServiceModule, trigger_run_service},
     user_input::{UserInputModule, trigger_user_input},
 };
@@ -127,6 +128,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (FrameModule::name(), FrameModule::register),
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
+        (LightingModule::name(), LightingModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
