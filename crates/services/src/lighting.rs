@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{pbr::FogFalloff, prelude::*};
 use luau_classes::types::{
     color3::LuaColor3,
     instance::{CloneableInstance, InstanceData},
@@ -23,6 +23,9 @@ pub struct LuaLighting {
     pub brightness: f32,
     pub global_shadows: bool,
     pub clock_time: f32,
+    pub fog_color: LuaColor3,
+    pub fog_start: f32,
+    pub fog_end: f32,
 }
 
 fn format_time(t: f32) -> String {
@@ -54,6 +57,16 @@ fn update_sun_rotation(w: &mut World, time: f32) {
     {
         let angle = (time / 24.0) * TAU;
         transform.rotation = Quat::from_euler(EulerRot::XYZ, angle - FRAC_PI_2, 0.0, 0.0);
+    }
+}
+
+fn update_fog(w: &mut World, c: LuaColor3, s: f32, e: f32) {
+    if let Ok(cam) = w.query_filtered::<Entity, With<Camera3d>>().single_mut(w) {
+        w.entity_mut(cam).insert(DistanceFog {
+            color: Color::srgba(c.r, c.g, c.b, 1.0),
+            falloff: FogFalloff::Linear { start: s, end: e },
+            ..default()
+        });
     }
 }
 
@@ -163,6 +176,54 @@ impl UserData for LuaLighting {
                 }));
             Ok(())
         });
+
+        fields.add_field_method_get("FogColor", |_, this| Ok(this.fog_color));
+        fields.add_field_method_set("FogColor", |_, this, c: LuaColor3| {
+            this.fog_color = c;
+            let s = this.fog_start;
+            let e = this.fog_end;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    update_fog(w, c, s, e);
+                }));
+            Ok(())
+        });
+
+        fields.add_field_method_get("FogStart", |_, this| Ok(this.fog_start));
+        fields.add_field_method_set("FogStart", |_, this, s: f32| {
+            this.fog_start = s;
+            let c = this.fog_color;
+            let e = this.fog_end;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    update_fog(w, c, s, e);
+                }));
+            Ok(())
+        });
+
+        fields.add_field_method_get("FogEnd", |_, this| Ok(this.fog_end));
+        fields.add_field_method_set("FogEnd", |_, this, e: f32| {
+            this.fog_end = e;
+            let c = this.fog_color;
+            let s = this.fog_start;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    update_fog(w, c, s, e);
+                }));
+            Ok(())
+        });
     }
 
     fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
@@ -200,6 +261,13 @@ impl LuaModule for LightingModule {
             brightness: 10.0,
             global_shadows: true,
             clock_time: 14.0,
+            fog_color: LuaColor3 {
+                r: 0.75,
+                g: 0.75,
+                b: 0.75,
+            },
+            fog_start: 0.0,
+            fog_end: 100_000.0,
         };
 
         let userdata = lua.create_userdata(lighting)?;
