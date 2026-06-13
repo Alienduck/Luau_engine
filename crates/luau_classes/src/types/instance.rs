@@ -193,26 +193,20 @@ macro_rules! impl_instance_userdata {
             *cloned.base_mut() = cloned.base().prepare_clone();
             cloned.on_cloned(lua)?;
             let c = cloned.clone();
-            cloned
-                .base()
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut bevy::prelude::World| {
+            cloned.base().queue.0.lock().unwrap().push(Box::new(
+                move |w: &mut bevy::prelude::World| {
                     let entity = c.base().spawn_base_entity(w);
                     c.apply_bevy_components(entity, w);
-                }));
+                },
+            ));
             Ok(lua.create_userdata(cloned)?)
         });
 
-        // ── Internal: expose children handle list ─────────────────────────────
         $methods.add_method("__get_children", |_, this, ()| {
             use $crate::types::instance::CloneableInstance;
             Ok(this.base().children_handles.clone())
         });
 
-        // ── Internal: mutate children list ────────────────────────────────────
         $methods.add_method_mut("__add_child_handle", |_, this, child_handle: u64| {
             use $crate::types::instance::CloneableInstance;
             this.base_mut().children_handles.push(child_handle);
@@ -227,7 +221,6 @@ macro_rules! impl_instance_userdata {
             Ok(())
         });
 
-        // ── Public: Clone ─────────────────────────────────────────────────────
         $methods.add_method("Clone", |lua, this, ()| {
             use $crate::types::instance::CloneableInstance;
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
@@ -235,7 +228,6 @@ macro_rules! impl_instance_userdata {
             $crate::types::instance::universal_clone(lua, &original_ud, None)
         });
 
-        // ── Public: Destroy ───────────────────────────────────────────────────
         $methods.add_method("Destroy", |lua, this, ()| {
             use $crate::types::instance::CloneableInstance;
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
@@ -243,7 +235,6 @@ macro_rules! impl_instance_userdata {
             Ok(())
         });
 
-        // ── Public: GetChildren ───────────────────────────────────────────────
         $methods.add_method("GetChildren", |lua, this, ()| {
             use $crate::types::instance::CloneableInstance;
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
@@ -300,18 +291,15 @@ macro_rules! impl_instance_userdata {
                     if h == target_handle {
                         return Ok(true);
                     }
-                    current = cache
-                        .get::<mlua::AnyUserData>(h)
-                        .ok()
-                        .and_then(|ud| $crate::types::instance::instance_parent_handle_from_any(&ud));
+                    current = cache.get::<mlua::AnyUserData>(h).ok().and_then(|ud| {
+                        $crate::types::instance::instance_parent_handle_from_any(&ud)
+                    });
                 }
                 Ok(false)
             },
         );
     };
 }
-
-// Free helpers
 
 /// Returns the handle of `ud` by trying each known concrete instance type.
 ///
