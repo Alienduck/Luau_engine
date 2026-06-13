@@ -13,4 +13,9 @@ subject.Transparency = 1
 Camera.Distance = 20
 Camera:SetSubject(subject)
 
-require("scripts/rain").Start()
+Lighting.Brightness = 0.2
+Lighting.Ambient = Color3.fromRGB(0, 0, 255)
+Lighting.GlobalShadows = true
+
+local rain = require("scripts/rain")
+rain.Start()
