@@ -16,6 +16,8 @@ Camera:SetSubject(subject)
 Lighting.Brightness = 0.2
 Lighting.Ambient = Color3.fromRGB(0, 0, 255)
 Lighting.GlobalShadows = true
+Lighting.ClockTime = 23
+print(Lighting.TimeOfDay)
 
 local rain = require("scripts/rain")
 rain.Start()
