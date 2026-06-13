@@ -91,6 +91,12 @@ export type Frame = Instance & {
     BackgroundColor3: Color3,
 }
 
+export type BloomEffect = Instance & {
+    Intensity: number,
+    Size: number,
+    Threshold: number
+}
+
 export type Workspace = Instance
 
 export type Lighting = Instance & {
@@ -154,6 +160,7 @@ declare Collider: { new: () -> Collider }
 declare Rigidbody: { new: () -> Rigidbody }
 declare ScreenGui: { new: () -> ScreenGui }
 declare Frame: { new: () -> Frame }
+declare BloomEffect: { new: () -> BloomEffect }
 
 declare workspace: Workspace
 declare Lighting: Lighting
