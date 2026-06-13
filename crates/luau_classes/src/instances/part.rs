@@ -2,7 +2,7 @@ use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
     color3::LuaColor3,
-    instance::{CloneableInstance, InstanceBase, InstanceData, inject_base_methods},
+    instance::{CloneableInstance, InstanceData},
     signal::LuaSignal,
     vector3::LuaVector3,
 };
@@ -10,31 +10,29 @@ use bevy::{
     asset::Assets, color::Color, ecs::world::World, math::primitives::Cuboid,
     pbr::StandardMaterial, prelude::*,
 };
-use luau_runtime::{
-    bridge::{handle::next_handle, queue::EngineQueue},
-    registry::LuaModule,
-};
+use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
 
+/// Luau-facing `Part` instance — a renderable 3-D box with optional physics.
+///
+/// Wraps [`BasePartData`] which holds the shared 3-D instance state (position,
+/// size, color, transparency, touched signal).
 #[derive(Clone)]
 pub struct LuaPart(pub BasePartData);
-
-impl InstanceBase for LuaPart {
-    fn get_handle(&self) -> u64 {
-        self.0.base.handle
-    }
-}
 
 impl CloneableInstance for LuaPart {
     fn base(&self) -> &InstanceData {
         &self.0.base
     }
+
     fn base_mut(&mut self) -> &mut InstanceData {
         &mut self.0.base
     }
 
+    /// Re-generates the `Touched` signal id so that each clone has an
+    /// independent signal.
     fn on_cloned(&mut self, lua: &mlua::Lua) -> mlua::Result<()> {
-        self.0.touched_signal_id = crate::types::signal::LuaSignal::new(lua)?.id;
+        self.0.touched_signal_id = LuaSignal::new(lua)?.id;
         Ok(())
     }
 
@@ -71,6 +69,7 @@ impl CloneableInstance for LuaPart {
 impl UserData for LuaPart {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("Name", |_, this| Ok(this.0.base.name.clone()));
+        fields.add_field_method_get("ClassName", |_, this| Ok(this.0.base.class_name));
         fields.add_field_method_get("Position", |_, this| {
             Ok(LuaVector3 {
                 x: this.0.cframe.position.x,
@@ -88,14 +87,11 @@ impl UserData for LuaPart {
             })
         });
         fields.add_field_method_get("Parent", |lua, this| {
-            if let Some(parent_handle) = this.0.base.parent_handle {
-                let instances_map: mlua::Table = lua.named_registry_value("__instance_cache")?;
-                let parent_userdata: Option<mlua::AnyUserData> =
-                    instances_map.get(parent_handle)?;
-                Ok(parent_userdata)
-            } else {
-                Ok(None)
-            }
+            let Some(parent_handle) = this.0.base.parent_handle else {
+                return Ok(None);
+            };
+            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+            Ok(cache.get::<Option<mlua::AnyUserData>>(parent_handle)?)
         });
 
         fields.add_field_method_set("Name", |_, this, v: String| {
@@ -127,44 +123,41 @@ impl UserData for LuaPart {
             Ok(())
         });
     }
+
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
-        inject_base_methods(methods);
+        crate::impl_instance_userdata!(methods);
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.0.base.name.clone()));
-        crate::impl_lua_clone!(methods);
     }
 }
 
 pub struct PartModule;
 
-impl LuaModule for PartModule {
+impl luau_runtime::registry::LuaModule for PartModule {
     fn name() -> &'static str {
         "Part"
     }
+
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let q = queue.clone();
         let t = lua.create_table()?;
         t.set(
             "new",
-            lua.create_function(move |lua_cache, ()| {
+            lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
-                let touched_signal = LuaSignal::new(lua_cache)?;
-
+                let touched_signal = LuaSignal::new(lua_ctx)?;
                 let part = LuaPart(BasePartData::new(handle, q.clone(), touched_signal.id));
 
-                let clone_for_spawn = part.clone();
-
+                let spawn_copy = part.clone();
                 q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
-                    let entity = clone_for_spawn.base().spawn_base_entity(w);
-                    clone_for_spawn.apply_bevy_components(entity, w);
+                    let entity = spawn_copy.base().spawn_base_entity(w);
+                    spawn_copy.apply_bevy_components(entity, w);
                 }));
 
-                let userdata = lua_cache.clone().create_userdata(part)?;
-
-                if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
-                {
-                    let _ = cache.set(handle, userdata.clone());
-                }
-                Ok(userdata)
+                let ud = lua_ctx.create_userdata(part)?;
+                lua_ctx
+                    .named_registry_value::<mlua::Table>("__instance_cache")?
+                    .set(handle, ud.clone())?;
+                Ok(ud)
             })?,
         )?;
         lua.globals().set("Part", t)

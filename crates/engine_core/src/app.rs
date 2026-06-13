@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-/// Thin wrapper around a Bevy App with engine-level defaults.
+/// Thin wrapper around a Bevy [`App`] with engine-level defaults baked in.
+///
+/// Spawns a window titled "Luau Engine" and applies [`DefaultPlugins`].
 pub struct EngineApp(pub App);
 
 impl EngineApp {
@@ -29,10 +31,4 @@ impl Default for EngineApp {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// An object to compute the Gui Anchor point when the window is resized
-#[derive(Component, Default)]
-pub struct GuiObjectData {
-    pub anchor_point: Vec2,
 }

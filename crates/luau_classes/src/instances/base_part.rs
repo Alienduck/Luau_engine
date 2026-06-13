@@ -2,7 +2,7 @@ use crate::types::{
     cframe::LuaCFrame, color3::LuaColor3, instance::InstanceData, signal::LuaSignal,
     vector3::LuaVector3,
 };
-use bevy::{ecs::world::World, math::Vec3, prelude::*, transform::components::Transform};
+use bevy::{ecs::world::World, math::Vec3, prelude::*};
 use bevy_rapier3d::pipeline::CollisionEvent;
 use luau_runtime::{
     bridge::{
@@ -12,56 +12,23 @@ use luau_runtime::{
     vm::LuaVm,
 };
 
+/// Shared state for 3-D part instances (position, size, color, transparency,
+/// touched signal).
+///
+/// Embedded by value in [`LuaPart`] (and any future part subclass).  All
+/// mutations enqueue a corresponding Bevy world command via `base.queue`.
 #[derive(Clone)]
 pub struct BasePartData {
     pub base: InstanceData,
+    /// Signal fired when another part begins overlapping this one.
     pub touched_signal_id: u64,
+    /// Position and rotation, kept in sync with the Bevy `Transform`.
     pub cframe: LuaCFrame,
+    /// Full size (= Bevy `Transform::scale` for a unit-cube mesh).
     pub size: LuaVector3,
     pub color: LuaColor3,
+    /// 0.0 = fully opaque, 1.0 = fully transparent.
     pub transparency: f32,
-}
-
-pub fn process_collisions(
-    mut rapier_msg: MessageReader<CollisionEvent>,
-    vm: NonSend<LuaVm>,
-    handle_query: Query<&LuauHandle>,
-) {
-    let Ok(cache) = vm
-        .lua
-        .named_registry_value::<mlua::Table>("__instance_cache")
-    else {
-        return;
-    };
-
-    for msg in rapier_msg.read() {
-        let CollisionEvent::Started(e1, e2, _) = msg else {
-            continue;
-        };
-
-        for (self_e, other_e) in [(*e1, *e2), (*e2, *e1)] {
-            let Ok(handle_self) = handle_query.get(self_e) else {
-                continue;
-            };
-            let Ok(handle_other) = handle_query.get(other_e) else {
-                continue;
-            };
-
-            let Ok(self_ud) = cache.get::<mlua::AnyUserData>(handle_self.0) else {
-                continue;
-            };
-            let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other.0) else {
-                continue;
-            };
-
-            if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
-                let signal = LuaSignal {
-                    id: part.0.touched_signal_id,
-                };
-                let _ = signal.fire(&vm.lua, other_ud);
-            }
-        }
-    }
 }
 
 impl BasePartData {
@@ -189,5 +156,52 @@ impl BasePartData {
                     }
                 }
             }));
+    }
+}
+
+/// Reads Rapier [`CollisionEvent::Started`] messages and fires the Luau
+/// `Touched` signal on both involved parts.
+///
+/// Requires `MessageReader` (Bevy 0.17+ buffered event API) rather than the
+/// observer-based `EventReader`.
+pub fn process_collisions(
+    mut rapier_msg: MessageReader<CollisionEvent>,
+    vm: NonSend<LuaVm>,
+    handle_query: Query<&LuauHandle>,
+) {
+    let Ok(cache) = vm
+        .lua
+        .named_registry_value::<mlua::Table>("__instance_cache")
+    else {
+        return;
+    };
+
+    for msg in rapier_msg.read() {
+        let CollisionEvent::Started(e1, e2, _) = msg else {
+            continue;
+        };
+
+        for (self_e, other_e) in [(*e1, *e2), (*e2, *e1)] {
+            let Ok(handle_self) = handle_query.get(self_e) else {
+                continue;
+            };
+            let Ok(handle_other) = handle_query.get(other_e) else {
+                continue;
+            };
+
+            let Ok(self_ud) = cache.get::<mlua::AnyUserData>(handle_self.0) else {
+                continue;
+            };
+            let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other.0) else {
+                continue;
+            };
+
+            if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
+                let signal = LuaSignal {
+                    id: part.0.touched_signal_id,
+                };
+                let _ = signal.fire(&vm.lua, other_ud);
+            }
+        }
     }
 }
