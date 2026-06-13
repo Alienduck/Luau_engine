@@ -190,18 +190,4 @@ impl BasePartData {
                 }
             }));
     }
-
-    pub fn destroy(&self) {
-        let h = self.base.handle;
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource_mut::<HandleMap>().remove(h) {
-                    w.despawn(e.entity);
-                }
-            }));
-    }
 }
