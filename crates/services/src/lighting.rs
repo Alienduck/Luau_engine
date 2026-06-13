@@ -1,7 +1,10 @@
-use bevy::{pbr::FogFalloff, prelude::*};
-use luau_classes::types::{
-    color3::LuaColor3,
-    instance::{CloneableInstance, InstanceData},
+use bevy::{pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
+use luau_classes::{
+    instances::bloom_effect::LuauBloom,
+    types::{
+        color3::LuaColor3,
+        instance::{CloneableInstance, InstanceData},
+    },
 };
 use luau_runtime::{
     bridge::{
@@ -67,6 +70,51 @@ fn update_fog(w: &mut World, c: LuaColor3, s: f32, e: f32) {
             falloff: FogFalloff::Linear { start: s, end: e },
             ..default()
         });
+    }
+}
+
+pub fn sync_post_processing_system(
+    lighting_query: Query<Entity, With<LightingRoot>>,
+    effect_query: Query<(&LuauBloom, &ChildOf)>,
+    mut camera_query: Query<(Entity, Option<&mut Bloom>), With<Camera3d>>,
+    mut commands: Commands,
+) {
+    if lighting_query.is_empty() || camera_query.is_empty() {
+        return;
+    }
+
+    let Ok(lighting_entity) = lighting_query.single() else {
+        return;
+    };
+    let Ok((cam_entity, opt_bloom)) = camera_query.single_mut() else {
+        return;
+    };
+
+    let mut active_bloom = None;
+    for (bloom, parent) in effect_query.iter() {
+        if parent.0 == lighting_entity {
+            active_bloom = Some(bloom);
+            break;
+        }
+    }
+
+    match (active_bloom, opt_bloom) {
+        (Some(bloom), Some(mut settings)) => {
+            settings.intensity = bloom.intensity;
+            settings.low_frequency_boost = bloom.size / 100.0;
+            settings.prefilter.threshold = bloom.threshold;
+        }
+        (Some(bloom), None) => {
+            commands.entity(cam_entity).insert(Bloom {
+                intensity: bloom.intensity,
+                low_frequency_boost: bloom.size / 100.0,
+                ..default()
+            });
+        }
+        (None, Some(_)) => {
+            commands.entity(cam_entity).remove::<Bloom>();
+        }
+        _ => {}
     }
 }
 
