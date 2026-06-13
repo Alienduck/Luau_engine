@@ -29,5 +29,11 @@ Lighting.FogStart = 5
 Lighting.FogEnd = 20
 Lighting.FogColor = Color3.fromRGB(20, 20, 150)
 
+local bloom = BloomEffect.new()
+bloom.Intensity = 5
+bloom.Size = 12
+bloom.Threshold = 1
+bloom.Parent = Lighting
+
 local rain = require("scripts/rain")
 rain.Start()
