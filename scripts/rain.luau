@@ -34,11 +34,11 @@ function __spawn_part(params: PartParams): Part
 end
 
 function module.Start()
-    local floor = __spawn_part({
+    local _floor = __spawn_part({
         name = "floor",
         position = Vector3.zero,
         size = Vector3.new(20, 0.01, 20),
-        color = Color3.fromRGB(20, 100, 20),
+        color = Color3.new(1, 1, 1),
         parent = workspace,
         has_collider = true
     })
@@ -63,12 +63,12 @@ function module.Start()
             has_rigidbody = true
         })
 
-        part.Touched:Connect(function(hit: Part)
+        part.Touched:Connect(function(hit: Instance)
             if hit.Name == "floor" then
                 print("destroy")
                 part:Destroy()
             else
-                print(`hit name -> {hit.Name}`)
+                print(`hit name -> {hit.Name} | type -> {typeof(hit)}`)
             end
         end)
     end)
