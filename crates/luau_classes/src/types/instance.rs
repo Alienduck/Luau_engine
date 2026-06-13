@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use luau_runtime::bridge::{handle::HandleMap, queue::EngineQueue};
-use mlua::ObjectLike;
+use mlua::{ObjectLike, UserData, UserDataMethods};
 
 #[derive(Clone)]
 pub struct InstanceData {
@@ -98,6 +98,19 @@ impl InstanceData {
         w.resource_mut::<luau_runtime::bridge::handle::HandleMap>()
             .insert(self.handle, entity, None);
         entity
+    }
+
+    pub fn destroy(&self) {
+        let h = self.handle;
+        self.queue
+            .0
+            .lock()
+            .unwrap()
+            .push(Box::new(move |w: &mut World| {
+                if let Some(e) = w.resource_mut::<HandleMap>().remove(h) {
+                    w.despawn(e.entity);
+                }
+            }));
     }
 }
 
@@ -207,4 +220,27 @@ pub fn universal_clone(
         }
     }
     Ok(cloned)
+}
+
+pub trait InstanceBase {
+    fn get_handle(&self) -> u64;
+}
+
+pub fn inject_base_methods<T: UserData + InstanceBase>(methods: &mut impl UserDataMethods<T>) {
+    methods.add_method("Destroy", |lua, instance, ()| {
+        let queue = lua
+            .app_data_ref::<EngineQueue>()
+            .expect("Missing EngineQueue");
+        let handle = instance.get_handle();
+        queue
+            .0
+            .lock()
+            .unwrap()
+            .push(Box::new(move |world: &mut World| {
+                if let Some(entry) = world.resource_mut::<HandleMap>().remove(handle) {
+                    world.entity_mut(entry.entity).despawn();
+                }
+            }));
+        Ok(())
+    });
 }
