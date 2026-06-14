@@ -102,6 +102,14 @@ export type Sky = Instance & {
     CubemapPath: string,
 }
 
+export type Atmosphere = Instance & {
+    Density: number,
+    Color: Color3,
+    Decay: Color3,
+    Glare: number,
+    Haze: number,
+}
+
 export type Workspace = Instance
 
 export type Lighting = Instance & {
@@ -167,6 +175,7 @@ declare ScreenGui: { new: () -> ScreenGui }
 declare Frame: { new: () -> Frame }
 declare BloomEffect: { new: () -> BloomEffect }
 declare Sky: { new: () -> Sky }
+declare Atmosphere: { new: () -> Atmosphere }
 
 declare workspace: Workspace
 declare Lighting: Lighting
