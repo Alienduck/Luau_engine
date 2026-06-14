@@ -1,3 +1,4 @@
+pub mod atmosphere;
 pub mod base_part;
 pub mod bloom_effect;
 pub mod camera;
