@@ -37,7 +37,7 @@ function module.Start()
     local _floor = __spawn_part({
         name = "floor",
         position = Vector3.zero,
-        size = Vector3.new(20, 0.01, 20),
+        size = Vector3.new(20, 0.1, 20),
         color = Color3.new(1, 1, 1),
         parent = workspace,
         has_collider = true
@@ -51,11 +51,11 @@ function module.Start()
         if count < time_before_next then return end
 
         count = 0
-        time_before_next = math.random(0, 1000) / 1000
+        time_before_next = math.random(0, 500) / 10000
 
         local part = __spawn_part({
             position = Vector3.new(math.random(-10, 10), math.random(7, 13), math.random(-10, 10)),
-            size = Vector3.new(math.random(1, 2) / 10, math.random(3, 5) / 10, math.random(1, 2) / 10),
+            size = Vector3.new(1 / 10, math.random(2, 5) / 10, 1 / 10),
             color = Color3.fromRGB(20, 20, math.random(100, 200)),
             transparency = math.random(50, 100) / 100,
             parent = workspace,
