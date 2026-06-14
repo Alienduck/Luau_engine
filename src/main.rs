@@ -6,6 +6,7 @@ use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
+        atmosphere::AtmosphereModule,
         base_part::process_collisions,
         bloom_effect::BloomEffectModule,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
@@ -32,7 +33,9 @@ use luau_runtime::{
     vm::LuaVm,
 };
 use services::{
-    lighting::{LightingModule, sync_post_processing_system, sync_sky_system},
+    lighting::{
+        LightingModule, sync_atmosphere_system, sync_post_processing_system, sync_sky_system,
+    },
     run_service::{RunServiceModule, trigger_run_service},
     user_input::{UserInputModule, trigger_user_input},
 };
@@ -108,6 +111,7 @@ fn main() {
                 sync_dormancy_system,
                 sync_post_processing_system,
                 sync_sky_system,
+                sync_atmosphere_system,
             )
                 .chain(),
         )
@@ -135,6 +139,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (FrameModule::name(), FrameModule::register),
         (BloomEffectModule::name(), BloomEffectModule::register),
         (SkyModule::name(), SkyModule::register),
+        (AtmosphereModule::name(), AtmosphereModule::register),
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
