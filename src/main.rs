@@ -14,6 +14,7 @@ use luau_classes::{
         part::PartModule,
         rigidbody::RigidbodyModule,
         screen_gui::ScreenGuiModule,
+        sky::SkyModule,
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
@@ -31,7 +32,7 @@ use luau_runtime::{
     vm::LuaVm,
 };
 use services::{
-    lighting::{LightingModule, sync_post_processing_system},
+    lighting::{LightingModule, sync_post_processing_system, sync_sky_system},
     run_service::{RunServiceModule, trigger_run_service},
     user_input::{UserInputModule, trigger_user_input},
 };
@@ -106,6 +107,7 @@ fn main() {
                 trigger_run_service,
                 sync_dormancy_system,
                 sync_post_processing_system,
+                sync_sky_system,
             )
                 .chain(),
         )
@@ -132,6 +134,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (ScreenGuiModule::name(), ScreenGuiModule::register),
         (FrameModule::name(), FrameModule::register),
         (BloomEffectModule::name(), BloomEffectModule::register),
+        (SkyModule::name(), SkyModule::register),
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
