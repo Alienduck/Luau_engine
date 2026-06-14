@@ -14,12 +14,12 @@ subject.Material = "Neon"
 print(typeof(subject))
 
 local function random_color(): Color3
-    return Color3.new(math.random(0, 100) / 100, math.random(0, 100) / 100, math.random(0, 100) / 100)
+    return Color3.new(math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255) / 255)
 end
 
 local subject_goal = random_color()
 RunService.RenderStepped:Connect(function(delta: number)
-    subject.Color:Lerp(subject_goal, 0.1)
+    subject.Color = subject.Color:Lerp(subject_goal, delta)
     if subject.Color == subject_goal then
         subject_goal = random_color()
     end
@@ -41,10 +41,28 @@ RunService.RenderStepped:Connect(function(delta: number)
 end)
 
 local bloom = BloomEffect.new()
-bloom.Intensity = 2
+bloom.Intensity = 0
 bloom.Size = 24.0
-bloom.Threshold = 1.5
+bloom.Threshold = 1
 bloom.Parent = Lighting
+
+local bloom_sens = true
+
+RunService.RenderStepped:Connect(function(delta: number)
+    if bloom_sens then
+        bloom.Intensity += delta * 1.5
+        if bloom.Intensity > 6 then
+            bloom_sens = false
+        end
+    else
+        bloom.Intensity -= delta * 1.5
+        bloom_sens = bloom.Intensity < 0
+    end
+end)
+
+local sky = Sky.new()
+sky.CubemapPath = "skybox/sky_skybox.ktx2"
+sky.Parent = Lighting
 
 local rain = require("scripts/rain")
 rain.Start()
