@@ -6,4 +6,5 @@ pub mod frame;
 pub mod part;
 pub mod rigidbody;
 pub mod screen_gui;
+pub mod sky;
 pub mod workspace;
