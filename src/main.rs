@@ -1,4 +1,7 @@
-use bevy::{prelude::*, window::WindowMode};
+use bevy::{
+    core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
+    render::view::Hdr, window::WindowMode,
+};
 use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
@@ -143,8 +146,12 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
 /// Spawns the camera and directional light entities at startup.
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
+        Hdr,
+        Camera::default(),
         Camera3d::default(),
-        Camera2d::default(),
+        // Camera2d::default(),
+        Bloom::NATURAL,
+        Tonemapping::TonyMcMapface,
         Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
         SmartCamera::default(),
     ));
