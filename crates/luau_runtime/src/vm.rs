@@ -11,15 +11,14 @@ impl LuaVm {
     pub fn new() -> mlua::Result<Self> {
         let lua = Lua::new();
         let spawner_queue = SpawnerQueue(Rc::new(RefCell::new(Vec::new())));
+
         inject_task_stdlib(&lua, spawner_queue.clone())?;
         inject_module_system(&lua)?;
 
         let cache = lua.create_table()?;
-        let mt = lua.create_table()?;
-        // See weak tables (https://www.lua.org/pil/17.html)
-        mt.set("__mode", "v")?;
-        cache.set_metatable(Some(mt))?;
+
         lua.set_named_registry_value("__instance_cache", cache)?;
+
         Ok(Self { lua, spawner_queue })
     }
     pub fn lua(&self) -> &Lua {
