@@ -56,12 +56,13 @@ function module.Start()
         local part = __spawn_part({
             position = Vector3.new(math.random(-10, 10), math.random(7, 13), math.random(-10, 10)),
             size = Vector3.new(1 / 10, math.random(2, 5) / 10, 1 / 10),
-            color = Color3.fromRGB(20, 20, math.random(100, 200)),
+            color = Color3.fromRGB(50, 50, math.random(200, 255)),
             transparency = math.random(50, 100) / 100,
             parent = workspace,
             has_collider = true,
             has_rigidbody = true
         })
+        part.Material = "Neon"
 
         part.Touched:Connect(function(hit: Instance)
             if hit.Name == "floor" then
