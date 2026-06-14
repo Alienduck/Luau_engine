@@ -2,7 +2,11 @@ use crate::types::{
     cframe::LuaCFrame, color3::LuaColor3, instance::InstanceData, signal::LuaSignal,
     vector3::LuaVector3,
 };
-use bevy::{ecs::world::World, math::Vec3, prelude::*};
+use bevy::{
+    ecs::world::World,
+    math::{Vec3, VectorSpace},
+    prelude::*,
+};
 use bevy_rapier3d::pipeline::CollisionEvent;
 use luau_runtime::{
     bridge::{
@@ -29,6 +33,7 @@ pub struct BasePartData {
     pub color: LuaColor3,
     /// 0.0 = fully opaque, 1.0 = fully transparent.
     pub transparency: f32,
+    pub material: String,
 }
 
 impl BasePartData {
@@ -48,7 +53,37 @@ impl BasePartData {
                 b: 0.8,
             },
             transparency: 0.0,
+            material: "Plastic".into(),
         }
+    }
+
+    pub fn set_material(&mut self, m: String) {
+        self.material = m.clone();
+        let h = self.base.handle;
+        let c = self.color;
+        self.base
+            .queue
+            .0
+            .lock()
+            .unwrap()
+            .push(Box::new(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mat_h) = w
+                        .get::<MeshMaterial3d<StandardMaterial>>(e)
+                        .map(|m| m.0.clone())
+                    {
+                        if let Some(mat) =
+                            w.resource_mut::<Assets<StandardMaterial>>().get_mut(&mat_h)
+                        {
+                            mat.emissive = if m == "Neon" {
+                                LinearRgba::rgb(c.r * 5.0, c.g * 5.0, c.b * 5.0)
+                            } else {
+                                LinearRgba::ZERO
+                            };
+                        }
+                    }
+                }
+            }));
     }
 
     pub fn set_position(&mut self, p: LuaVector3) {
@@ -107,6 +142,7 @@ impl BasePartData {
         self.color = c;
         let h = self.base.handle;
         let t = self.transparency;
+        let m = self.material.clone();
         self.base
             .queue
             .0
@@ -122,6 +158,11 @@ impl BasePartData {
                             w.resource_mut::<Assets<StandardMaterial>>().get_mut(&mat_h)
                         {
                             mat.base_color = Color::srgba(c.r, c.g, c.b, 1.0 - t);
+                            mat.emissive = if m == "Neon" {
+                                LinearRgba::rgb(c.r * 5.0, c.g * 5.0, c.b * 5.0)
+                            } else {
+                                LinearRgba::ZERO
+                            };
                         }
                     }
                 }
