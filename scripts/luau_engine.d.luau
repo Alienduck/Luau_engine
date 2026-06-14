@@ -62,6 +62,7 @@ export type Part = Instance & {
     Size: Vector3,
     Color: Color3,
     Transparency: number,
+    Material: string,
     Touched: Signal<Instance>,
 }
 
