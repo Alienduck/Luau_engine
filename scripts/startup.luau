@@ -40,12 +40,8 @@ RunService.RenderStepped:Connect(function(delta: number)
     Lighting.ClockTime += (delta / 3600) * CLOCK_MULTIPLIER
 end)
 
--- Lighting.FogStart = 5
--- Lighting.FogEnd = 20
--- Lighting.FogColor = Color3.fromRGB(20, 20, 150)
-
 local bloom = BloomEffect.new()
-bloom.Intensity = 1.0
+bloom.Intensity = 2
 bloom.Size = 24.0
 bloom.Threshold = 1.5
 bloom.Parent = Lighting
