@@ -65,10 +65,7 @@ function module.Start()
 
         part.Touched:Connect(function(hit: Instance)
             if hit.Name == "floor" then
-                print("destroy")
                 part:Destroy()
-            else
-                print(`hit name -> {hit.Name} | type -> {typeof(hit)}`)
             end
         end)
     end)
