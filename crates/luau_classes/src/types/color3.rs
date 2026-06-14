@@ -38,6 +38,13 @@ impl UserData for LuaColor3 {
                 b: this.b + (other.b - this.b) * t,
             })
         });
+        methods.add_meta_method(mlua::MetaMethod::Eq, |_, this, other: LuaColor3| {
+            let epsilon = 1e-4;
+            let eq = (this.r - other.r).abs() < epsilon
+                && (this.g - other.g).abs() < epsilon
+                && (this.b - other.b).abs() < epsilon;
+            Ok(eq)
+        });
     }
 }
 
