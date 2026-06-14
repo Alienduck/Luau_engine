@@ -76,7 +76,7 @@ impl BasePartData {
                             w.resource_mut::<Assets<StandardMaterial>>().get_mut(&mat_h)
                         {
                             mat.emissive = if m == "Neon" {
-                                LinearRgba::rgb(c.r * 5.0, c.g * 5.0, c.b * 5.0)
+                                LinearRgba::rgb(c.r * 10.0, c.g * 10.0, c.b * 10.0)
                             } else {
                                 LinearRgba::ZERO
                             };
@@ -159,7 +159,7 @@ impl BasePartData {
                         {
                             mat.base_color = Color::srgba(c.r, c.g, c.b, 1.0 - t);
                             mat.emissive = if m == "Neon" {
-                                LinearRgba::rgb(c.r * 5.0, c.g * 5.0, c.b * 5.0)
+                                LinearRgba::rgb(c.r * 10.0, c.g * 10.0, c.b * 10.0)
                             } else {
                                 LinearRgba::ZERO
                             };
