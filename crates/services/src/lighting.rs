@@ -1,6 +1,6 @@
 use bevy::{core_pipeline::Skybox, pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
 use luau_classes::{
-    instances::{bloom_effect::LuauBloom, sky::LuauSky},
+    instances::{atmosphere::LuauAtmosphere, bloom_effect::LuauBloom, sky::LuauSky},
     types::{
         color3::LuaColor3,
         instance::{CloneableInstance, InstanceData},
@@ -175,6 +175,54 @@ pub fn sync_sky_system(
         }
         if opt_env_map.is_some() {
             commands.entity(cam_entity).remove::<EnvironmentMapLight>();
+        }
+    }
+}
+
+pub fn sync_atmosphere_system(
+    lighting_query: Query<Entity, With<LightingRoot>>,
+    atmosphere_query: Query<(&LuauAtmosphere, &ChildOf)>,
+    mut camera_query: Query<(Entity, Option<&mut DistanceFog>), With<Camera3d>>,
+    mut commands: Commands,
+) {
+    if lighting_query.is_empty() || camera_query.is_empty() {
+        return;
+    }
+    let Ok(lighting_entity) = lighting_query.single() else {
+        return;
+    };
+    let Ok((cam_entity, opt_fog)) = camera_query.single_mut() else {
+        return;
+    };
+
+    let mut active_atmo = None;
+    for (atmo, parent) in atmosphere_query.iter() {
+        if parent.0 == lighting_entity {
+            active_atmo = Some(atmo);
+            break;
+        }
+    }
+
+    if let Some(atmo) = active_atmo {
+        let scale = atmo.density * 0.05;
+        let ext = Vec3::new(atmo.color.r, atmo.color.g, atmo.color.b) * scale;
+        let ins = Vec3::new(atmo.decay.r, atmo.decay.g, atmo.decay.b) * scale;
+
+        let new_fog = DistanceFog {
+            color: Color::srgba(atmo.color.r, atmo.color.g, atmo.color.b, 1.0),
+            falloff: FogFalloff::Atmospheric {
+                extinction: ext.max(Vec3::splat(0.0001)),
+                inscattering: ins.max(Vec3::splat(0.0001)),
+            },
+            directional_light_color: Color::srgba(1.0, 0.9, 0.8, atmo.glare.clamp(0.0, 1.0)),
+            directional_light_exponent: (30.0 - (atmo.haze.clamp(0.0, 1.0) * 20.0)).max(1.0),
+            ..default()
+        };
+
+        if let Some(mut fog) = opt_fog {
+            *fog = new_fog;
+        } else {
+            commands.entity(cam_entity).insert(new_fog);
         }
     }
 }
