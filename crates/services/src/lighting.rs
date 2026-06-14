@@ -76,8 +76,7 @@ fn update_fog(w: &mut World, c: LuaColor3, s: f32, e: f32) {
 pub fn sync_post_processing_system(
     lighting_query: Query<Entity, With<LightingRoot>>,
     effect_query: Query<(&LuauBloom, &ChildOf)>,
-    mut camera_query: Query<(Entity, Option<&mut Bloom>), With<Camera3d>>,
-    mut commands: Commands,
+    mut camera_query: Query<&mut Bloom, With<Camera3d>>,
 ) {
     if lighting_query.is_empty() || camera_query.is_empty() {
         return;
@@ -86,7 +85,7 @@ pub fn sync_post_processing_system(
     let Ok(lighting_entity) = lighting_query.single() else {
         return;
     };
-    let Ok((cam_entity, opt_bloom)) = camera_query.single_mut() else {
+    let Ok(mut bloom_settings) = camera_query.single_mut() else {
         return;
     };
 
@@ -98,23 +97,14 @@ pub fn sync_post_processing_system(
         }
     }
 
-    match (active_bloom, opt_bloom) {
-        (Some(bloom), Some(mut settings)) => {
-            settings.intensity = bloom.intensity;
-            settings.low_frequency_boost = bloom.size / 100.0;
-            settings.prefilter.threshold = bloom.threshold;
-        }
-        (Some(bloom), None) => {
-            commands.entity(cam_entity).insert(Bloom {
-                intensity: bloom.intensity,
-                low_frequency_boost: bloom.size / 100.0,
-                ..default()
-            });
-        }
-        (None, Some(_)) => {
-            commands.entity(cam_entity).remove::<Bloom>();
-        }
-        _ => {}
+    if let Some(bloom) = active_bloom {
+        bloom_settings.intensity = (bloom.intensity * 0.15).clamp(0.0, 1.0);
+
+        bloom_settings.low_frequency_boost = (bloom.size / 56.0).clamp(0.0, 1.0);
+
+        bloom_settings.prefilter.threshold = bloom.threshold.max(1.0);
+    } else {
+        bloom_settings.intensity = 0.0;
     }
 }
 
