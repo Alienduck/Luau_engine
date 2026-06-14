@@ -64,5 +64,13 @@ local sky = Sky.new()
 sky.CubemapPath = "skybox/sky_skybox.ktx2"
 sky.Parent = Lighting
 
+local atmosphere = Atmosphere.new()
+atmosphere.Parent = Lighting
+atmosphere.Density = 0.5
+atmosphere.Haze = 2.8
+atmosphere.Color = Color3.fromRGB(200, 100, 255)
+atmosphere.Glare = 0.5
+atmosphere.Decay = Color3.fromRGB(255, 90, 80)
+
 local rain = require("scripts/rain")
 rain.Start()
