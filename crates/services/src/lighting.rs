@@ -1,6 +1,6 @@
-use bevy::{pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
+use bevy::{core_pipeline::Skybox, pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
 use luau_classes::{
-    instances::bloom_effect::LuauBloom,
+    instances::{bloom_effect::LuauBloom, sky::LuauSky},
     types::{
         color3::LuaColor3,
         instance::{CloneableInstance, InstanceData},
@@ -105,6 +105,77 @@ pub fn sync_post_processing_system(
         bloom_settings.prefilter.threshold = bloom.threshold.max(1.0);
     } else {
         bloom_settings.intensity = 0.0;
+    }
+}
+
+pub fn sync_sky_system(
+    lighting_query: Query<Entity, With<LightingRoot>>,
+    sky_query: Query<(&LuauSky, &ChildOf)>,
+    mut camera_query: Query<
+        (
+            Entity,
+            Option<&mut Skybox>,
+            Option<&mut EnvironmentMapLight>,
+        ),
+        With<Camera3d>,
+    >,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    if lighting_query.is_empty() || camera_query.is_empty() {
+        return;
+    }
+    let Ok(lighting_entity) = lighting_query.single() else {
+        return;
+    };
+    let Ok((cam_entity, opt_skybox, opt_env_map)) = camera_query.single_mut() else {
+        return;
+    };
+
+    let mut active_sky = None;
+    for (sky, parent) in sky_query.iter() {
+        if parent.0 == lighting_entity {
+            active_sky = Some(sky);
+            break;
+        }
+    }
+
+    if let Some(sky) = active_sky {
+        if !sky.cubemap_path.is_empty() {
+            let handle: Handle<Image> = asset_server.load(&sky.cubemap_path);
+            if opt_skybox.is_none() {
+                commands.entity(cam_entity).insert(Skybox {
+                    image: handle.clone(),
+                    brightness: 1000.0,
+                    ..default()
+                });
+            } else if let Some(mut s) = opt_skybox {
+                if s.image != handle {
+                    s.image = handle.clone();
+                }
+            }
+
+            if opt_env_map.is_none() {
+                commands.entity(cam_entity).insert(EnvironmentMapLight {
+                    diffuse_map: handle.clone(),
+                    specular_map: handle.clone(),
+                    intensity: 1000.0,
+                    ..default()
+                });
+            } else if let Some(mut e) = opt_env_map {
+                if e.diffuse_map != handle {
+                    e.diffuse_map = handle.clone();
+                    e.specular_map = handle;
+                }
+            }
+        }
+    } else {
+        if opt_skybox.is_some() {
+            commands.entity(cam_entity).remove::<Skybox>();
+        }
+        if opt_env_map.is_some() {
+            commands.entity(cam_entity).remove::<EnvironmentMapLight>();
+        }
     }
 }
 
