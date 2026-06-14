@@ -7,8 +7,12 @@ use crate::types::{
     vector3::LuaVector3,
 };
 use bevy::{
-    asset::Assets, color::Color, ecs::world::World, math::primitives::Cuboid,
-    pbr::StandardMaterial, prelude::*,
+    asset::Assets,
+    color::Color,
+    ecs::world::World,
+    math::{VectorSpace, primitives::Cuboid},
+    pbr::StandardMaterial,
+    prelude::*,
 };
 use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
@@ -37,6 +41,16 @@ impl CloneableInstance for LuaPart {
     }
 
     fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
+        let emissive = if self.0.material == "Neon" {
+            LinearRgba::rgb(
+                self.0.color.r * 5.0,
+                self.0.color.g * 5.0,
+                self.0.color.b * 5.0,
+            )
+        } else {
+            LinearRgba::ZERO
+        };
+
         let mat = w
             .resource_mut::<Assets<StandardMaterial>>()
             .add(StandardMaterial {
@@ -46,6 +60,7 @@ impl CloneableInstance for LuaPart {
                     self.0.color.b,
                     1.0 - self.0.transparency,
                 ),
+                emissive,
                 alpha_mode: if self.0.transparency > 0.0 {
                     AlphaMode::Blend
                 } else {
@@ -53,6 +68,7 @@ impl CloneableInstance for LuaPart {
                 },
                 ..default()
             });
+
         let mesh = w.resource_mut::<Assets<Mesh>>().add(Cuboid::default());
 
         if let Ok(mut e) = w.get_entity_mut(entity) {
@@ -93,6 +109,7 @@ impl UserData for LuaPart {
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
             Ok(cache.get::<Option<mlua::AnyUserData>>(parent_handle)?)
         });
+        fields.add_field_method_get("Material", |_, this| Ok(this.0.material.clone()));
 
         fields.add_field_method_set("Name", |_, this, v: String| {
             this.0.base.set_name(v);
@@ -120,6 +137,10 @@ impl UserData for LuaPart {
         });
         fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
             this.0.base.set_parent(lua, parent);
+            Ok(())
+        });
+        fields.add_field_method_set("Material", |_, this, v: String| {
+            this.0.set_material(v);
             Ok(())
         });
     }
