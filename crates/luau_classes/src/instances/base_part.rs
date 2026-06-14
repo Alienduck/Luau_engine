@@ -237,11 +237,18 @@ pub fn process_collisions(
                 continue;
             };
 
-            if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
-                let signal = LuaSignal {
-                    id: part.0.touched_signal_id,
-                };
-                let _ = signal.fire(&vm.lua, other_ud);
+            let signal_id = if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
+                Some(part.0.touched_signal_id)
+            } else {
+                None
+            };
+
+            if let Some(id) = signal_id {
+                let signal = LuaSignal { id };
+
+                if let Err(e) = signal.fire(&vm.lua, other_ud) {
+                    log::error!("Luau Error in Touched event: {}", e);
+                }
             }
         }
     }
