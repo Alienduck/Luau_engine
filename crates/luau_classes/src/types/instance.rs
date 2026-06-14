@@ -231,7 +231,7 @@ macro_rules! impl_instance_userdata {
         $methods.add_method("Destroy", |lua, this, ()| {
             use $crate::types::instance::CloneableInstance;
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
-            $crate::types::instance::recursive_destroy(lua, &cache, this.base())?;
+            $crate::types::instance::recursive_destroy(lua, &cache, this.base(), true)?;
             Ok(())
         });
 
@@ -310,10 +310,11 @@ macro_rules! impl_instance_userdata {
             use $crate::types::instance::CloneableInstance;
             Ok(this.base().parent_handle)
         });
-        $methods.add_method("__destroy_internal", |lua, this, ()| {
+
+        $methods.add_method("__destroy_internal_no_notify", |lua, this, ()| {
             use $crate::types::instance::CloneableInstance;
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
-            $crate::types::instance::recursive_destroy(lua, &cache, this.base())?;
+            $crate::types::instance::recursive_destroy(lua, &cache, this.base(), false)?;
             Ok(())
         });
     };
@@ -366,20 +367,28 @@ pub fn recursive_destroy(
     _lua: &mlua::Lua,
     cache: &mlua::Table,
     data: &InstanceData,
+    notify_parent: bool,
 ) -> mlua::Result<()> {
-    for &child_handle in &data.children_handles {
+    let children = data.children_handles.clone();
+
+    for child_handle in children {
         if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
-            let _ = child_ud.call_method::<()>("__destroy_internal", ());
+            let _ = child_ud.call_method::<()>("__destroy_internal_no_notify", ());
         }
         let _ = cache.set(child_handle, mlua::Value::Nil);
     }
-    if let Some(parent_h) = data.parent_handle {
-        if let Ok(parent_ud) = cache.get::<mlua::AnyUserData>(parent_h) {
-            let _ = parent_ud.call_method::<()>("__remove_child_handle", data.handle);
+
+    if notify_parent {
+        if let Some(parent_h) = data.parent_handle {
+            if let Ok(parent_ud) = cache.get::<mlua::AnyUserData>(parent_h) {
+                let _ = parent_ud.call_method::<()>("__remove_child_handle", data.handle);
+            }
         }
     }
+
     data.destroy();
     let _ = cache.set(data.handle, mlua::Value::Nil);
+
     Ok(())
 }
 
