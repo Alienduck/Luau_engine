@@ -98,6 +98,10 @@ export type BloomEffect = Instance & {
     Threshold: number
 }
 
+export type Sky = Instance & {
+    CubemapPath: string,
+}
+
 export type Workspace = Instance
 
 export type Lighting = Instance & {
@@ -162,6 +166,7 @@ declare Rigidbody: { new: () -> Rigidbody }
 declare ScreenGui: { new: () -> ScreenGui }
 declare Frame: { new: () -> Frame }
 declare BloomEffect: { new: () -> BloomEffect }
+declare Sky: { new: () -> Sky }
 
 declare workspace: Workspace
 declare Lighting: Lighting
