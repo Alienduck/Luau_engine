@@ -298,6 +298,24 @@ macro_rules! impl_instance_userdata {
                 Ok(false)
             },
         );
+        $methods.add_method("__get_handle", |_, this, ()| {
+            use $crate::types::instance::CloneableInstance;
+            Ok(this.base().handle)
+        });
+        $methods.add_method("__get_name", |_, this, ()| {
+            use $crate::types::instance::CloneableInstance;
+            Ok(this.base().name.clone())
+        });
+        $methods.add_method("__get_parent_handle", |_, this, ()| {
+            use $crate::types::instance::CloneableInstance;
+            Ok(this.base().parent_handle)
+        });
+        $methods.add_method("__destroy_internal", |lua, this, ()| {
+            use $crate::types::instance::CloneableInstance;
+            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+            $crate::types::instance::recursive_destroy(lua, &cache, this.base())?;
+            Ok(())
+        });
     };
 }
 
@@ -305,71 +323,19 @@ macro_rules! impl_instance_userdata {
 ///
 /// O(N) in the number of types — acceptable given the small, fixed set.
 pub fn instance_handle_from_any(ud: &mlua::AnyUserData) -> Option<u64> {
-    if let Ok(p) = ud.borrow::<crate::instances::part::LuaPart>() {
-        return Some(p.0.base.handle);
-    }
-    if let Ok(f) = ud.borrow::<crate::instances::frame::LuaFrame>() {
-        return Some(f.base.handle);
-    }
-    if let Ok(sg) = ud.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
-        return Some(sg.base.handle);
-    }
-    if let Ok(rb) = ud.borrow::<crate::instances::rigidbody::LuaRigidbody>() {
-        return Some(rb.base.handle);
-    }
-    if let Ok(cd) = ud.borrow::<crate::instances::collider::LuaCollider>() {
-        return Some(cd.base.handle);
-    }
-    if let Ok(ws) = ud.borrow::<crate::instances::workspace::LuaWorkspace>() {
-        return Some(ws.base.handle);
-    }
-    None
+    ud.call_method::<u64>("__get_handle", ()).ok()
 }
 
 /// Returns the `name` field of `ud`, or `None` if the type is unrecognised.
 pub fn instance_name_from_any(ud: &mlua::AnyUserData) -> Option<String> {
-    if let Ok(p) = ud.borrow::<crate::instances::part::LuaPart>() {
-        return Some(p.0.base.name.clone());
-    }
-    if let Ok(f) = ud.borrow::<crate::instances::frame::LuaFrame>() {
-        return Some(f.base.name.clone());
-    }
-    if let Ok(sg) = ud.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
-        return Some(sg.base.name.clone());
-    }
-    if let Ok(rb) = ud.borrow::<crate::instances::rigidbody::LuaRigidbody>() {
-        return Some(rb.base.name.clone());
-    }
-    if let Ok(cd) = ud.borrow::<crate::instances::collider::LuaCollider>() {
-        return Some(cd.base.name.clone());
-    }
-    if let Ok(ws) = ud.borrow::<crate::instances::workspace::LuaWorkspace>() {
-        return Some(ws.base.name.clone());
-    }
-    None
+    ud.call_method::<String>("__get_name", ()).ok()
 }
 
 /// Returns the `parent_handle` of `ud`, or `None` if the type is unrecognised.
 pub fn instance_parent_handle_from_any(ud: &mlua::AnyUserData) -> Option<u64> {
-    if let Ok(p) = ud.borrow::<crate::instances::part::LuaPart>() {
-        return p.0.base.parent_handle;
-    }
-    if let Ok(f) = ud.borrow::<crate::instances::frame::LuaFrame>() {
-        return f.base.parent_handle;
-    }
-    if let Ok(sg) = ud.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
-        return sg.base.parent_handle;
-    }
-    if let Ok(rb) = ud.borrow::<crate::instances::rigidbody::LuaRigidbody>() {
-        return rb.base.parent_handle;
-    }
-    if let Ok(cd) = ud.borrow::<crate::instances::collider::LuaCollider>() {
-        return cd.base.parent_handle;
-    }
-    if let Ok(ws) = ud.borrow::<crate::instances::workspace::LuaWorkspace>() {
-        return ws.base.parent_handle;
-    }
-    None
+    ud.call_method::<Option<u64>>("__get_parent_handle", ())
+        .ok()
+        .flatten()
 }
 
 /// Recursively collects all descendants into `result`, depth-first.
@@ -383,7 +349,6 @@ pub fn collect_descendants(
         if let Ok(ud) = cache.get::<mlua::AnyUserData>(handle) {
             result.set(*idx, ud.clone())?;
             *idx += 1;
-            // Recurse into this child's children.
             let grandchildren: Vec<u64> = ud.call_method("__get_children", ())?;
             collect_descendants(cache, &grandchildren, result, idx)?;
         }
@@ -398,55 +363,24 @@ pub fn collect_descendants(
 /// children are unlinked, but since [`InstanceData::destroy`] uses a
 /// recursive Bevy despawn the order doesn't technically matter for the ECS.
 pub fn recursive_destroy(
-    lua: &mlua::Lua,
+    _lua: &mlua::Lua,
     cache: &mlua::Table,
     data: &InstanceData,
 ) -> mlua::Result<()> {
-    // Recurse into children first.
     for &child_handle in &data.children_handles {
         if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
-            if let Some(child_data) = instance_data_from_any(&child_ud) {
-                recursive_destroy(lua, cache, &child_data)?;
-            }
+            let _ = child_ud.call_method::<()>("__destroy_internal", ());
         }
         let _ = cache.set(child_handle, mlua::Value::Nil);
     }
-
-    // Notify parent that we are leaving.
     if let Some(parent_h) = data.parent_handle {
         if let Ok(parent_ud) = cache.get::<mlua::AnyUserData>(parent_h) {
             let _ = parent_ud.call_method::<()>("__remove_child_handle", data.handle);
         }
     }
-
     data.destroy();
     let _ = cache.set(data.handle, mlua::Value::Nil);
     Ok(())
-}
-
-/// Extracts a cloned [`InstanceData`] from any known userdata type.
-///
-/// Returns `None` for unrecognised types.
-fn instance_data_from_any(ud: &mlua::AnyUserData) -> Option<InstanceData> {
-    if let Ok(p) = ud.borrow::<crate::instances::part::LuaPart>() {
-        return Some(p.0.base.clone());
-    }
-    if let Ok(f) = ud.borrow::<crate::instances::frame::LuaFrame>() {
-        return Some(f.base.clone());
-    }
-    if let Ok(sg) = ud.borrow::<crate::instances::screen_gui::LuaScreenGui>() {
-        return Some(sg.base.clone());
-    }
-    if let Ok(rb) = ud.borrow::<crate::instances::rigidbody::LuaRigidbody>() {
-        return Some(rb.base.clone());
-    }
-    if let Ok(cd) = ud.borrow::<crate::instances::collider::LuaCollider>() {
-        return Some(cd.base.clone());
-    }
-    if let Ok(ws) = ud.borrow::<crate::instances::workspace::LuaWorkspace>() {
-        return Some(ws.base.clone());
-    }
-    None
 }
 
 /// Deep-clones `original` and recursively clones all its descendants.
@@ -471,11 +405,11 @@ pub fn universal_clone(
 
     let children: Vec<u64> = original.call_method("__get_children", ())?;
     let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+
     for child_handle in children {
         if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
             universal_clone(lua, &child_ud, Some(cloned.clone()))?;
         }
     }
-
     Ok(cloned)
 }
