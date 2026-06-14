@@ -8,7 +8,8 @@ local function newPart(name: string, position: Vector3, size: Vector3): Part
 end
 
 local subject = newPart("Subject", Vector3.zero, Vector3.one)
-subject.Transparency = 1
+subject.Transparency = 0
+subject.Material = "Neon"
 
 Camera.Distance = 20
 Camera:SetSubject(subject)
