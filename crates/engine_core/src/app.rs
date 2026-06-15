@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-/// Thin wrapper around a Bevy App with engine-level defaults.
+/// Thin wrapper around a Bevy [`App`] with engine-level defaults baked in.
+///
+/// Spawns a window titled "Luau Engine" and applies [`DefaultPlugins`].
 pub struct EngineApp(pub App);
 
 impl EngineApp {

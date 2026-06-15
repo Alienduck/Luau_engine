@@ -42,3 +42,6 @@ impl HandleMap {
         self.0.remove(&handle)
     }
 }
+
+#[derive(Component)]
+pub struct LuauHandle(pub u64);

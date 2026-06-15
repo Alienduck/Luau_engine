@@ -1,6 +1,6 @@
 use crate::scheduler::SpawnerQueue;
-use mlua::Lua;
-use std::{cell::RefCell, rc::Rc};
+use mlua::{Lua, Value};
+use std::{cell::RefCell, fs, path::Path, rc::Rc};
 
 pub struct LuaVm {
     pub lua: Lua,
@@ -11,7 +11,14 @@ impl LuaVm {
     pub fn new() -> mlua::Result<Self> {
         let lua = Lua::new();
         let spawner_queue = SpawnerQueue(Rc::new(RefCell::new(Vec::new())));
+
         inject_task_stdlib(&lua, spawner_queue.clone())?;
+        inject_module_system(&lua)?;
+
+        let cache = lua.create_table()?;
+
+        lua.set_named_registry_value("__instance_cache", cache)?;
+
         Ok(Self { lua, spawner_queue })
     }
     pub fn lua(&self) -> &Lua {
@@ -23,6 +30,46 @@ impl Default for LuaVm {
     fn default() -> Self {
         Self::new().expect("failed to create Lua VM")
     }
+}
+
+fn inject_module_system(lua: &Lua) -> mlua::Result<()> {
+    lua.set_named_registry_value("__loaded_modules", lua.create_table()?)?;
+    let require_func = lua.create_function(|lua, mut path_str: String| {
+        if !path_str.ends_with(".luau") && !path_str.ends_with(".lua") {
+            path_str.push_str(".luau");
+        }
+
+        let path = Path::new(&path_str);
+        if !path.exists() {
+            return Err(mlua::Error::runtime(format!(
+                "Module not found: {}",
+                path_str
+            )));
+        }
+        let loaded_table: mlua::Table = lua.named_registry_value("__loaded_modules")?;
+        if let Ok(cached_value) = loaded_table.get::<Value>(path_str.as_str()) {
+            if !matches!(cached_value, Value::Nil) {
+                return Ok(cached_value);
+            }
+        }
+        let source = fs::read_to_string(path).map_err(|e| {
+            mlua::Error::runtime(format!("Failed to read module '{}': {}", path_str, e))
+        })?;
+        let module_chunk = lua.load(&source).set_name(&path_str).into_function()?;
+        let result: Value = module_chunk.call(())?;
+
+        let cache_value = if matches!(result, Value::Nil) {
+            Value::Boolean(true)
+        } else {
+            result.clone()
+        };
+        loaded_table.set(path_str.as_str(), cache_value)?;
+
+        Ok(result)
+    })?;
+
+    lua.globals().set("require", require_func)?;
+    Ok(())
 }
 
 fn inject_task_stdlib(lua: &Lua, spawner: SpawnerQueue) -> mlua::Result<()> {

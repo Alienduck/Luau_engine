@@ -14,23 +14,30 @@ use std::sync::{Arc, Mutex};
 
 use crate::types::cframe::LuaCFrame;
 
-// ─────────────────────────────────────────────
-// Bevy component
-// ─────────────────────────────────────────────
-
-/// The smart camera component. Attach to the camera entity.
-#[derive(Component)]
+/// Camera controller component.  Attach to the camera entity.
+///
+/// Supports first-person and third-person modes.  Mouse look is gated behind
+/// a held action (default: right mouse button) or a cursor-lock toggle
+/// (default: left Shift).
+#[derive(Component, Clone)]
 pub struct SmartCamera {
+    /// Optional subject entity to follow.
     pub subject: Option<Entity>,
     pub first_person: bool,
+    /// Third-person orbit distance in world units.
     pub distance: f32,
     pub sensitivity: f32,
     pub pitch: f32,
     pub yaw: f32,
+    /// Vertical field-of-view in radians.
     pub fov: f32,
+    /// First-person eye offset relative to the subject's origin.
     pub fp_offset: Vec3,
+    /// When `true`, the cursor is locked and all mouse delta drives the camera.
     pub mouse_locked: bool,
+    /// Name of the [`ActionMap`] action that enables look-while-held.
     pub look_action: String,
+    /// Name of the [`ActionMap`] action that toggles cursor lock.
     pub lock_action: String,
 }
 
@@ -44,7 +51,7 @@ impl Default for SmartCamera {
             pitch: 0.0,
             yaw: 0.0,
             fov: std::f32::consts::FRAC_PI_3,
-            fp_offset: Vec3::new(0.0, 0.0, 0.0),
+            fp_offset: Vec3::ZERO,
             mouse_locked: false,
             look_action: "CameraLook".into(),
             lock_action: "CameraToggleLock".into(),
@@ -52,10 +59,7 @@ impl Default for SmartCamera {
     }
 }
 
-// ─────────────────────────────────────────────
-// Bevy systems
-// ─────────────────────────────────────────────
-
+/// Accumulates mouse delta into yaw/pitch when the look action is active.
 pub fn camera_mouse_look(
     mut motion: MessageReader<MouseMotion>,
     mut query: Query<&mut SmartCamera>,
@@ -65,9 +69,7 @@ pub fn camera_mouse_look(
         return;
     };
 
-    // Vérification propre via le contexte
-    let look_held = action_map.is_pressed(&cam.look_action);
-    if !look_held && !cam.mouse_locked {
+    if !action_map.is_pressed(&cam.look_action) && !cam.mouse_locked {
         motion.clear();
         return;
     }
@@ -80,11 +82,11 @@ pub fn camera_mouse_look(
     if delta != Vec2::ZERO {
         let s = cam.sensitivity * 0.003;
         cam.yaw -= delta.x * s;
-        cam.pitch -= delta.y * s;
-        cam.pitch = cam.pitch.clamp(-FRAC_PI_2 + 0.01, FRAC_PI_2 - 0.01);
+        cam.pitch = (cam.pitch - delta.y * s).clamp(-FRAC_PI_2 + 0.01, FRAC_PI_2 - 0.01);
     }
 }
 
+/// Toggles cursor lock when the lock action is just pressed.
 pub fn camera_toggle_lock(
     mut query: Query<&mut SmartCamera>,
     mut cursor: Single<&mut CursorOptions>,
@@ -104,12 +106,17 @@ pub fn camera_toggle_lock(
     }
 }
 
+/// Shared camera CFrame resource — written every frame by
+/// [`camera_update_transform`] and exposed read-only to Luau scripts.
 #[derive(Resource, Clone, Default)]
 pub struct CameraCFrame(pub Arc<Mutex<LuaCFrame>>);
 
+/// Newtype wrapper stored in the Lua registry so scripts can access the Arc.
 pub struct CameraCFrameHolder(pub Arc<Mutex<LuaCFrame>>);
 impl UserData for CameraCFrameHolder {}
 
+/// Positions the camera entity each `PostUpdate` based on `SmartCamera` state,
+/// then writes the resulting CFrame into [`CameraCFrame`] for Luau read-back.
 pub fn camera_update_transform(
     mut cam_query: Query<(&SmartCamera, &mut Transform, &mut Projection)>,
     subject_query: Query<&Transform, Without<SmartCamera>>,
@@ -118,18 +125,19 @@ pub fn camera_update_transform(
     let Ok((cam, mut cam_tf, mut proj)) = cam_query.single_mut() else {
         return;
     };
+
     if let Projection::Perspective(ref mut p) = *proj {
         p.fov = cam.fov;
     }
+
     if let Some(subject) = cam.subject {
         if let Ok(subject_tf) = subject_query.get(subject) {
             let rot = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
-            if cam.first_person {
-                cam_tf.translation = subject_tf.translation + cam.fp_offset;
+            cam_tf.translation = if cam.first_person {
+                subject_tf.translation + cam.fp_offset
             } else {
-                let offset = rot * Vec3::new(0.0, 0.0, cam.distance);
-                cam_tf.translation = subject_tf.translation + Vec3::Y + offset;
-            }
+                subject_tf.translation + Vec3::Y + rot * Vec3::new(0.0, 0.0, cam.distance)
+            };
             cam_tf.rotation = rot;
         }
     }
@@ -139,7 +147,7 @@ pub fn camera_update_transform(
     s.rotation = cam_tf.rotation;
 }
 
-/// Bevy plugin — adds all camera systems.
+/// Bevy plugin that registers all camera systems.
 pub struct SmartCameraPlugin;
 
 impl Plugin for SmartCameraPlugin {
@@ -149,12 +157,14 @@ impl Plugin for SmartCameraPlugin {
     }
 }
 
-// ─────────────────────────────────────────────
-// Luau UserData handle
-// ─────────────────────────────────────────────
-
+/// Luau-facing `Camera` singleton.
+///
+/// Exposes the most common camera properties as readable/writable fields.
+/// `CFrame` is read-only (set by the engine each frame).
+#[derive(Clone)]
 pub struct LuaCamera {
     pub queue: EngineQueue,
+    /// Shared reference to the camera's current CFrame (updated by Bevy).
     pub cframe: Arc<Mutex<LuaCFrame>>,
     pub first_person: bool,
     pub distance: f32,
@@ -163,8 +173,8 @@ pub struct LuaCamera {
 }
 
 impl LuaCamera {
-    fn default(queue: EngineQueue, cframe: Arc<Mutex<LuaCFrame>>) -> Self {
-        LuaCamera {
+    fn new(queue: EngineQueue, cframe: Arc<Mutex<LuaCFrame>>) -> Self {
+        Self {
             queue,
             cframe,
             first_person: false,
@@ -206,7 +216,7 @@ impl UserData for LuaCamera {
                 .push(Box::new(move |w: &mut World| {
                     let mut q = w.query::<&mut SmartCamera>();
                     if let Ok(mut cam) = q.single_mut(w) {
-                        cam.distance = v
+                        cam.distance = v;
                     }
                 }));
             Ok(())
@@ -243,21 +253,25 @@ impl UserData for LuaCamera {
 
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         methods.add_method("SetSubject", |_, this, part: mlua::AnyUserData| {
-            let handle = part.borrow::<crate::instances::part::LuaPart>()?.0.handle;
+            let handle = part
+                .borrow::<crate::instances::part::LuaPart>()?
+                .0
+                .base
+                .handle;
             this.queue
                 .0
                 .lock()
                 .unwrap()
                 .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
                     let entity = w.resource::<HandleMap>().get_entity(handle);
+                    let mut q = w.query::<&mut SmartCamera>();
                     if let Ok(mut cam) = q.single_mut(w) {
                         cam.subject = entity;
                     }
                 }));
-
             Ok(())
         });
+
         methods.add_method("ClearSubject", |_, this, ()| {
             this.queue
                 .0
@@ -274,10 +288,6 @@ impl UserData for LuaCamera {
     }
 }
 
-// ─────────────────────────────────────────────
-// LuaModule — registers `Camera` global
-// ─────────────────────────────────────────────
-
 pub struct CameraModule;
 
 impl LuaModule for CameraModule {
@@ -291,8 +301,7 @@ impl LuaModule for CameraModule {
             "__camera_cframe",
             lua.create_userdata(CameraCFrameHolder(cframe.clone()))?,
         )?;
-
-        let cam = LuaCamera::default(queue.clone(), cframe);
+        let cam = LuaCamera::new(queue.clone(), cframe);
         lua.globals().set("Camera", lua.create_userdata(cam)?)
     }
 }

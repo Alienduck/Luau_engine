@@ -1,92 +1,142 @@
--- luau_engine.d.luau
--- Type declarations for all globals injected by the Rust engine.
+export type Connection = {
+    Disconnect: (self: Connection) -> ()
+}
 
--- ─────────────────────────────────────────────
--- Primitive types
--- ─────────────────────────────────────────────
+export type Signal<T...> = {
+    Connect: (self: Signal<T...>, callback: (T...) -> ()) -> Connection
+}
+
+export type Vector2 = {
+    X: number,
+    Y: number,
+} & {
+    __add: (Vector2, Vector2) -> Vector2,
+    __sub: (Vector2, Vector2) -> Vector2,
+    __mul: (Vector2, number) -> Vector2,
+}
 
 export type Vector3 = {
-    X: number, Y: number, Z: number,
-    Dot: (self: Vector3, other: Vector3) -> number,
-    Cross: (self: Vector3, other: Vector3) -> Vector3,
-    Magnitude: (self: Vector3) -> number,
-    Normalize: (self: Vector3) -> Vector3,
-    Lerp: (self: Vector3, goal: Vector3, alpha: number) -> Vector3,
+    X: number,
+    Y: number,
+    Z: number,
+} & {
+    __add: (Vector3, Vector3) -> Vector3,
+    __sub: (Vector3, Vector3) -> Vector3,
+    __mul: (Vector3, number) -> Vector3,
 }
 
 export type Color3 = {
-    R: number, G: number, B: number,
+    R: number,
+    G: number,
+    B: number,
     Lerp: (self: Color3, goal: Color3, alpha: number) -> Color3,
 }
 
 export type CFrame = {
-    X: number, Y: number, Z: number,
     Position: Vector3,
     LookVector: Vector3,
-    RightVector:Vector3,
+    RightVector: Vector3,
     UpVector: Vector3,
+    X: number,
+    Y: number,
+    Z: number,
     Inverse: (self: CFrame) -> CFrame,
     Lerp: (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
     ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
+} & {
+    __mul: (CFrame, CFrame) -> CFrame,
 }
 
--- ─────────────────────────────────────────────
--- Instance types
--- ─────────────────────────────────────────────
+export type UDim2 = {}
 
-export type Part = {
+export type Instance = {
+    Name: string,
+    Parent: Instance?,
+    Clone: (self: Instance) -> Instance,
+    Destroy: (self: Instance) -> (),
+}
+
+export type Part = Instance & {
     Position: Vector3,
+    CFrame: CFrame,
     Size: Vector3,
-    Handle: number,
     Color: Color3,
     Transparency: number,
-    Destroy: (self: Part) -> (),
+    Material: string,
+    Touched: Signal<Instance>,
 }
 
-export type Camera = {
+export type Camera = Instance & {
     FirstPerson: boolean,
     Distance: number,
     Sensitivity: number,
     Fov: number,
     CFrame: CFrame,
-    SetSubject: (self: Camera, part: Part) -> (),
+    SetSubject: (self: Camera, subject: Instance) -> (),
     ClearSubject: (self: Camera) -> (),
-    SetLookBinding: (self: Camera, device: string, name: string) -> (),
-    SetLockBinding: (self: Camera, device: string, name: string) -> (),
 }
 
-export type Rigidbody<t> = {
-    Parent: t
+export type Collider = Instance & {
+    Size: Vector3,
 }
 
-export type Collider<t> = {
-    Parent: t
+export type Rigidbody = Instance & {}
+
+export type ScreenGui = Instance & {}
+
+export type Frame = Instance & {
+    Size: UDim2,
+    Position: UDim2,
+    AnchorPoint: Vector2,
+    Transparency: number,
+    BackgroundColor3: Color3,
 }
 
-export type RBXScriptConnection = {
-    Disconnect: (self: RBXScriptConnection) -> (),
+export type BloomEffect = Instance & {
+    Intensity: number,
+    Size: number,
+    Threshold: number
 }
 
-export type RBXScriptSignal<T...> = {
-    Connect: (self: RBXScriptSignal<T...>, callback: (T...) -> ()) -> RBXScriptConnection,
+export type Sky = Instance & {
+    CubemapPath: string,
 }
 
--- ─────────────────────────────────────────────
--- Services types
--- ─────────────────────────────────────────────
+export type Atmosphere = Instance & {
+    Density: number,
+    Color: Color3,
+    Decay: Color3,
+    Glare: number,
+    Haze: number,
+}
 
-export type ContextActionService = {
-    BindAction: (self: ContextActionService, actionName: string, callback: (string) -> (), device: string, name: string) -> (),
-    UnbindAction: (self: ContextActionService, actionName: string) -> (),
+export type Workspace = Instance
+
+export type Lighting = Instance & {
+    Ambient: Color3,
+    Brightness: number,
+    GlobalShadows: boolean,
+    ClockTime: number,
+    TimeOfDay: string,
+    FogColor: Color3,
+    FogEnd: number,
+    FogStart: number,
 }
 
 export type RunService = {
-    RenderStepped: RBXScriptSignal<number>,
+    RenderStepped: Signal<number>,
 }
 
--- ─────────────────────────────────────────────
--- Global constructors
--- ─────────────────────────────────────────────
+export type UserInputService = {
+    InputBegan: Signal<string, string>,
+    InputEnded: Signal<string, string>,
+}
+
+declare Vector2: {
+    new: (x: number, y: number) -> Vector2,
+    zero: () -> Vector2,
+    one: () -> Vector2,
+}
 
 declare Vector3: {
     new: (x: number, y: number, z: number) -> Vector3,
@@ -101,38 +151,34 @@ declare Color3: {
 
 declare CFrame: {
     new: (x: number, y: number, z: number) -> CFrame,
-    lookAt: (position: Vector3, target: Vector3) -> CFrame,
-    fromEulerAnglesYXZ:(rx: number, ry: number, rz: number) -> CFrame,
+    lookAt: (at: Vector3, look: Vector3) -> CFrame,
+    fromEulerAnglesYXZ: (x: number, y: number, z: number) -> CFrame,
     identity: CFrame,
 }
 
-declare Part: {
-    new: () -> Part,
+declare UDim2: {
+    new: (xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2,
+    fromScale: (x: number, y: number) -> UDim2,
+    fromOffset: (x: number, y: number) -> UDim2,
 }
-
-declare Rigidbody: {
-    new: <t>() -> Rigidbody<t>
-}
-
-declare Collider: {
-    new: <t>() -> Collider<t>
-}
-
---- Singleton camera — one per scene, configured from Luau.
-declare Camera: Camera
-
--- ─────────────────────────────────────────────
--- task library
--- ─────────────────────────────────────────────
 
 declare task: {
-    wait: (t: number?) -> (),
     spawn: <T...>(f: (T...) -> (), T...) -> thread,
     defer: <T...>(f: (T...) -> (), T...) -> thread,
+    wait: (time: number?) -> number,
 }
 
--- Services
+declare Part: { new: () -> Part }
+declare Collider: { new: () -> Collider }
+declare Rigidbody: { new: () -> Rigidbody }
+declare ScreenGui: { new: () -> ScreenGui }
+declare Frame: { new: () -> Frame }
+declare BloomEffect: { new: () -> BloomEffect }
+declare Sky: { new: () -> Sky }
+declare Atmosphere: { new: () -> Atmosphere }
 
-declare ContextActionService: ContextActionService
-
+declare workspace: Workspace
+declare Lighting: Lighting
+declare Camera: Camera
 declare RunService: RunService
+declare UserInputService: UserInputService

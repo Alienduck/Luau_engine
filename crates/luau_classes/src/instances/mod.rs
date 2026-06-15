@@ -1,7 +1,11 @@
+pub mod atmosphere;
 pub mod base_part;
+pub mod bloom_effect;
 pub mod camera;
 pub mod collider;
+pub mod frame;
 pub mod part;
 pub mod rigidbody;
-//TODO: pub mod model; -- future
-//TODO: pub mod workspace; -- future
+pub mod screen_gui;
+pub mod sky;
+pub mod workspace;
