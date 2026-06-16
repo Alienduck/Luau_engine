@@ -74,3 +74,10 @@ atmosphere.Decay = Color3.fromRGB(255, 90, 80)
 
 local rain = require("scripts/rain")
 rain.Start()
+local container = require("scripts/test_ui")
+
+UserInputService.InputBegan:Connect(function(k_input: string, m_input: string)
+    if k_input == "KeyF" then
+        container.Visible = not container.Visible
+    end
+end)
