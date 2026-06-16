@@ -44,7 +44,7 @@ pub struct Udim2Module;
 
 impl LuaModule for Udim2Module {
     fn name() -> &'static str {
-        "Udim2"
+        "UDim2"
     }
 
     fn register(lua: &Lua, _queue: &EngineQueue) -> mlua::Result<()> {
@@ -82,6 +82,6 @@ impl LuaModule for Udim2Module {
                 })
             })?,
         )?;
-        lua.globals().set("Udim2", t)
+        lua.globals().set("UDim2", t)
     }
 }
