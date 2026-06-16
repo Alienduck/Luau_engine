@@ -84,12 +84,25 @@ export type Rigidbody = Instance & {}
 
 export type ScreenGui = Instance & {}
 
-export type Frame = Instance & {
-    Size: UDim2,
-    Position: UDim2,
+export type GuiObject = Instance & {
     AnchorPoint: Vector2,
-    Transparency: number,
+    Position: UDim2,
+    Size: UDim2,
+    BackgroundTransparency: number,
     BackgroundColor3: Color3,
+    Visible: boolean,
+}
+
+export type Frame = GuiObject
+
+export type TextLabel = GuiObject & {
+    Text: string,
+    TextColor3: Color3,
+    TextSize: number
+}
+
+export type ImageLabel = GuiObject & {
+    Image: string
 }
 
 export type BloomEffect = Instance & {
@@ -173,6 +186,8 @@ declare Collider: { new: () -> Collider }
 declare Rigidbody: { new: () -> Rigidbody }
 declare ScreenGui: { new: () -> ScreenGui }
 declare Frame: { new: () -> Frame }
+declare TextLabel: { new: () -> TextLabel }
+declare ImageLabel: { new: () -> ImageLabel }
 declare BloomEffect: { new: () -> BloomEffect }
 declare Sky: { new: () -> Sky }
 declare Atmosphere: { new: () -> Atmosphere }
