@@ -29,4 +29,49 @@ up_right_image.Size = UDim2.fromOffset(100, 100)
 up_right_image.BackgroundTransparency = 1
 up_right_image.Image = "images/bevy_icon.png"
 
+local down_left_text_button = TextButton.new()
+down_left_text_button.Parent = container
+down_left_text_button.AnchorPoint = Vector2.new(0, 1)
+down_left_text_button.Position = UDim2.fromScale(0, 1)
+down_left_text_button.Size = UDim2.fromScale(.5, .5)
+down_left_text_button.BackgroundColor3 = Color3.fromRGB(20, 200, 20)
+down_left_text_button.Text = "DOWN LEFT TEXT BUTTON (CLICK ME)"
+down_left_text_button.TextColor3 = Color3.new(0, 0, 0)
+down_left_text_button.MouseEnter:Connect(function()
+    print("mouse entenring on [DOWN LEFT TEXT BUTTON]")
+end)
+down_left_text_button.MouseLeave:Connect(function()
+    print("mouse leaving on [DOWN LEFT TEXT BUTTON]")
+end)
+down_left_text_button.MouseButton1Click:Connect(function()
+    print("mouse click on [DOWN LEFT TEXT BUTTON]")
+end)
+
+local down_right_image_container = Frame.new()
+down_right_image_container.Parent = container
+down_right_image_container.AnchorPoint = Vector2.one
+down_right_image_container.Position = UDim2.fromScale(1, 1)
+down_right_image_container.Size = UDim2.fromScale(.5, .5)
+down_right_image_container.BackgroundColor3 = Color3.fromRGB(200, 20, 200)
+
+local down_right_image_button = ImageButton.new()
+down_right_image_button.Parent = down_right_image_container
+down_right_image_button.Image = "images/bevy_icon.png"
+down_right_image_button.AnchorPoint = Vector2.new(.5, .5)
+down_right_image_button.Position = UDim2.fromScale(.5, .5)
+down_right_image_button.Size = UDim2.fromOffset(100, 100)
+down_right_image_button.BackgroundTransparency = 1
+down_right_image_button.MouseEnter:Connect(function()
+    print("mouse entenring on [DOWN RIGHT IMAGE BUTTON]")
+    down_right_image_button.Size = UDim2.fromOffset(110, 110)
+end)
+down_right_image_button.MouseLeave:Connect(function()
+    print("mouse leaving on [DOWN RIGHT IMAGE BUTTON]")
+    down_right_image_button.Size = UDim2.fromOffset(100, 100)
+end)
+down_right_image_button.MouseButton1Click:Connect(function()
+    print("mouse click on [DOWN RIGHT IMAGE BUTTON]")
+end)
+
+
 return container
