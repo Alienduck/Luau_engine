@@ -77,13 +77,10 @@ pub fn process_tweens_system(vm: NonSend<LuaVm>, time: Res<Time>) {
         match current_val.into_lua(lua) {
             Ok(lua_val) => {
                 if let Err(e) = instance.set(prop_name.clone(), lua_val) {
-                    println!(
-                        "[TweenService] Erreur lors de l'application de '{}': {}",
-                        prop_name, e
-                    );
+                    println!("[TweenService] Error while applying '{}': {}", prop_name, e);
                 }
             }
-            Err(e) => println!("[TweenService] Erreur de conversion Rust -> Lua: {}", e),
+            Err(e) => println!("[TweenService] Error while converting Rust -> Lua: {}", e),
         }
     }
 }
@@ -101,7 +98,7 @@ impl UserData for LuaTween {
                     tween.state = PlayState::Playing;
                 } else {
                     println!(
-                        "[TweenService] Erreur: Impossible de jouer le Tween {} (introuvable)",
+                        "[TweenService] Error: Impossible to play the Tween {} (unfound)",
                         this.id
                     );
                 }
@@ -158,27 +155,36 @@ impl LuaModule for TweenServiceModule {
                                         let parsed_start = TweenableValue::from_lua(start_value);
                                         let parsed_end = TweenableValue::from_lua(target_value);
 
-                                        match (parsed_start, parsed_end) {
-                                            (Some(s), Some(e)) => props_to_animate.push((key, s, e)),
-                                            (None, _) => println!("[TweenService] Attention: Type de départ non reconnu pour '{}'", key),
-                                            (_, None) => println!("[TweenService] Attention: Type d'arrivée non reconnu pour '{}'", key),
+                                        match (parsed_start, parsed_end) {(Some(s), Some(e)) => {
+                                            let type_s = s.type_name();
+                                            let type_e = e.type_name();
+                                            if type_s == type_e {
+                                                props_to_animate.push((key, s, e));
+                                            } else {
+                                                println!("[TweenService] Type error for '{}': expected '{}', receive '{}'",
+                                                    key, type_s, type_e
+                                                );
+                                            }
+                                        }
+                                        (None, _) => println!("[TweenService] Unsupported departure type '{}'", key),
+                                        (_, None) => println!("[TweenService] Unsupported arrival type '{}'", key),
                                         }
                                     }
                                     Err(e) => println!(
-                                        "[TweenService] Attention: Propriété '{}' introuvable sur l'instance ! ({})",
+                                        "[TweenService] The property '{}' does not exist on this instance ! ({})",
                                         key, e
                                     ),
                                 }
                             }
                             Err(e) => println!(
-                                "[TweenService] Erreur lors du parcours des propriétés: {}",
+                                "[TweenService] Error while processing on properties: {}",
                                 e
                             ),
                         }
                     }
 
                     if props_to_animate.is_empty() {
-                        println!("[TweenService] AVERTISSEMENT: Tween créé sans aucune propriété valide !");
+                        println!("[TweenService] WARN: Tween created without valid properties !");
                     }
 
                     let id = NEXT_TWEEN_ID.fetch_add(1, Ordering::Relaxed);
@@ -196,7 +202,7 @@ impl LuaModule for TweenServiceModule {
                         engine.active_tweens.insert(id, active_tween);
                     } else {
                         println!(
-                            "[TweenService] CRITIQUE: TweenEngine absent de la mémoire Luau !"
+                            "[TweenService] ENGINE ISSUE: TweenEngine unfound in the memory !"
                         );
                     }
 
