@@ -22,6 +22,7 @@ pub struct LuaImageButton {
     pub base: InstanceData,
     pub gui: GuiObject,
     pub image: String,
+    pub image_transparency: f32,
     pub click_id: u64,
     pub enter_id: u64,
     pub leave_id: u64,
@@ -82,10 +83,28 @@ impl UserData for LuaImageButton {
                 .push(Box::new(move |w: &mut World| {
                     let handle = w.resource::<AssetServer>().load(&v);
                     if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if w.get::<ImageNode>(e).is_some() {
-                            w.get_mut::<ImageNode>(e).unwrap().image = handle;
+                        if let Some(mut i) = w.get_mut::<ImageNode>(e) {
+                            i.image = handle;
                         } else {
                             w.entity_mut(e).insert(ImageNode::new(handle));
+                        }
+                    }
+                }));
+            Ok(())
+        });
+        fields.add_field_method_get("ImageTransparency", |_, this| Ok(this.image_transparency));
+        fields.add_field_method_set("ImageTransparency", |_, this, v: f32| {
+            this.image_transparency = v;
+            let h = this.base.handle;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(handle) = w.resource::<HandleMap>().get_entity(h) {
+                        if let Some(mut i) = w.get_mut::<ImageNode>(handle) {
+                            i.color = Color::srgba(1.0, 1.0, 1.0, 1.0 - v)
                         }
                     }
                 }));
@@ -116,6 +135,7 @@ impl LuaModule for ImageButtonModule {
                     base: InstanceData::new(handle, q.clone(), "ImageButton"),
                     gui: GuiObject::default(),
                     image: "".to_string(),
+                    image_transparency: 0.0,
                     click_id: LuaSignal::new(lua_ctx)?.id,
                     enter_id: LuaSignal::new(lua_ctx)?.id,
                     leave_id: LuaSignal::new(lua_ctx)?.id,

@@ -17,6 +17,7 @@ pub struct LuaImageLabel {
     pub base: InstanceData,
     pub gui: GuiObject,
     pub image: String,
+    pub image_transparency: f32,
 }
 
 impl CloneableInstance for LuaImageLabel {
@@ -50,6 +51,24 @@ impl UserData for LuaImageLabel {
                             w.get_mut::<ImageNode>(e).unwrap().image = handle;
                         } else {
                             w.entity_mut(e).insert(ImageNode::new(handle));
+                        }
+                    }
+                }));
+            Ok(())
+        });
+        fields.add_field_method_get("ImageTransparency", |_, this| Ok(this.image_transparency));
+        fields.add_field_method_set("ImageTransparency", |_, this, v: f32| {
+            this.image_transparency = v;
+            let h = this.base.handle;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(handle) = w.resource::<HandleMap>().get_entity(h) {
+                        if let Some(mut i) = w.get_mut::<ImageNode>(handle) {
+                            i.color = Color::srgba(1.0, 1.0, 1.0, 1.0 - v)
                         }
                     }
                 }));
@@ -93,6 +112,7 @@ impl LuaModule for ImageLabelModule {
                     base: InstanceData::new(handle, q.clone(), "ImageLabel"),
                     gui: GuiObject::default(),
                     image: "".to_string(),
+                    image_transparency: 0.0,
                 };
 
                 let ud = lua_ctx.create_userdata(label)?;
