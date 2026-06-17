@@ -13,8 +13,9 @@ use luau_classes::{
         part::PartModule,
         physics::{collider::ColliderModule, rigidbody::RigidbodyModule},
         ui::{
-            frame::FrameModule, image_label::ImageLabelModule, screen_gui::ScreenGuiModule,
-            text_label::TextLabelModule,
+            frame::FrameModule, image_button::ImageButtonModule, image_label::ImageLabelModule,
+            screen_gui::ScreenGuiModule, text_button::TextButtonModule,
+            text_label::TextLabelModule, ui_interactions::process_button_interactions,
         },
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
@@ -112,6 +113,7 @@ fn main() {
                 sync_post_processing_system,
                 sync_sky_system,
                 sync_atmosphere_system,
+                process_button_interactions,
             )
                 .chain(),
         )
@@ -139,6 +141,8 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (FrameModule::name(), FrameModule::register),
         (TextLabelModule::name(), TextLabelModule::register),
         (ImageLabelModule::name(), ImageLabelModule::register),
+        (TextButtonModule::name(), TextButtonModule::register),
+        (ImageButtonModule::name(), ImageButtonModule::register),
         (BloomEffectModule::name(), BloomEffectModule::register),
         (SkyModule::name(), SkyModule::register),
         (AtmosphereModule::name(), AtmosphereModule::register),
