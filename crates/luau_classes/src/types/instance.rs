@@ -320,6 +320,40 @@ macro_rules! impl_instance_userdata {
     };
 }
 
+/// Macro to implement basics instance fields (getter and setter)
+#[macro_export]
+macro_rules! impl_base_instance_fields {
+    ($fields:ident) => {
+        $fields.add_field_method_get("Name", |_, this| {
+            use $crate::types::instance::CloneableInstance;
+            Ok(this.base().name.clone())
+        });
+        $fields.add_field_method_get("ClassName", |_, this| {
+            use $crate::types::instance::CloneableInstance;
+            Ok(this.base().class_name)
+        });
+        $fields.add_field_method_set("Name", |_, this, v: String| {
+            use $crate::types::instance::CloneableInstance;
+            this.base_mut().set_name(v);
+            Ok(())
+        });
+        $fields.add_field_method_get("Parent", |lua, this| {
+            use $crate::types::instance::CloneableInstance;
+            if let Some(parent_handle) = this.base().parent_handle {
+                let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+                Ok(cache.get::<Option<mlua::AnyUserData>>(parent_handle)?)
+            } else {
+                Ok(None)
+            }
+        });
+        $fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
+            use $crate::types::instance::CloneableInstance;
+            this.base_mut().set_parent(lua, parent);
+            Ok(())
+        });
+    };
+}
+
 /// Returns the handle of `ud` by trying each known concrete instance type.
 ///
 /// O(N) in the number of types — acceptable given the small, fixed set.

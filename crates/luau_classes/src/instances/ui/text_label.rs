@@ -1,0 +1,157 @@
+use crate::types::{
+    color3::LuaColor3,
+    gui_object::GuiObject,
+    instance::{CloneableInstance, InstanceData},
+};
+use bevy::prelude::*;
+use luau_runtime::{
+    bridge::{
+        handle::{HandleMap, next_handle},
+        queue::EngineQueue,
+    },
+    registry::LuaModule,
+};
+use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
+
+#[derive(Clone)]
+pub struct LuaTextLabel {
+    pub base: InstanceData,
+    pub gui: GuiObject,
+    pub text: String,
+    pub text_color: LuaColor3,
+    pub text_size: f32,
+}
+
+impl CloneableInstance for LuaTextLabel {
+    fn base(&self) -> &InstanceData {
+        &self.base
+    }
+    fn base_mut(&mut self) -> &mut InstanceData {
+        &mut self.base
+    }
+    fn apply_bevy_components(&self, _entity: Entity, _w: &mut World) {}
+}
+
+impl UserData for LuaTextLabel {
+    fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
+        crate::impl_base_instance_fields!(fields);
+        crate::impl_gui_object_fields!(fields);
+
+        fields.add_field_method_get("Text", |_, this| Ok(this.text.clone()));
+        fields.add_field_method_set("Text", |_, this, v: String| {
+            this.text = v.clone();
+            let h = this.base.handle;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                        if let Some(mut t) = w.get_mut::<Text>(e) {
+                            t.0 = v;
+                        }
+                    }
+                }));
+            Ok(())
+        });
+
+        fields.add_field_method_get("TextColor3", |_, this| Ok(this.text_color));
+        fields.add_field_method_set("TextColor3", |_, this, c: LuaColor3| {
+            this.text_color = c;
+            let h = this.base.handle;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                        if let Some(mut tc) = w.get_mut::<TextColor>(e) {
+                            tc.0 = Color::srgba(c.r, c.g, c.b, 1.0);
+                        }
+                    }
+                }));
+            Ok(())
+        });
+
+        fields.add_field_method_get("TextSize", |_, this| Ok(this.text_size));
+        fields.add_field_method_set("TextSize", |_, this, s: f32| {
+            this.text_size = s;
+            let h = this.base.handle;
+            this.base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                        if let Some(mut tf) = w.get_mut::<TextFont>(e) {
+                            tf.font_size = s;
+                        }
+                    }
+                }));
+            Ok(())
+        });
+    }
+
+    fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
+        crate::impl_instance_userdata!(methods);
+        methods.add_meta_method(ToString, |_, this, ()| Ok(this.base().name.clone()));
+    }
+}
+
+pub struct TextLabelModule;
+
+impl LuaModule for TextLabelModule {
+    fn name() -> &'static str {
+        "TextLabel"
+    }
+    fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
+        let q = queue.clone();
+        let t = lua.create_table()?;
+        t.set(
+            "new",
+            lua.create_function(move |lua_ctx, ()| {
+                let handle = next_handle();
+                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                    let entity = w
+                        .spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 1.0)),
+                            Text::new("TextLabel"),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.0, 0.0, 0.0)),
+                        ))
+                        .id();
+                    w.resource_mut::<HandleMap>().insert(handle, entity, None);
+                }));
+
+                let label = LuaTextLabel {
+                    base: InstanceData::new(handle, q.clone(), "TextLabel"),
+                    gui: GuiObject::default(),
+                    text: "TextLabel".to_string(),
+                    text_color: LuaColor3 {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                    },
+                    text_size: 14.0,
+                };
+
+                let ud = lua_ctx.create_userdata(label)?;
+                lua_ctx
+                    .named_registry_value::<mlua::Table>("__instance_cache")?
+                    .set(handle, ud.clone())?;
+                Ok(ud)
+            })?,
+        )?;
+        lua.globals().set("TextLabel", t)
+    }
+}

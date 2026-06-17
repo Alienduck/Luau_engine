@@ -1,11 +1,8 @@
-pub mod atmosphere;
 pub mod base_part;
 pub mod bloom_effect;
 pub mod camera;
-pub mod collider;
-pub mod frame;
+pub mod lighting;
 pub mod part;
-pub mod rigidbody;
-pub mod screen_gui;
-pub mod sky;
+pub mod physics;
+pub mod ui;
 pub mod workspace;

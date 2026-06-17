@@ -84,12 +84,41 @@ export type Rigidbody = Instance & {}
 
 export type ScreenGui = Instance & {}
 
-export type Frame = Instance & {
-    Size: UDim2,
-    Position: UDim2,
+export type GuiObject = Instance & {
     AnchorPoint: Vector2,
-    Transparency: number,
+    Position: UDim2,
+    Size: UDim2,
+    BackgroundTransparency: number,
     BackgroundColor3: Color3,
+    Visible: boolean,
+}
+
+export type Frame = GuiObject
+
+export type TextLabel = GuiObject & {
+    Text: string,
+    TextColor3: Color3,
+    TextSize: number
+}
+
+export type ImageLabel = GuiObject & {
+    Image: string
+}
+
+export type TextButton = GuiObject & {
+    Text: string,
+    TextColor3: Color3,
+    TextSize: number,
+    MouseButton1Click: Signal<>,
+    MouseEnter: Signal<>,
+    MouseLeave: Signal<>,
+}
+
+export type ImageButton = GuiObject & {
+    Image: string,
+    MouseButton1Click: Signal<>,
+    MouseEnter: Signal<>,
+    MouseLeave: Signal<>,
 }
 
 export type BloomEffect = Instance & {
@@ -134,8 +163,8 @@ export type UserInputService = {
 
 declare Vector2: {
     new: (x: number, y: number) -> Vector2,
-    zero: () -> Vector2,
-    one: () -> Vector2,
+    zero: Vector2,
+    one: Vector2,
 }
 
 declare Vector3: {
@@ -173,6 +202,10 @@ declare Collider: { new: () -> Collider }
 declare Rigidbody: { new: () -> Rigidbody }
 declare ScreenGui: { new: () -> ScreenGui }
 declare Frame: { new: () -> Frame }
+declare TextLabel: { new: () -> TextLabel }
+declare ImageLabel: { new: () -> ImageLabel }
+declare TextButton: { new: () -> TextButton }
+declare ImageButton: { new: () -> ImageButton }
 declare BloomEffect: { new: () -> BloomEffect }
 declare Sky: { new: () -> Sky }
 declare Atmosphere: { new: () -> Atmosphere }

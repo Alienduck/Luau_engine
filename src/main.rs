@@ -6,16 +6,17 @@ use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
-        atmosphere::AtmosphereModule,
         base_part::process_collisions,
         bloom_effect::BloomEffectModule,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
-        collider::ColliderModule,
-        frame::FrameModule,
+        lighting::{atmosphere::AtmosphereModule, sky::SkyModule},
         part::PartModule,
-        rigidbody::RigidbodyModule,
-        screen_gui::ScreenGuiModule,
-        sky::SkyModule,
+        physics::{collider::ColliderModule, rigidbody::RigidbodyModule},
+        ui::{
+            frame::FrameModule, image_button::ImageButtonModule, image_label::ImageLabelModule,
+            screen_gui::ScreenGuiModule, text_button::TextButtonModule,
+            text_label::TextLabelModule, ui_interactions::process_button_interactions,
+        },
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
@@ -112,6 +113,7 @@ fn main() {
                 sync_post_processing_system,
                 sync_sky_system,
                 sync_atmosphere_system,
+                process_button_interactions,
             )
                 .chain(),
         )
@@ -137,6 +139,10 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (RunServiceModule::name(), RunServiceModule::register),
         (ScreenGuiModule::name(), ScreenGuiModule::register),
         (FrameModule::name(), FrameModule::register),
+        (TextLabelModule::name(), TextLabelModule::register),
+        (ImageLabelModule::name(), ImageLabelModule::register),
+        (TextButtonModule::name(), TextButtonModule::register),
+        (ImageButtonModule::name(), ImageButtonModule::register),
         (BloomEffectModule::name(), BloomEffectModule::register),
         (SkyModule::name(), SkyModule::register),
         (AtmosphereModule::name(), AtmosphereModule::register),

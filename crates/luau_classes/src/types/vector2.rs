@@ -78,14 +78,8 @@ impl LuaModule for Vector2Module {
             "new",
             lua.create_function(|_, (x, y): (f32, f32)| Ok(LuaVector2 { x, y }))?,
         )?;
-        t.set(
-            "zero",
-            lua.create_function(|_, ()| Ok(LuaVector2::default()))?,
-        )?;
-        t.set(
-            "one",
-            lua.create_function(|_, ()| Ok(LuaVector2 { x: 1., y: 1. }))?,
-        )?;
+        t.set("zero", LuaVector2::default())?;
+        t.set("one", LuaVector2 { x: 1., y: 1. })?;
         lua.globals().set("Vector2", t)
     }
 }
