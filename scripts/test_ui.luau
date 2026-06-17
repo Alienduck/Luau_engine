@@ -63,11 +63,21 @@ down_right_image_button.Size = UDim2.fromOffset(100, 100)
 down_right_image_button.BackgroundTransparency = 1
 down_right_image_button.MouseEnter:Connect(function()
     print("mouse entenring on [DOWN RIGHT IMAGE BUTTON]")
-    down_right_image_button.Size = UDim2.fromOffset(110, 110)
+    local goal = { Size = UDim2.fromOffset(110, 110)}
+    TweenService:Create(
+        down_right_image_button,
+        TweenInfo.new(0.2),
+        goal
+    ):Play()
 end)
 down_right_image_button.MouseLeave:Connect(function()
     print("mouse leaving on [DOWN RIGHT IMAGE BUTTON]")
-    down_right_image_button.Size = UDim2.fromOffset(100, 100)
+    local goal = { Size = UDim2.fromOffset(100, 100)}
+    TweenService:Create(
+        down_right_image_button,
+        TweenInfo.new(0.2),
+        goal
+    ):Play()
 end)
 down_right_image_button.MouseButton1Click:Connect(function()
     print("mouse click on [DOWN RIGHT IMAGE BUTTON]")
