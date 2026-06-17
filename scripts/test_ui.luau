@@ -66,7 +66,7 @@ down_right_image_button.MouseEnter:Connect(function()
     local goal = { Size = UDim2.fromOffset(110, 110)}
     TweenService:Create(
         down_right_image_button,
-        TweenInfo.new(0.2),
+        TweenInfo.new(0.1),
         goal
     ):Play()
 end)
@@ -75,12 +75,18 @@ down_right_image_button.MouseLeave:Connect(function()
     local goal = { Size = UDim2.fromOffset(100, 100)}
     TweenService:Create(
         down_right_image_button,
-        TweenInfo.new(0.2),
+        TweenInfo.new(0.1),
         goal
     ):Play()
 end)
 down_right_image_button.MouseButton1Click:Connect(function()
     print("mouse click on [DOWN RIGHT IMAGE BUTTON]")
+    local goal = { Size = Vector2.new(.1, .1)}
+    TweenService:Create(
+        down_right_image_button,
+        TweenInfo.new(0.1),
+        goal
+    ):Play()
 end)
 
 
