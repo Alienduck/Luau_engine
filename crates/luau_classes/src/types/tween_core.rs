@@ -79,6 +79,17 @@ impl TweenableValue {
             _ => self.clone(),
         }
     }
+
+    /// Return the name of the type expected
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Self::Float(_) => "number",
+            Self::Color3(_) => "Color3",
+            Self::UDim2(_) => "UDim2",
+            Self::Vector2(_) => "Vector2",
+            Self::Vector3(_) => "Vector3",
+        }
+    }
 }
 
 /// Compute the animation courb (roblox standard)
