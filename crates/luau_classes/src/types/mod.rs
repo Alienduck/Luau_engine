@@ -3,6 +3,8 @@ pub mod color3;
 pub mod gui_object;
 pub mod instance;
 pub mod signal;
+pub mod tween_core;
+pub mod tween_info;
 pub mod udim2;
 pub mod vector2;
 pub mod vector3;
