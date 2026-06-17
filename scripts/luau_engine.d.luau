@@ -102,7 +102,8 @@ export type TextLabel = GuiObject & {
 }
 
 export type ImageLabel = GuiObject & {
-    Image: string
+    Image: string,
+    ImageTransparency: number,
 }
 
 export type TextButton = GuiObject & {
@@ -116,6 +117,7 @@ export type TextButton = GuiObject & {
 
 export type ImageButton = GuiObject & {
     Image: string,
+    ImageTransparency: number,
     MouseButton1Click: Signal<>,
     MouseEnter: Signal<>,
     MouseLeave: Signal<>,
