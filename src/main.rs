@@ -20,8 +20,8 @@ use luau_classes::{
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, udim2::Udim2Module, vector2::Vector2Module,
-        vector3::Vector3Module,
+        cframe::CFrameModule, color3::Color3Module, tween_info::TweenInfoModule,
+        udim2::Udim2Module, vector2::Vector2Module, vector3::Vector3Module,
     },
 };
 use luau_runtime::{
@@ -38,6 +38,7 @@ use services::{
         LightingModule, sync_atmosphere_system, sync_post_processing_system, sync_sky_system,
     },
     run_service::{RunServiceModule, trigger_run_service},
+    tween_service::{TweenEngine, TweenServiceModule, process_tweens_system},
     user_input::{UserInputModule, trigger_user_input},
 };
 use std::fs;
@@ -78,6 +79,10 @@ fn main() {
         .unwrap();
     scheduler.spawn(thread);
 
+    // Create tween and shared with lua thread
+    let tween_engine = TweenEngine::default();
+    vm.lua().set_app_data(tween_engine);
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -114,8 +119,8 @@ fn main() {
                 sync_sky_system,
                 sync_atmosphere_system,
                 process_button_interactions,
-            )
-                .chain(),
+                process_tweens_system,
+            ),
         )
         .run();
 }
@@ -131,6 +136,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Vector3Module::name(), Vector3Module::register),
         (Color3Module::name(), Color3Module::register),
         (CFrameModule::name(), CFrameModule::register),
+        (TweenInfoModule::name(), TweenInfoModule::register),
         (PartModule::name(), PartModule::register),
         (CameraModule::name(), CameraModule::register),
         (UserInputModule::name(), UserInputModule::register),
@@ -149,6 +155,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
+        (TweenServiceModule::name(), TweenServiceModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
