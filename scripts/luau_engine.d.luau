@@ -1,3 +1,8 @@
+declare Enum: {
+    EasingStyle: { Linear: number, Sine: number, Quad: number },
+    EasingDirection: { In: number, Out: number, InOut: number },
+}
+
 export type Connection = {
     Disconnect: (self: Connection) -> ()
 }
@@ -48,6 +53,21 @@ export type CFrame = {
 }
 
 export type UDim2 = {}
+
+export type TweenInfo = {
+    Time: number,
+    EasingStyle: number,
+    EasingDirection: number,
+    RepeatCount: number,
+    Reverses: boolean,
+    DelayTime: number,
+}
+
+export type Tween = {
+    Play: (self: Tween) -> (),
+    Pause: (self: Tween) -> (),
+    Cancel: (self: Tween) -> (),
+}
 
 export type Instance = {
     Name: string,
@@ -189,6 +209,14 @@ declare UDim2: {
     new: (xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2,
     fromScale: (x: number, y: number) -> UDim2,
     fromOffset: (x: number, y: number) -> UDim2,
+}
+
+declare TweenInfo: {
+    new: (time: number?, style: number?, direction: number?, repeat_count: number?, reverses: boolean?, delay: number?) -> TweenInfo,
+}
+
+declare TweenService: {
+    Create: (self: any, instance: Instance, info: TweenInfo, properties: { [string]: any }) -> Tween,
 }
 
 declare task: {
