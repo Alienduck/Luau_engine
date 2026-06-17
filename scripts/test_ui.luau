@@ -28,6 +28,7 @@ up_right_image.Position = UDim2.fromScale(.5, .5)
 up_right_image.Size = UDim2.fromOffset(100, 100)
 up_right_image.BackgroundTransparency = 1
 up_right_image.Image = "images/bevy_icon.png"
+up_right_image.ImageTransparency = 0.2
 
 local down_left_text_button = TextButton.new()
 down_left_text_button.Parent = container
@@ -61,6 +62,7 @@ down_right_image_button.AnchorPoint = Vector2.new(.5, .5)
 down_right_image_button.Position = UDim2.fromScale(.5, .5)
 down_right_image_button.Size = UDim2.fromOffset(100, 100)
 down_right_image_button.BackgroundTransparency = 1
+down_right_image_button.ImageTransparency = 0.5
 down_right_image_button.MouseEnter:Connect(function()
     print("mouse entenring on [DOWN RIGHT IMAGE BUTTON]")
     down_right_image_button.Size = UDim2.fromOffset(110, 110)
