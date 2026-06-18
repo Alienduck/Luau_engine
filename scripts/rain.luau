@@ -34,15 +34,6 @@ function __spawn_part(params: PartParams): Part
 end
 
 function module.Start()
-    local _floor = __spawn_part({
-        name = "floor",
-        position = Vector3.zero,
-        size = Vector3.new(20, 0.1, 20),
-        color = Color3.new(1, 1, 1),
-        parent = workspace,
-        has_collider = true
-    })
-
     local count = 0
     local time_before_next = math.random(0, 1000) / 1000
 
@@ -65,8 +56,10 @@ function module.Start()
         part.Material = "Neon"
 
         part.Touched:Connect(function(hit: Instance)
-            if hit.Name == "floor" then
+            if typeof(hit) == "BasePart" then
                 part:Destroy()
+            else
+                print(`Touched: {hit.Name} of type {typeof(hit)}`)
             end
         end)
     end)
