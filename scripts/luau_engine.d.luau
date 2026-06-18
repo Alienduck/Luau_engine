@@ -11,24 +11,27 @@ export type Signal<T...> = {
     Connect: (self: Signal<T...>, callback: (T...) -> ()) -> Connection
 }
 
-export type Vector2 = {
-    X: number,
-    Y: number,
-} & {
+type Vector2Meta = {
     __add: (Vector2, Vector2) -> Vector2,
     __sub: (Vector2, Vector2) -> Vector2,
     __mul: (Vector2, number) -> Vector2,
 }
 
-export type Vector3 = {
-    X: number,
-    Y: number,
-    Z: number,
-} & {
+type Vector3Meta = {
     __add: (Vector3, Vector3) -> Vector3,
     __sub: (Vector3, Vector3) -> Vector3,
     __mul: (Vector3, number) -> Vector3,
 }
+
+export type Vector2 = typeof(setmetatable(
+    {} :: { X: number, Y: number },
+    {} :: Vector2Meta
+))
+
+export type Vector3 = typeof(setmetatable(
+    {} :: { X: number, Y: number, Z: number },
+    {} :: Vector3Meta
+))
 
 export type Color3 = {
     R: number,
@@ -76,14 +79,20 @@ export type Instance = {
     Destroy: (self: Instance) -> (),
 }
 
-export type Part = Instance & {
+export type BasePart = Instance & {
     Position: Vector3,
     CFrame: CFrame,
     Size: Vector3,
     Color: Color3,
     Transparency: number,
     Material: string,
-    Touched: Signal<Instance>,
+    Touched: Signal<BasePart>,
+}
+
+export type Part = BasePart
+
+export type MeshPart = BasePart & {
+    MeshId: string
 }
 
 export type Camera = Instance & {
@@ -98,9 +107,12 @@ export type Camera = Instance & {
 
 export type Collider = Instance & {
     Size: Vector3,
+    Shape: "TriMesh"? | "ConvexHull"? | "Box"?
 }
 
-export type Rigidbody = Instance & {}
+export type Rigidbody = Instance & {
+    Anchored: boolean
+}
 
 export type ScreenGui = Instance & {}
 
@@ -226,6 +238,7 @@ declare task: {
 }
 
 declare Part: { new: () -> Part }
+declare MeshPart: { new: () -> MeshPart }
 declare Collider: { new: () -> Collider }
 declare Rigidbody: { new: () -> Rigidbody }
 declare ScreenGui: { new: () -> ScreenGui }
