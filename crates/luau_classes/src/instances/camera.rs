@@ -255,7 +255,7 @@ impl UserData for LuaCamera {
         methods.add_method("SetSubject", |_, this, part: mlua::AnyUserData| {
             let handle = part
                 .borrow::<crate::instances::part::LuaPart>()?
-                .0
+                .data
                 .base
                 .handle;
             this.queue

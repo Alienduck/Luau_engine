@@ -252,7 +252,7 @@ pub fn process_collisions(
             };
 
             let signal_id = if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
-                Some(part.0.touched_signal_id)
+                Some(part.data.touched_signal_id)
             } else if let Ok(mpart) = self_ud.borrow::<crate::instances::mesh_part::LuaMeshPart>() {
                 Some(mpart.base_part_data.touched_signal_id)
             } else {
