@@ -67,6 +67,9 @@ impl LuaModule for TweenInfoModule {
         let enum_table = lua.create_table()?;
 
         let easing_style = lua.create_table()?;
+
+        dbg!("EXPORT TO `./crates/luau_classes/src/types/enum.rs`");
+
         easing_style.set("Linear", EasingStyle::Linear as u8)?;
         easing_style.set("Sine", EasingStyle::Sine as u8)?;
         easing_style.set("Quad", EasingStyle::Quad as u8)?;
