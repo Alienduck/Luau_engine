@@ -55,10 +55,10 @@ end)
 Camera.Distance = 20
 Camera:SetSubject(subject)
 
-Lighting.Brightness = 0.2
-Lighting.Ambient = Color3.fromRGB(0, 0, 255)
+Lighting.Brightness = 0.1
+Lighting.Ambient = Color3.fromRGB(0, 0, 100)
 Lighting.GlobalShadows = true
-Lighting.ClockTime = 23
+Lighting.ClockTime = 0
 print(Lighting.TimeOfDay)
 
 local CLOCK_MULTIPLIER = 2.4
@@ -87,9 +87,9 @@ RunService.RenderStepped:Connect(function(delta: number)
     end
 end)
 
-local sky = Sky.new()
-sky.CubemapPath = "skybox/sky_skybox.ktx2"
-sky.Parent = Lighting
+-- local sky = Sky.new()
+-- sky.CubemapPath = "skybox/sky_skybox.ktx2"
+-- sky.Parent = Lighting
 
 local rain = require("scripts/rain")
 rain.Start()
