@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::dynamics::RigidBody;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, next_handle},
@@ -19,6 +19,7 @@ use crate::types::instance::{CloneableInstance, InstanceData};
 #[derive(Clone)]
 pub struct LuaRigidbody {
     pub base: InstanceData,
+    pub anchored: bool,
 }
 
 impl CloneableInstance for LuaRigidbody {
@@ -49,11 +50,14 @@ impl UserData for LuaRigidbody {
             this.base.set_name(v);
             Ok(())
         });
+
         fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
             let old_handle = this.base.parent_handle;
             let new_handle = parent
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
+
+            let anchored = this.anchored;
 
             this.base.set_parent(lua, parent);
 
@@ -73,11 +77,41 @@ impl UserData for LuaRigidbody {
                     if let Some(new_h) = new_handle {
                         if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
                             if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.insert(RigidBody::Dynamic);
+                                let rb_type = if anchored {
+                                    RigidBody::Fixed
+                                } else {
+                                    RigidBody::Dynamic
+                                };
+                                em.insert(rb_type);
                             }
                         }
                     }
                 }));
+            Ok(())
+        });
+
+        fields.add_field_method_get("Anchored", |_, this| Ok(this.anchored));
+        fields.add_field_method_set("Anchored", |_, this, v: bool| {
+            this.anchored = v;
+
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base
+                    .queue
+                    .0
+                    .lock()
+                    .unwrap()
+                    .push(Box::new(move |w: &mut World| {
+                        if let Some(e) = w.resource::<HandleMap>().get_entity(parent_h) {
+                            if let Some(mut rb) = w.get_mut::<RigidBody>(e) {
+                                if v {
+                                    *rb = RigidBody::Fixed;
+                                } else {
+                                    *rb = RigidBody::Dynamic;
+                                }
+                            }
+                        }
+                    }));
+            }
             Ok(())
         });
     }
@@ -104,6 +138,7 @@ impl LuaModule for RigidbodyModule {
                 let handle = next_handle();
                 let rb = LuaRigidbody {
                     base: InstanceData::new(handle, q.clone(), "Rigidbody"),
+                    anchored: false,
                 };
 
                 let spawn_copy = rb.clone();
