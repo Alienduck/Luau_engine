@@ -21,8 +21,9 @@ use luau_classes::{
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, tween_info::TweenInfoModule,
-        udim2::Udim2Module, vector2::Vector2Module, vector3::Vector3Module,
+        cframe::CFrameModule, color3::Color3Module, enums::EnumsModule,
+        tween_info::TweenInfoModule, udim2::Udim2Module, vector2::Vector2Module,
+        vector3::Vector3Module,
     },
 };
 use luau_runtime::{
@@ -158,6 +159,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
         (TweenServiceModule::name(), TweenServiceModule::register),
+        (EnumsModule::name(), EnumsModule::register),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
