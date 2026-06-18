@@ -10,6 +10,7 @@ use luau_classes::{
         bloom_effect::BloomEffectModule,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         lighting::{atmosphere::AtmosphereModule, sky::SkyModule},
+        mesh_part::MeshPartModule,
         part::PartModule,
         physics::{collider::ColliderModule, rigidbody::RigidbodyModule},
         ui::{
@@ -138,6 +139,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (CFrameModule::name(), CFrameModule::register),
         (TweenInfoModule::name(), TweenInfoModule::register),
         (PartModule::name(), PartModule::register),
+        (MeshPartModule::name(), MeshPartModule::register),
         (CameraModule::name(), CameraModule::register),
         (UserInputModule::name(), UserInputModule::register),
         (RigidbodyModule::name(), RigidbodyModule::register),
