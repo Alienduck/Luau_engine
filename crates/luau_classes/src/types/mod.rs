@@ -1,5 +1,6 @@
 pub mod cframe;
 pub mod color3;
+pub mod enums;
 pub mod gui_object;
 pub mod instance;
 pub mod signal;
