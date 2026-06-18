@@ -23,6 +23,7 @@ pub struct LuaCollider {
     /// Half-extents of the box collider, expressed as full size (divided by 2
     /// when passed to Rapier).
     pub size: LuaVector3,
+    pub shape_type: String,
 }
 
 impl CloneableInstance for LuaCollider {
@@ -83,8 +84,9 @@ impl UserData for LuaCollider {
             let new_handle = parent
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
-            let (hx, hy, hz) = (this.size.x / 2.0, this.size.y / 2.0, this.size.z / 2.0);
 
+            let (hx, hy, hz) = (this.size.x / 2.0, this.size.y / 2.0, this.size.z / 2.0);
+            let shape_type = this.shape_type.clone();
             this.base.set_parent(lua, parent);
 
             this.base
@@ -96,21 +98,45 @@ impl UserData for LuaCollider {
                     if let Some(old_h) = old_handle {
                         if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
                             if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.remove::<(Collider, ActiveEvents)>();
+                                em.remove::<(Collider, ActiveEvents, AsyncSceneCollider)>();
                             }
                         }
                     }
+
                     if let Some(new_h) = new_handle {
                         if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
                             if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.insert((
-                                    Collider::cuboid(hx, hy, hz),
-                                    ActiveEvents::COLLISION_EVENTS,
-                                ));
+                                match shape_type.as_str() {
+                                    "TriMesh" => {
+                                        em.insert(AsyncSceneCollider {
+                                            shape: Some(ComputedColliderShape::TriMesh(
+                                                TriMeshFlags::default(),
+                                            )),
+                                            ..default()
+                                        });
+                                    }
+                                    "ConvexHull" => {
+                                        em.insert(AsyncSceneCollider {
+                                            shape: Some(ComputedColliderShape::ConvexHull),
+                                            ..default()
+                                        });
+                                    }
+                                    _ => {
+                                        em.insert((
+                                            Collider::cuboid(hx, hy, hz),
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
                 }));
+            Ok(())
+        });
+        fields.add_field_method_get("Shape", |_, this| Ok(this.shape_type.clone()));
+        fields.add_field_method_set("Shape", |_, this, v: String| {
+            this.shape_type = v;
             Ok(())
         });
     }
@@ -142,6 +168,7 @@ impl LuaModule for ColliderModule {
                         y: 1.0,
                         z: 1.0,
                     },
+                    shape_type: "Box".to_string(),
                 };
 
                 let spawn_copy = col.clone();
