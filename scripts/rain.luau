@@ -33,20 +33,25 @@ function __spawn_part(params: PartParams): Part
     return part
 end
 
+local PARAMS = {
+    POS_XZ = function() return math.random(-100, 100) end,
+    POS_Y = function() return math.random(20, 50) end,
+}
+
 function module.Start()
     local count = 0
-    local time_before_next = math.random(0, 1000) / 1000
+    local time_before_next = math.random(0, 100) / 1000
 
     RunService.RenderStepped:Connect(function(delta: number)
         count += delta
-        if count < time_before_next then return end
+        -- if count < time_before_next then return end
 
         count = 0
         time_before_next = math.random(0, 500) / 10000
 
         local part = __spawn_part({
-            position = Vector3.new(math.random(-10, 10), math.random(7, 13), math.random(-10, 10)),
-            size = Vector3.new(1 / 10, math.random(2, 5) / 10, 1 / 10),
+            position = Vector3.new(PARAMS.POS_XZ(), PARAMS.POS_Y(), PARAMS.POS_XZ()),
+            size = Vector3.new(1 / 15, math.random(2, 5) / 10, 1 / 15),
             color = Color3.fromRGB(50, 50, math.random(200, 255)),
             transparency = math.random(50, 100) / 100,
             parent = workspace,
@@ -56,11 +61,8 @@ function module.Start()
         part.Material = "Neon"
 
         part.Touched:Connect(function(hit: Instance)
-            if typeof(hit) == "BasePart" then
-                part:Destroy()
-            else
-                print(`Touched: {hit.Name} of type {typeof(hit)}`)
-            end
+            print(`Touched: {hit.Name} of type {typeof(hit)}`)
+            part:Destroy()
         end)
     end)
 end
