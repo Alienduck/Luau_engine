@@ -5,6 +5,5 @@
   "typeErrors": true,
   "aliases": {
     "engine": ".",
-    "luau_engine": "./luau_engine.d"
   }
 }
