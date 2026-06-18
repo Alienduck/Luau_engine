@@ -84,11 +84,10 @@ impl UserData for LuaCollider {
             let new_handle = parent
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
-
             let (hx, hy, hz) = (this.size.x / 2.0, this.size.y / 2.0, this.size.z / 2.0);
             let shape_type = this.shape_type.clone();
-            this.base.set_parent(lua, parent);
 
+            this.base.set_parent(lua, parent);
             this.base
                 .queue
                 .0
@@ -98,28 +97,47 @@ impl UserData for LuaCollider {
                     if let Some(old_h) = old_handle {
                         if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
                             if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.remove::<(Collider, ActiveEvents, AsyncSceneCollider)>();
+                                em.remove::<(Collider, ActiveEvents, AsyncSceneCollider, Ccd)>();
                             }
                         }
                     }
-
                     if let Some(new_h) = new_handle {
                         if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
                             if let Ok(mut em) = w.get_entity_mut(e) {
+                                em.insert(Ccd::enabled());
                                 match shape_type.as_str() {
                                     "TriMesh" => {
-                                        em.insert(AsyncSceneCollider {
-                                            shape: Some(ComputedColliderShape::TriMesh(
-                                                TriMeshFlags::default(),
-                                            )),
-                                            ..default()
-                                        });
+                                        em.insert((
+                                            AsyncSceneCollider {
+                                                shape: Some(ComputedColliderShape::TriMesh(
+                                                    TriMeshFlags::default(),
+                                                )),
+                                                ..default()
+                                            },
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
                                     }
                                     "ConvexHull" => {
-                                        em.insert(AsyncSceneCollider {
-                                            shape: Some(ComputedColliderShape::ConvexHull),
-                                            ..default()
-                                        });
+                                        em.insert((
+                                            AsyncSceneCollider {
+                                                shape: Some(ComputedColliderShape::ConvexHull),
+                                                ..default()
+                                            },
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
+                                    }
+                                    "ConvexDecomposition" => {
+                                        em.insert((
+                                            AsyncSceneCollider {
+                                                shape: Some(
+                                                    ComputedColliderShape::ConvexDecomposition(
+                                                        VHACDParameters::default(),
+                                                    ),
+                                                ),
+                                                ..default()
+                                            },
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
                                     }
                                     _ => {
                                         em.insert((
