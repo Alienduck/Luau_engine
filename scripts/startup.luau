@@ -11,7 +11,34 @@ local subject = newPart("Subject", Vector3.new(0, 1, 0), Vector3.one)
 subject.Transparency = 0
 subject.Material = "Neon"
 
-print(typeof(subject))
+local speed = 25
+local keys_pressed = {}
+
+UserInputService.InputBegan:Connect(function(key: string, _: string)
+    keys_pressed[key] = true
+end)
+
+UserInputService.InputEnded:Connect(function(key: string, _: string)
+    keys_pressed[key] = false
+end)
+
+RunService.RenderStepped:Connect(function(delta: number)
+    local dir = Vector3.zero
+
+    if keys_pressed["KeyW"] then dir = dir + Vector3.new(0, 0, -1) end
+    if keys_pressed["KeyS"] then dir = dir + Vector3.new(0, 0, 1) end
+    if keys_pressed["KeyA"] then dir = dir + Vector3.new(-1, 0, 0) end
+    if keys_pressed["KeyD"] then dir = dir + Vector3.new(1, 0, 0) end
+    if keys_pressed["Space"] then dir = dir + Vector3.new(0, 1, 0) end
+    if keys_pressed["ControlLeft"] then dir += Vector3.new(0, -1, 0) end
+    if keys_pressed["KeyQ"] then
+        Camera.FirstPerson = not Camera.FirstPerson
+    end
+
+    if dir.X ~= 0 or dir.Y ~= 0 or dir.Z ~= 0 then
+        subject.Position = subject.Position + (dir * (speed * delta))
+    end
+end)
 
 local function random_color(): Color3
     return Color3.new(math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255) / 255)
@@ -64,14 +91,6 @@ local sky = Sky.new()
 sky.CubemapPath = "skybox/sky_skybox.ktx2"
 sky.Parent = Lighting
 
-local atmosphere = Atmosphere.new()
-atmosphere.Parent = Lighting
-atmosphere.Density = 0.5
-atmosphere.Haze = 2.8
-atmosphere.Color = Color3.fromRGB(200, 100, 255)
-atmosphere.Glare = 0.5
-atmosphere.Decay = Color3.fromRGB(255, 90, 80)
-
 local rain = require("scripts/rain")
 rain.Start()
 local container = require("scripts/test_ui")
@@ -81,3 +100,14 @@ UserInputService.InputBegan:Connect(function(k_input: string, m_input: string)
         container.Visible = not container.Visible
     end
 end)
+
+local mesh_part = MeshPart.new()
+mesh_part.Parent = workspace
+mesh_part.MeshId = "models/chicken_idk_map/scene.gltf#Scene0"
+mesh_part.Position = Vector3.zero
+local _cl = Collider.new()
+_cl.Shape = "TriMesh"
+_cl.Parent = mesh_part
+local _rb = Rigidbody.new()
+_rb.Anchored = true
+_rb.Parent = mesh_part
