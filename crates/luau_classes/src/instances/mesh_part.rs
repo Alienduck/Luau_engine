@@ -17,10 +17,25 @@ use luau_runtime::{
 };
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
 
+#[derive(Component, Clone, Copy, PartialEq)]
+pub enum LuauCollisionFidelity {
+    Default,
+    Hull,
+    Box,
+    Precise,
+}
+
+impl Default for LuauCollisionFidelity {
+    fn default() -> Self {
+        Self::Default
+    }
+}
+
 #[derive(Clone)]
 pub struct LuaMeshPart {
     pub base_part_data: BasePartData,
     pub mesh_id: String,
+    pub collision_fidelity: u8,
 }
 
 impl CloneableInstance for LuaMeshPart {
@@ -30,13 +45,22 @@ impl CloneableInstance for LuaMeshPart {
     fn base_mut(&mut self) -> &mut InstanceData {
         &mut self.base_part_data.base
     }
-    fn apply_bevy_components(&self, _entity: Entity, _w: &mut World) {}
+    fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
+        let comp = match self.collision_fidelity {
+            1 => LuauCollisionFidelity::Hull,
+            2 => LuauCollisionFidelity::Box,
+            3 => LuauCollisionFidelity::Precise,
+            _ => LuauCollisionFidelity::Default,
+        };
+        if let Ok(mut e) = w.get_entity_mut(entity) {
+            e.insert(comp);
+        }
+    }
 }
 
 impl UserData for LuaMeshPart {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
         impl_base_instance_fields!(fields);
-
         fields.add_field_method_get("MeshId", |_, this| Ok(this.mesh_id.clone()));
         fields.add_field_method_set("MeshId", |_, this, v: String| {
             this.mesh_id = v.clone();
@@ -55,7 +79,6 @@ impl UserData for LuaMeshPart {
                 }));
             Ok(())
         });
-
         fields.add_field_method_get("Position", |_, this| {
             let p = this.base_part_data.cframe.position;
             Ok(LuaVector3 {
@@ -68,7 +91,6 @@ impl UserData for LuaMeshPart {
             this.base_part_data.set_position(v);
             Ok(())
         });
-
         fields.add_field_method_get("Size", |_, this| Ok(this.base_part_data.size));
         fields.add_field_method_set("Size", |_, this, v: LuaVector3| {
             this.base_part_data.size = v;
@@ -83,6 +105,31 @@ impl UserData for LuaMeshPart {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
                         if let Some(mut t) = w.get_mut::<Transform>(e) {
                             t.scale = Vec3::new(v.x, v.y, v.z);
+                        }
+                    }
+                }));
+            Ok(())
+        });
+        fields.add_field_method_get("CollisionFidelity", |_, this| Ok(this.collision_fidelity));
+        fields.add_field_method_set("CollisionFidelity", |_, this, v: u8| {
+            this.collision_fidelity = v;
+            let h = this.base_part_data.base.handle;
+            this.base_part_data
+                .base
+                .queue
+                .0
+                .lock()
+                .unwrap()
+                .push(Box::new(move |w: &mut World| {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                        let comp = match v {
+                            1 => LuauCollisionFidelity::Hull,
+                            2 => LuauCollisionFidelity::Box,
+                            3 => LuauCollisionFidelity::Precise,
+                            _ => LuauCollisionFidelity::Default,
+                        };
+                        if let Ok(mut em) = w.get_entity_mut(e) {
+                            em.insert(comp);
                         }
                     }
                 }));
@@ -110,6 +157,12 @@ impl LuaModule for MeshPartModule {
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
                 let touch_signal_id = LuaSignal::new(lua_ctx)?;
+                let mesh_part = LuaMeshPart {
+                    base_part_data: BasePartData::new(handle, q.clone(), touch_signal_id.id),
+                    mesh_id: "".to_string(),
+                    collision_fidelity: 0,
+                };
+                let clone_for_spawn = mesh_part.clone();
                 q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
                     let entity = w
                         .spawn((
@@ -118,16 +171,9 @@ impl LuaModule for MeshPartModule {
                             luau_runtime::bridge::handle::LuauHandle(handle),
                         ))
                         .id();
+                    clone_for_spawn.apply_bevy_components(entity, w);
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
                 }));
-
-                let base_part_data = BasePartData::new(handle, q.clone(), touch_signal_id.id);
-
-                let mesh_part = LuaMeshPart {
-                    base_part_data,
-                    mesh_id: "".to_string(),
-                };
-
                 let ud = lua_ctx.create_userdata(mesh_part)?;
                 lua_ctx
                     .named_registry_value::<mlua::Table>("__instance_cache")?
