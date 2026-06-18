@@ -3,7 +3,7 @@ use crate::types::{
     vector3::LuaVector3,
 };
 use bevy::{
-    ecs::world::World,
+    ecs::{relationship::Relationship, world::World},
     math::{Vec3, VectorSpace},
     prelude::*,
 };
@@ -209,6 +209,7 @@ pub fn process_collisions(
     mut rapier_msg: MessageReader<CollisionEvent>,
     vm: NonSend<LuaVm>,
     handle_query: Query<&LuauHandle>,
+    parent_query: Query<&ChildOf>,
 ) {
     let Ok(cache) = vm
         .lua
@@ -217,35 +218,49 @@ pub fn process_collisions(
         return;
     };
 
+    let get_luau_handle = |mut entity: Entity| -> Option<u64> {
+        loop {
+            if let Ok(handle) = handle_query.get(entity) {
+                return Some(handle.0);
+            }
+            if let Ok(parent) = parent_query.get(entity) {
+                entity = parent.get();
+            } else {
+                return None;
+            }
+        }
+    };
+
     for msg in rapier_msg.read() {
         let CollisionEvent::Started(e1, e2, _) = msg else {
             continue;
         };
 
         for (self_e, other_e) in [(*e1, *e2), (*e2, *e1)] {
-            let Ok(handle_self) = handle_query.get(self_e) else {
+            let Some(handle_self) = get_luau_handle(self_e) else {
                 continue;
             };
-            let Ok(handle_other) = handle_query.get(other_e) else {
+            let Some(handle_other) = get_luau_handle(other_e) else {
                 continue;
             };
 
-            let Ok(self_ud) = cache.get::<mlua::AnyUserData>(handle_self.0) else {
+            let Ok(self_ud) = cache.get::<mlua::AnyUserData>(handle_self) else {
                 continue;
             };
-            let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other.0) else {
+            let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other) else {
                 continue;
             };
 
             let signal_id = if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
                 Some(part.0.touched_signal_id)
+            } else if let Ok(mpart) = self_ud.borrow::<crate::instances::mesh_part::LuaMeshPart>() {
+                Some(mpart.base_part_data.touched_signal_id)
             } else {
                 None
             };
 
             if let Some(id) = signal_id {
                 let signal = LuaSignal { id };
-
                 if let Err(e) = signal.fire(&vm.lua, other_ud) {
                     log::error!("Luau Error in Touched event: {}", e);
                 }
