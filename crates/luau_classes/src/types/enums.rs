@@ -1,6 +1,28 @@
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::Lua;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum EasingStyle {
+    Linear,
+    Sine,
+    Quad,
+    Cubic,
+    Quart,
+    Quint,
+    Bounce,
+    Elastic,
+    Exponential,
+    Circular,
+    Back,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum EasingDirection {
+    In,
+    Out,
+    InOut,
+}
+
 pub struct EnumsModule;
 impl LuaModule for EnumsModule {
     fn name() -> &'static str {
@@ -24,6 +46,27 @@ impl LuaModule for EnumsModule {
         col_fid.set("Box", 2)?;
         col_fid.set("PreciseConvexDecomposition", 3)?;
         enum_table.set("CollisionFidelity", col_fid)?;
+
+        let easing_style = lua.create_table()?;
+        easing_style.set("Linear", EasingStyle::Linear as u8)?;
+        easing_style.set("Sine", EasingStyle::Sine as u8)?;
+        easing_style.set("Quad", EasingStyle::Quad as u8)?;
+        easing_style.set("Cubic", EasingStyle::Cubic as u8)?;
+        easing_style.set("Quart", EasingStyle::Quart as u8)?;
+        easing_style.set("Quint", EasingStyle::Quint as u8)?;
+        easing_style.set("Bounce", EasingStyle::Bounce as u8)?;
+        easing_style.set("Elastic", EasingStyle::Elastic as u8)?;
+        easing_style.set("Exponential", EasingStyle::Exponential as u8)?;
+        easing_style.set("Circular", EasingStyle::Circular as u8)?;
+        easing_style.set("Back", EasingStyle::Back as u8)?;
+
+        let easing_direction = lua.create_table()?;
+        easing_direction.set("In", EasingDirection::In as u8)?;
+        easing_direction.set("Out", EasingDirection::Out as u8)?;
+        easing_direction.set("InOut", EasingDirection::InOut as u8)?;
+
+        enum_table.set("EasingStyle", easing_style)?;
+        enum_table.set("EasingDirection", easing_direction)?;
 
         env.set("Enum", enum_table)?;
         Ok(())
