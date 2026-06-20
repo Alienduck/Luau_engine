@@ -1,27 +1,7 @@
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{Lua, UserData, UserDataFields};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum EasingStyle {
-    Linear,
-    Sine,
-    Quad,
-    Cubic,
-    Quart,
-    Quint,
-    Bounce,
-    Elastic,
-    Exponential,
-    Circular,
-    Back,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum EasingDirection {
-    In,
-    Out,
-    InOut,
-}
+use crate::types::enums::{EasingDirection, EasingStyle};
 
 #[derive(Clone, Debug)]
 pub struct LuaTweenInfo {
@@ -64,33 +44,6 @@ impl LuaModule for TweenInfoModule {
         "TweenInfo"
     }
     fn register(lua: &Lua, _queue: &EngineQueue) -> mlua::Result<()> {
-        let enum_table = lua.create_table()?;
-
-        let easing_style = lua.create_table()?;
-
-        dbg!("EXPORT TO `./crates/luau_classes/src/types/enum.rs`");
-
-        easing_style.set("Linear", EasingStyle::Linear as u8)?;
-        easing_style.set("Sine", EasingStyle::Sine as u8)?;
-        easing_style.set("Quad", EasingStyle::Quad as u8)?;
-        easing_style.set("Cubic", EasingStyle::Cubic as u8)?;
-        easing_style.set("Quart", EasingStyle::Quart as u8)?;
-        easing_style.set("Quint", EasingStyle::Quint as u8)?;
-        easing_style.set("Bounce", EasingStyle::Bounce as u8)?;
-        easing_style.set("Elastic", EasingStyle::Elastic as u8)?;
-        easing_style.set("Exponential", EasingStyle::Exponential as u8)?;
-        easing_style.set("Circular", EasingStyle::Circular as u8)?;
-        easing_style.set("Back", EasingStyle::Back as u8)?;
-
-        let easing_direction = lua.create_table()?;
-        easing_direction.set("In", EasingDirection::In as u8)?;
-        easing_direction.set("Out", EasingDirection::Out as u8)?;
-        easing_direction.set("InOut", EasingDirection::InOut as u8)?;
-
-        enum_table.set("EasingStyle", easing_style)?;
-        enum_table.set("EasingDirection", easing_direction)?;
-        lua.globals().set("Enum", enum_table)?;
-
         let tween_info = lua.create_table()?;
         tween_info.set(
             "new",
