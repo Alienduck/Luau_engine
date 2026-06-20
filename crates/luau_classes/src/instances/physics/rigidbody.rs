@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy_rapier3d::dynamics::RigidBody;
 use luau_runtime::{
     bridge::{
-        handle::{HandleMap, next_handle},
-        queue::EngineQueue,
+        handle::next_handle,
+        queue::{EngineCommand, EngineQueue},
     },
     registry::LuaModule,
 };
@@ -13,9 +12,6 @@ use crate::types::instance::{CloneableInstance, InstanceData};
 
 /// Luau-facing `Rigidbody` — attaches a [`RigidBody::Dynamic`] component to
 /// its parent entity when parented and removes it when unparented.
-///
-/// Designed to be parented to a `Part`; the physics body is added/removed on
-/// the parent entity, not on the Rigidbody's own entity.
 #[derive(Clone)]
 pub struct LuaRigidbody {
     pub base: InstanceData,
@@ -26,11 +22,9 @@ impl CloneableInstance for LuaRigidbody {
     fn base(&self) -> &InstanceData {
         &self.base
     }
-
     fn base_mut(&mut self) -> &mut InstanceData {
         &mut self.base
     }
-
     fn apply_bevy_components(&self, _entity: Entity, _w: &mut World) {}
 }
 
@@ -57,60 +51,39 @@ impl UserData for LuaRigidbody {
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
 
-            let anchored = this.anchored;
+            let dynamic = !this.anchored;
+
+            if let Some(old_h) = old_handle {
+                this.base.queue.push_raw(move |w: &mut World| {
+                    use bevy_rapier3d::dynamics::RigidBody;
+                    use luau_runtime::bridge::handle::HandleMap;
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
+                        if let Ok(mut em) = w.get_entity_mut(e) {
+                            em.remove::<RigidBody>();
+                        }
+                    }
+                });
+            }
+
+            if let Some(new_h) = new_handle {
+                this.base.queue.push(EngineCommand::SetRigidBody {
+                    handle: new_h,
+                    dynamic,
+                });
+            }
 
             this.base.set_parent(lua, parent);
-
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(old_h) = old_handle {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
-                            if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.remove::<RigidBody>();
-                            }
-                        }
-                    }
-                    if let Some(new_h) = new_handle {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
-                            if let Ok(mut em) = w.get_entity_mut(e) {
-                                let rb_type = if anchored {
-                                    RigidBody::Fixed
-                                } else {
-                                    RigidBody::Dynamic
-                                };
-                                em.insert(rb_type);
-                            }
-                        }
-                    }
-                }));
             Ok(())
         });
 
         fields.add_field_method_get("Anchored", |_, this| Ok(this.anchored));
         fields.add_field_method_set("Anchored", |_, this, v: bool| {
             this.anchored = v;
-
             if let Some(parent_h) = this.base.parent_handle {
-                this.base
-                    .queue
-                    .0
-                    .lock()
-                    .unwrap()
-                    .push(Box::new(move |w: &mut World| {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(parent_h) {
-                            if let Some(mut rb) = w.get_mut::<RigidBody>(e) {
-                                if v {
-                                    *rb = RigidBody::Fixed;
-                                } else {
-                                    *rb = RigidBody::Dynamic;
-                                }
-                            }
-                        }
-                    }));
+                this.base.queue.push(EngineCommand::SetRigidBody {
+                    handle: parent_h,
+                    dynamic: !v,
+                });
             }
             Ok(())
         });
@@ -142,10 +115,10 @@ impl LuaModule for RigidbodyModule {
                 };
 
                 let spawn_copy = rb.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = spawn_copy.base().spawn_base_entity(w);
                     spawn_copy.apply_bevy_components(entity, w);
-                }));
+                });
 
                 let ud = lua_ctx.create_userdata(rb)?;
                 lua_ctx

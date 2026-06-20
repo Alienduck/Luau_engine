@@ -76,18 +76,13 @@ impl UserData for LuaAtmosphere {
         fields.add_field_method_set("Density", |_, this, v: f32| {
             this.density = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                            a.density = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
+                        a.density = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
 
@@ -95,18 +90,13 @@ impl UserData for LuaAtmosphere {
         fields.add_field_method_set("Color", |_, this, v: LuaColor3| {
             this.color = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                            a.color = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
+                        a.color = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
 
@@ -114,18 +104,13 @@ impl UserData for LuaAtmosphere {
         fields.add_field_method_set("Decay", |_, this, v: LuaColor3| {
             this.decay = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                            a.decay = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
+                        a.decay = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
 
@@ -133,18 +118,13 @@ impl UserData for LuaAtmosphere {
         fields.add_field_method_set("Glare", |_, this, v: f32| {
             this.glare = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                            a.glare = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
+                        a.glare = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
 
@@ -152,18 +132,13 @@ impl UserData for LuaAtmosphere {
         fields.add_field_method_set("Haze", |_, this, v: f32| {
             this.haze = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                            a.haze = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
+                        a.haze = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
     }
@@ -204,10 +179,10 @@ impl LuaModule for AtmosphereModule {
                 };
 
                 let clone_for_spawn = effect.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = clone_for_spawn.base().spawn_base_entity(w);
                     clone_for_spawn.apply_bevy_components(entity, w);
-                }));
+                });
 
                 let userdata = lua_cache.create_userdata(effect)?;
                 if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")

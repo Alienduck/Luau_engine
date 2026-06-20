@@ -65,18 +65,12 @@ impl UserData for LuaMeshPart {
         fields.add_field_method_set("MeshId", |_, this, v: String| {
             this.mesh_id = v.clone();
             let h = this.base_part_data.base.handle;
-            this.base_part_data
-                .base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let handle: Handle<Scene> = w.resource::<AssetServer>().load(&v);
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        w.entity_mut(e).insert(SceneRoot(handle));
-                    }
-                }));
+            this.base_part_data.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::LoadAsset {
+                    handle: h,
+                    asset_path: v,
+                },
+            );
             Ok(())
         });
         fields.add_field_method_get("Position", |_, this| {
@@ -95,19 +89,12 @@ impl UserData for LuaMeshPart {
         fields.add_field_method_set("Size", |_, this, v: LuaVector3| {
             this.base_part_data.size = v;
             let h = this.base_part_data.base.handle;
-            this.base_part_data
-                .base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut t) = w.get_mut::<Transform>(e) {
-                            t.scale = Vec3::new(v.x, v.y, v.z);
-                        }
-                    }
-                }));
+            this.base_part_data.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetScale {
+                    handle: h,
+                    scale: vec3(v.x, v.y, v.z),
+                },
+            );
             Ok(())
         });
         fields.add_field_method_get("CollisionFidelity", |_, this| Ok(this.collision_fidelity));
@@ -117,10 +104,7 @@ impl UserData for LuaMeshPart {
             this.base_part_data
                 .base
                 .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
+                .push_raw(move |w: &mut World| {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
                         let comp = match v {
                             1 => LuauCollisionFidelity::Hull,
@@ -132,7 +116,7 @@ impl UserData for LuaMeshPart {
                             em.insert(comp);
                         }
                     }
-                }));
+                });
             Ok(())
         });
     }
@@ -163,7 +147,7 @@ impl LuaModule for MeshPartModule {
                     collision_fidelity: 0,
                 };
                 let clone_for_spawn = mesh_part.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
                             Transform::default(),
@@ -173,7 +157,7 @@ impl LuaModule for MeshPartModule {
                         .id();
                     clone_for_spawn.apply_bevy_components(entity, w);
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
                 let ud = lua_ctx.create_userdata(mesh_part)?;
                 lua_ctx
                     .named_registry_value::<mlua::Table>("__instance_cache")?

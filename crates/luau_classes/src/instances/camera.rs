@@ -195,58 +195,41 @@ impl UserData for LuaCamera {
 
         fields.add_field_method_set("FirstPerson", |_, this, v: bool| {
             this.first_person = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.first_person = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                if let Ok(mut cam) = w.query::<&mut SmartCamera>().single_mut(w) {
+                    cam.first_person = v;
+                }
+            });
             Ok(())
         });
         fields.add_field_method_set("Distance", |_, this, v: f32| {
             this.distance = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.distance = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.distance = v;
+                }
+            });
             Ok(())
         });
         fields.add_field_method_set("Sensitivity", |_, this, v: f32| {
             this.sensitivity = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.sensitivity = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.sensitivity = v;
+                }
+            });
             Ok(())
         });
         fields.add_field_method_set("Fov", |_, this, v: f32| {
             this.fov = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.fov = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.fov = v;
+                }
+            });
             Ok(())
         });
     }
@@ -258,31 +241,23 @@ impl UserData for LuaCamera {
                 .data
                 .base
                 .handle;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let entity = w.resource::<HandleMap>().get_entity(handle);
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.subject = entity;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let entity = w.resource::<HandleMap>().get_entity(handle);
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.subject = entity;
+                }
+            });
             Ok(())
         });
 
         methods.add_method("ClearSubject", |_, this, ()| {
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.subject = None;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.subject = None;
+                }
+            });
             Ok(())
         });
     }

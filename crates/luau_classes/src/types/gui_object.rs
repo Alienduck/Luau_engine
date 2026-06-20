@@ -1,10 +1,5 @@
-use bevy::{
-    color::Color,
-    ecs::world::World,
-    prelude::*,
-    ui::{BackgroundColor, Node, Val},
-};
-use luau_runtime::bridge::{handle::HandleMap, queue::EngineQueue};
+use bevy::ui::Val;
+use luau_runtime::bridge::queue::{EngineCommand, EngineQueue};
 
 use crate::types::{color3::LuaColor3, udim2::LuaUDim2, vector2::LuaVector2};
 
@@ -32,56 +27,56 @@ impl Default for GuiObject {
 }
 
 impl GuiObject {
+    /// Pushes a single typed [`EngineCommand::SetNodeLayout`] command.
+    /// No closure, no Box, no heap allocation.
     pub fn enqueue_layout_update(&self, handle: u64, queue: &EngineQueue) {
         let s = self.size;
         let p = self.position;
         let a = self.anchor_point;
-        let visible = self.visible;
 
         let scale_x = p.x_scale - s.x_scale * a.x;
         let offset_x = p.x_offset - s.x_offset * a.x;
         let scale_y = p.y_scale - s.y_scale * a.y;
         let offset_y = p.y_offset - s.y_offset * a.y;
 
-        queue.0.lock().unwrap().push(Box::new(move |w: &mut World| {
-            if let Some(e) = w.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut n) = w.get_mut::<Node>(e) {
-                    n.width = if s.x_scale != 0.0 {
-                        Val::Percent(s.x_scale * 100.0)
-                    } else {
-                        Val::Px(s.x_offset)
-                    };
-                    n.height = if s.y_scale != 0.0 {
-                        Val::Percent(s.y_scale * 100.0)
-                    } else {
-                        Val::Px(s.y_offset)
-                    };
-                    n.left = Val::Percent(scale_x * 100.0);
-                    n.margin.left = Val::Px(offset_x);
-                    n.top = Val::Percent(scale_y * 100.0);
-                    n.margin.top = Val::Px(offset_y);
-                }
-                if let Some(mut v) = w.get_mut::<Visibility>(e) {
-                    *v = if visible {
-                        Visibility::Inherited
-                    } else {
-                        Visibility::Hidden
-                    };
-                }
-            }
-        }));
+        let width = if s.x_scale != 0.0 {
+            Val::Percent(s.x_scale * 100.0)
+        } else {
+            Val::Px(s.x_offset)
+        };
+        let height = if s.y_scale != 0.0 {
+            Val::Percent(s.y_scale * 100.0)
+        } else {
+            Val::Px(s.y_offset)
+        };
+
+        queue.push(EngineCommand::SetNodeLayout {
+            handle,
+            left: Val::Percent(scale_x * 100.0),
+            top: Val::Percent(scale_y * 100.0),
+            width,
+            height,
+            margin_left: Val::Px(offset_x),
+            margin_top: Val::Px(offset_y),
+        });
+
+        queue.push(EngineCommand::SetVisibility {
+            handle,
+            visible: self.visible,
+        });
     }
 
+    /// Pushes a single typed [`EngineCommand::SetBackgroundColor`] command.
     pub fn enqueue_color_update(&self, handle: u64, queue: &EngineQueue) {
         let c = self.background_color;
-        let t = self.background_transparency;
-        queue.0.lock().unwrap().push(Box::new(move |w: &mut World| {
-            if let Some(e) = w.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut bg) = w.get_mut::<BackgroundColor>(e) {
-                    bg.0 = Color::srgba(c.r, c.g, c.b, 1.0 - t);
-                }
-            }
-        }));
+        let a = 1.0 - self.background_transparency;
+        queue.push(EngineCommand::SetBackgroundColor {
+            handle,
+            r: c.r,
+            g: c.g,
+            b: c.b,
+            a,
+        });
     }
 }
 

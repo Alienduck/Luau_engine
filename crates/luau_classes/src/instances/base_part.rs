@@ -3,24 +3,21 @@ use crate::types::{
     vector3::LuaVector3,
 };
 use bevy::{
-    ecs::{relationship::Relationship, world::World},
-    math::{Vec3, VectorSpace},
-    prelude::*,
-};
-use bevy_rapier3d::pipeline::CollisionEvent;
-use luau_runtime::{
-    bridge::{
-        handle::{HandleMap, LuauHandle},
-        queue::EngineQueue,
+    ecs::{
+        hierarchy::ChildOf,
+        message::MessageReader,
+        relationship::Relationship,
+        system::{NonSend, Query},
     },
-    vm::LuaVm,
+    math::Vec3,
 };
+use luau_runtime::bridge::queue::{EngineCommand, EngineQueue};
 
 /// Shared state for 3-D part instances (position, size, color, transparency,
 /// touched signal).
 ///
 /// Embedded by value in [`LuaPart`] (and any future part subclass).  All
-/// mutations enqueue a corresponding Bevy world command via `base.queue`.
+/// mutations push a typed [`EngineCommand`] — no heap allocation, no vtable.
 #[derive(Clone)]
 pub struct BasePartData {
     pub base: InstanceData,
@@ -59,156 +56,87 @@ impl BasePartData {
 
     pub fn set_material(&mut self, m: String) {
         self.material = m.clone();
-        let h = self.base.handle;
-        let c = self.color;
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mat_h) = w
-                        .get::<MeshMaterial3d<StandardMaterial>>(e)
-                        .map(|m| m.0.clone())
-                    {
-                        if let Some(mat) =
-                            w.resource_mut::<Assets<StandardMaterial>>().get_mut(&mat_h)
-                        {
-                            mat.emissive = if m == "Neon" {
-                                LinearRgba::rgb(c.r * 10.0, c.g * 10.0, c.b * 10.0)
-                            } else {
-                                LinearRgba::ZERO
-                            };
-                        }
-                    }
-                }
-            }));
+        let (r, g, b) = (self.color.r, self.color.g, self.color.b);
+        if m == "Neon" {
+            self.base.queue.push(EngineCommand::SetEmissive {
+                handle: self.base.handle,
+                r: r * 10.0,
+                g: g * 10.0,
+                b: b * 10.0,
+            });
+        } else {
+            self.base.queue.push(EngineCommand::SetEmissive {
+                handle: self.base.handle,
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+            });
+        }
     }
 
     pub fn set_position(&mut self, p: LuaVector3) {
         self.cframe.position = Vec3::new(p.x, p.y, p.z);
-        let h = self.base.handle;
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut t) = w.get_mut::<Transform>(e) {
-                        t.translation = Vec3::new(p.x, p.y, p.z);
-                    }
-                }
-            }));
+        self.base.queue.push(EngineCommand::SetTranslation {
+            handle: self.base.handle,
+            translation: Vec3::new(p.x, p.y, p.z),
+        });
     }
 
     pub fn set_cframe(&mut self, cf: LuaCFrame) {
         self.cframe = cf;
-        let h = self.base.handle;
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut t) = w.get_mut::<Transform>(e) {
-                        t.translation = cf.position;
-                        t.rotation = cf.rotation;
-                    }
-                }
-            }));
+        self.base.queue.push(EngineCommand::SetCFrame {
+            handle: self.base.handle,
+            translation: cf.position,
+            rotation: cf.rotation,
+        });
     }
 
     pub fn set_size(&mut self, v: LuaVector3) {
         self.size = v;
-        let h = self.base.handle;
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut t) = w.get_mut::<Transform>(e) {
-                        t.scale = Vec3::new(v.x, v.y, v.z);
-                    }
-                }
-            }));
+        self.base.queue.push(EngineCommand::SetScale {
+            handle: self.base.handle,
+            scale: Vec3::new(v.x, v.y, v.z),
+        });
     }
 
     pub fn set_color(&mut self, c: LuaColor3) {
         self.color = c;
-        let h = self.base.handle;
-        let t = self.transparency;
-        let m = self.material.clone();
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mat_h) = w
-                        .get::<MeshMaterial3d<StandardMaterial>>(e)
-                        .map(|m| m.0.clone())
-                    {
-                        if let Some(mat) =
-                            w.resource_mut::<Assets<StandardMaterial>>().get_mut(&mat_h)
-                        {
-                            mat.base_color = Color::srgba(c.r, c.g, c.b, 1.0 - t);
-                            mat.emissive = if m == "Neon" {
-                                LinearRgba::rgb(c.r * 10.0, c.g * 10.0, c.b * 10.0)
-                            } else {
-                                LinearRgba::ZERO
-                            };
-                        }
-                    }
-                }
-            }));
+        let alpha = 1.0 - self.transparency;
+        self.base.queue.push(EngineCommand::SetBaseColor {
+            handle: self.base.handle,
+            r: c.r,
+            g: c.g,
+            b: c.b,
+            alpha,
+        });
+        if self.material == "Neon" {
+            self.base.queue.push(EngineCommand::SetEmissive {
+                handle: self.base.handle,
+                r: c.r * 10.0,
+                g: c.g * 10.0,
+                b: c.b * 10.0,
+            });
+        }
     }
 
     pub fn set_transparency(&mut self, t: f32) {
         self.transparency = t;
-        let h = self.base.handle;
-        let c = self.color;
-        self.base
-            .queue
-            .0
-            .lock()
-            .unwrap()
-            .push(Box::new(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mat_h) = w
-                        .get::<MeshMaterial3d<StandardMaterial>>(e)
-                        .map(|m| m.0.clone())
-                    {
-                        if let Some(mat) =
-                            w.resource_mut::<Assets<StandardMaterial>>().get_mut(&mat_h)
-                        {
-                            mat.base_color = Color::srgba(c.r, c.g, c.b, 1.0 - t);
-                            mat.alpha_mode = if t > 0.0 {
-                                AlphaMode::Blend
-                            } else {
-                                AlphaMode::Opaque
-                            };
-                        }
-                    }
-                }
-            }));
+        self.base.queue.push(EngineCommand::SetBaseColor {
+            handle: self.base.handle,
+            r: self.color.r,
+            g: self.color.g,
+            b: self.color.b,
+            alpha: 1.0 - t,
+        });
     }
 }
 
 /// Reads Rapier [`CollisionEvent::Started`] messages and fires the Luau
 /// `Touched` signal on both involved parts.
-///
-/// Requires `MessageReader` (Bevy 0.17+ buffered event API) rather than the
-/// observer-based `EventReader`.
 pub fn process_collisions(
-    mut rapier_msg: MessageReader<CollisionEvent>,
-    vm: NonSend<LuaVm>,
-    handle_query: Query<&LuauHandle>,
+    mut rapier_msg: MessageReader<bevy_rapier3d::pipeline::CollisionEvent>,
+    vm: NonSend<luau_runtime::vm::LuaVm>,
+    handle_query: Query<&luau_runtime::bridge::handle::LuauHandle>,
     parent_query: Query<&ChildOf>,
 ) {
     let Ok(cache) = vm
@@ -218,7 +146,7 @@ pub fn process_collisions(
         return;
     };
 
-    let get_luau_handle = |mut entity: Entity| -> Option<u64> {
+    let get_luau_handle = |mut entity: bevy::prelude::Entity| -> Option<u64> {
         loop {
             if let Ok(handle) = handle_query.get(entity) {
                 return Some(handle.0);
@@ -232,15 +160,15 @@ pub fn process_collisions(
     };
 
     for msg in rapier_msg.read() {
-        let CollisionEvent::Started(e1, e2, _) = msg else {
+        let bevy_rapier3d::pipeline::CollisionEvent::Started(e1, e2, _) = msg else {
             continue;
         };
 
-        for (self_e, other_e) in [(*e1, *e2), (*e2, *e1)] {
-            let Some(handle_self) = get_luau_handle(self_e) else {
+        for (self_e, other_e) in [(e1, e2), (e2, e1)] {
+            let Some(handle_self) = get_luau_handle(*self_e) else {
                 continue;
             };
-            let Some(handle_other) = get_luau_handle(other_e) else {
+            let Some(handle_other) = get_luau_handle(*other_e) else {
                 continue;
             };
 

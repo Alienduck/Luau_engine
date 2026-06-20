@@ -76,19 +76,10 @@ impl UserData for LuaImageButton {
             let h = this.base.handle;
             this.base
                 .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let handle = w.resource::<AssetServer>().load(&v);
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if w.get::<ImageNode>(e).is_some() {
-                            w.get_mut::<ImageNode>(e).unwrap().image = handle;
-                        } else {
-                            w.entity_mut(e).insert(ImageNode::new(handle));
-                        }
-                    }
-                }));
+                .push(luau_runtime::bridge::queue::EngineCommand::SetImageNode {
+                    handle: h,
+                    asset_path: v,
+                });
             Ok(())
         });
     }
@@ -122,7 +113,7 @@ impl LuaModule for ImageButtonModule {
                 };
 
                 let clone_for_spawn = button.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
                             Node {
@@ -134,7 +125,7 @@ impl LuaModule for ImageButtonModule {
                         .id();
                     clone_for_spawn.apply_bevy_components(entity, w);
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
 
                 let ud = lua_ctx.create_userdata(button)?;
                 lua_ctx

@@ -165,34 +165,28 @@ impl UserData for LuaPart {
         fields.add_field_method_set("Shape", |_, this, v: u8| {
             this.shape = v;
             let h = this.data.base.handle;
-            this.data
-                .base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        let (mesh, shape_comp) = match v {
-                            1 => (
-                                w.resource_mut::<Assets<Mesh>>().add(Sphere::new(0.5)),
-                                LuauPartShape::Ball,
-                            ),
-                            2 => (
-                                w.resource_mut::<Assets<Mesh>>()
-                                    .add(Cylinder::new(0.5, 1.0)),
-                                LuauPartShape::Cylinder,
-                            ),
-                            _ => (
-                                w.resource_mut::<Assets<Mesh>>().add(Cuboid::default()),
-                                LuauPartShape::Block,
-                            ),
-                        };
-                        if let Ok(mut em) = w.get_entity_mut(e) {
-                            em.insert((Mesh3d(mesh), shape_comp));
-                        }
+            this.data.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    let (mesh, shape_comp) = match v {
+                        1 => (
+                            w.resource_mut::<Assets<Mesh>>().add(Sphere::new(0.5)),
+                            LuauPartShape::Ball,
+                        ),
+                        2 => (
+                            w.resource_mut::<Assets<Mesh>>()
+                                .add(Cylinder::new(0.5, 1.0)),
+                            LuauPartShape::Cylinder,
+                        ),
+                        _ => (
+                            w.resource_mut::<Assets<Mesh>>().add(Cuboid::default()),
+                            LuauPartShape::Block,
+                        ),
+                    };
+                    if let Ok(mut em) = w.get_entity_mut(e) {
+                        em.insert((Mesh3d(mesh), shape_comp));
                     }
-                }));
+                }
+            });
             Ok(())
         });
     }
@@ -221,10 +215,10 @@ impl luau_runtime::registry::LuaModule for PartModule {
                     shape: 0,
                 };
                 let spawn_copy = part.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = spawn_copy.base().spawn_base_entity(w);
                     spawn_copy.apply_bevy_components(entity, w);
-                }));
+                });
                 let ud = lua_ctx.create_userdata(part)?;
                 lua_ctx
                     .named_registry_value::<mlua::Table>("__instance_cache")?

@@ -59,18 +59,13 @@ impl UserData for LuaSky {
         fields.add_field_method_set("CubemapPath", |_, this, v: String| {
             this.cubemap_path = v.clone();
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut sky) = w.get_mut::<LuauSky>(e) {
-                            sky.cubemap_path = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut sky) = w.get_mut::<LuauSky>(e) {
+                        sky.cubemap_path = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
     }
@@ -96,10 +91,10 @@ impl LuaModule for SkyModule {
                     cubemap_path: "".to_string(),
                 };
                 let clone_for_spawn = effect.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = clone_for_spawn.base().spawn_base_entity(w);
                     clone_for_spawn.apply_bevy_components(entity, w);
-                }));
+                });
                 let userdata = lua_cache.create_userdata(effect)?;
                 if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
                 {

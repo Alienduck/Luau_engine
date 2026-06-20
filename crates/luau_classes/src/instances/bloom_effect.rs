@@ -9,6 +9,8 @@ use luau_runtime::{
 };
 use mlua::{Lua, UserData, UserDataFields};
 
+/// Struct to handle easier the bloom script side
+/// [TODO]: found a way to handle without the custom struct
 #[derive(Component, Clone)]
 pub struct LuauBloom {
     pub intensity: f32,
@@ -65,54 +67,39 @@ impl UserData for LuaBloomEffect {
         fields.add_field_method_set("Intensity", |_, this, v: f32| {
             this.intensity = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
-                            b.intensity = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
+                        b.intensity = v
                     }
-                }));
+                }
+            });
             Ok(())
         });
         fields.add_field_method_get("Size", |_, this| Ok(this.size));
         fields.add_field_method_set("Size", |_, this, v: f32| {
             this.size = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
-                            b.size = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
+                        b.size = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
         fields.add_field_method_get("Threshold", |_, this| Ok(this.threshold));
         fields.add_field_method_set("Threshold", |_, this, v: f32| {
             this.threshold = v;
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
-                            b.threshold = v;
-                        }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
+                    if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
+                        b.threshold = v;
                     }
-                }));
+                }
+            });
             Ok(())
         });
     }
@@ -141,10 +128,10 @@ impl LuaModule for BloomEffectModule {
                     threshold: 2.0,
                 };
                 let clone_for_spawn = effect.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = clone_for_spawn.base().spawn_base_entity(w);
                     clone_for_spawn.apply_bevy_components(entity, w);
-                }));
+                });
                 let userdata = lua_cache.create_userdata(effect)?;
                 if let Ok(cache) = lua_cache.named_registry_value::<mlua::Table>("__instance_cache")
                 {

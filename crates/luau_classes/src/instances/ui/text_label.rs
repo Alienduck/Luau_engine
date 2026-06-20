@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, next_handle},
-        queue::EngineQueue,
+        queue::{EngineCommand, EngineQueue},
     },
     registry::LuaModule,
 };
@@ -40,57 +40,32 @@ impl UserData for LuaTextLabel {
         fields.add_field_method_get("Text", |_, this| Ok(this.text.clone()));
         fields.add_field_method_set("Text", |_, this, v: String| {
             this.text = v.clone();
-            let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut t) = w.get_mut::<Text>(e) {
-                            t.0 = v;
-                        }
-                    }
-                }));
+            this.base.queue.push(EngineCommand::SetText {
+                handle: this.base.handle,
+                text: v,
+            });
             Ok(())
         });
 
         fields.add_field_method_get("TextColor3", |_, this| Ok(this.text_color));
         fields.add_field_method_set("TextColor3", |_, this, c: LuaColor3| {
             this.text_color = c;
-            let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut tc) = w.get_mut::<TextColor>(e) {
-                            tc.0 = Color::srgba(c.r, c.g, c.b, 1.0);
-                        }
-                    }
-                }));
+            this.base.queue.push(EngineCommand::SetTextColor {
+                handle: this.base.handle,
+                r: c.r,
+                g: c.g,
+                b: c.b,
+            });
             Ok(())
         });
 
         fields.add_field_method_get("TextSize", |_, this| Ok(this.text_size));
         fields.add_field_method_set("TextSize", |_, this, s: f32| {
             this.text_size = s;
-            let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut tf) = w.get_mut::<TextFont>(e) {
-                            tf.font_size = s;
-                        }
-                    }
-                }));
+            this.base.queue.push(EngineCommand::SetFontSize {
+                handle: this.base.handle,
+                size: s,
+            });
             Ok(())
         });
     }
@@ -114,7 +89,7 @@ impl LuaModule for TextLabelModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
                             Node {
@@ -131,7 +106,7 @@ impl LuaModule for TextLabelModule {
                         ))
                         .id();
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
 
                 let label = LuaTextLabel {
                     base: InstanceData::new(handle, q.clone(), "TextLabel"),

@@ -81,7 +81,7 @@ impl LuaModule for WorkspaceModule {
         let handle = next_handle();
         let q = queue.clone();
 
-        q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+        q.push_raw(move |w: &mut World| {
             let entity = w
                 .spawn((
                     Transform::default(),
@@ -91,7 +91,7 @@ impl LuaModule for WorkspaceModule {
                 ))
                 .id();
             w.resource_mut::<HandleMap>().insert(handle, entity, None);
-        }));
+        });
 
         let ws = LuaWorkspace {
             base: InstanceData::new(handle, queue.clone(), "Workspace"),

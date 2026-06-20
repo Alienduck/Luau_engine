@@ -68,84 +68,77 @@ impl UserData for LuaCollider {
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
             let (hx, hy, hz) = (this.size.x / 2.0, this.size.y / 2.0, this.size.z / 2.0);
             this.base.set_parent(lua, parent);
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(old_h) = old_handle {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
-                            if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.remove::<(Collider, ActiveEvents, AsyncSceneCollider, Ccd)>();
-                            }
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(old_h) = old_handle {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
+                        if let Ok(mut em) = w.get_entity_mut(e) {
+                            em.remove::<(Collider, ActiveEvents, AsyncSceneCollider, Ccd)>();
                         }
                     }
-                    if let Some(new_h) = new_handle {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
-                            if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.insert(Ccd::enabled());
-                                if let Some(fidelity) = em.get::<LuauCollisionFidelity>() {
-                                    match fidelity {
-                                        LuauCollisionFidelity::Hull => {
-                                            em.insert((
-                                                AsyncSceneCollider {
-                                                    shape: Some(ComputedColliderShape::ConvexHull),
-                                                    ..default()
-                                                },
-                                                ActiveEvents::COLLISION_EVENTS,
-                                            ));
-                                        }
-                                        LuauCollisionFidelity::Precise => {
-                                            em.insert((
-                                                AsyncSceneCollider {
-                                                    shape: Some(ComputedColliderShape::TriMesh(
-                                                        TriMeshFlags::default(),
-                                                    )),
-                                                    ..default()
-                                                },
-                                                ActiveEvents::COLLISION_EVENTS,
-                                            ));
-                                        }
-                                        LuauCollisionFidelity::Box => {
-                                            em.insert((
-                                                Collider::cuboid(hx, hy, hz),
-                                                ActiveEvents::COLLISION_EVENTS,
-                                            ));
-                                        }
-                                        LuauCollisionFidelity::Default => {
-                                            em.insert((
-                                                AsyncSceneCollider {
-                                                    shape: Some(
-                                                        ComputedColliderShape::ConvexDecomposition(
-                                                            VHACDParameters::default(),
-                                                        ),
-                                                    ),
-                                                    ..default()
-                                                },
-                                                ActiveEvents::COLLISION_EVENTS,
-                                            ));
-                                        }
+                }
+                if let Some(new_h) = new_handle {
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
+                        if let Ok(mut em) = w.get_entity_mut(e) {
+                            em.insert(Ccd::enabled());
+                            if let Some(fidelity) = em.get::<LuauCollisionFidelity>() {
+                                match fidelity {
+                                    LuauCollisionFidelity::Hull => {
+                                        em.insert((
+                                            AsyncSceneCollider {
+                                                shape: Some(ComputedColliderShape::ConvexHull),
+                                                ..default()
+                                            },
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
                                     }
-                                } else if let Some(shape) = em.get::<LuauPartShape>() {
-                                    let col = match shape {
-                                        LuauPartShape::Ball => Collider::ball(hx.max(hy).max(hz)),
-                                        LuauPartShape::Cylinder => {
-                                            Collider::cylinder(hy, hx.max(hz))
-                                        }
-                                        LuauPartShape::Block => Collider::cuboid(hx, hy, hz),
-                                    };
-                                    em.insert((col, ActiveEvents::COLLISION_EVENTS));
-                                } else {
-                                    em.insert((
-                                        Collider::cuboid(hx, hy, hz),
-                                        ActiveEvents::COLLISION_EVENTS,
-                                    ));
+                                    LuauCollisionFidelity::Precise => {
+                                        em.insert((
+                                            AsyncSceneCollider {
+                                                shape: Some(ComputedColliderShape::TriMesh(
+                                                    TriMeshFlags::default(),
+                                                )),
+                                                ..default()
+                                            },
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
+                                    }
+                                    LuauCollisionFidelity::Box => {
+                                        em.insert((
+                                            Collider::cuboid(hx, hy, hz),
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
+                                    }
+                                    LuauCollisionFidelity::Default => {
+                                        em.insert((
+                                            AsyncSceneCollider {
+                                                shape: Some(
+                                                    ComputedColliderShape::ConvexDecomposition(
+                                                        VHACDParameters::default(),
+                                                    ),
+                                                ),
+                                                ..default()
+                                            },
+                                            ActiveEvents::COLLISION_EVENTS,
+                                        ));
+                                    }
                                 }
+                            } else if let Some(shape) = em.get::<LuauPartShape>() {
+                                let col = match shape {
+                                    LuauPartShape::Ball => Collider::ball(hx.max(hy).max(hz)),
+                                    LuauPartShape::Cylinder => Collider::cylinder(hy, hx.max(hz)),
+                                    LuauPartShape::Block => Collider::cuboid(hx, hy, hz),
+                                };
+                                em.insert((col, ActiveEvents::COLLISION_EVENTS));
+                            } else {
+                                em.insert((
+                                    Collider::cuboid(hx, hy, hz),
+                                    ActiveEvents::COLLISION_EVENTS,
+                                ));
                             }
                         }
                     }
-                }));
+                }
+            });
             Ok(())
         });
     }
@@ -179,10 +172,10 @@ impl LuaModule for ColliderModule {
                     },
                 };
                 let spawn_copy = col.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = spawn_copy.base().spawn_base_entity(w);
                     spawn_copy.apply_bevy_components(entity, w);
-                }));
+                });
                 let ud = lua_ctx.create_userdata(col)?;
                 lua_ctx
                     .named_registry_value::<mlua::Table>("__instance_cache")?
