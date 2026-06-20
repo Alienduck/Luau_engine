@@ -67,7 +67,7 @@ end)
 Camera.Distance = 20
 Camera:SetSubject(subject)
 
-Lighting.Brightness = 0.1
+Lighting.Brightness = 10
 Lighting.Ambient = Color3.fromRGB(0, 0, 100)
 Lighting.GlobalShadows = true
 Lighting.ClockTime = 0
