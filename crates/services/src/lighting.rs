@@ -11,7 +11,7 @@ use luau_classes::{
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, next_handle},
-        queue::EngineQueue,
+        queue::{EngineCommand, EngineQueue},
     },
     registry::LuaModule,
 };
@@ -258,32 +258,22 @@ impl UserData for LuaLighting {
         fields.add_field_method_get("Ambient", |_, this| Ok(this.ambient));
         fields.add_field_method_set("Ambient", |_, this, c: LuaColor3| {
             this.ambient = c;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Ok(mut ambient) = w.query::<&mut AmbientLight>().single_mut(w) {
-                        ambient.color = Color::srgba(c.r, c.g, c.b, 1.0);
-                    }
-                }));
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetLightingColor {
+                    color: Color::srgb(c.r, c.g, c.b),
+                },
+            );
             Ok(())
         });
 
         fields.add_field_method_get("Brightness", |_, this| Ok(this.brightness));
         fields.add_field_method_set("Brightness", |_, this, b: f32| {
             this.brightness = b;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Ok(mut dir_light) = w.query::<&mut DirectionalLight>().single_mut(w) {
-                        dir_light.illuminance = b * 1000.0;
-                    }
-                }));
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetLightingBrightness {
+                    illuminance: b,
+                },
+            );
             Ok(())
         });
 
@@ -292,14 +282,7 @@ impl UserData for LuaLighting {
             this.global_shadows = s;
             this.base
                 .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Ok(mut dir_light) = w.query::<&mut DirectionalLight>().single_mut(w) {
-                        dir_light.shadows_enabled = s;
-                    }
-                }));
+                .push(EngineCommand::SetLightingGlobalShadows { enabled: s });
             Ok(())
         });
 
@@ -310,14 +293,9 @@ impl UserData for LuaLighting {
                 t += 24.0;
             }
             this.clock_time = t;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    update_sun_rotation(w, t);
-                }));
+            this.base.queue.push_raw(move |w: &mut World| {
+                update_sun_rotation(w, t);
+            });
             Ok(())
         });
 
@@ -325,14 +303,9 @@ impl UserData for LuaLighting {
         fields.add_field_method_set("TimeOfDay", |_, this, s: String| {
             let t = parse_time(&s);
             this.clock_time = t;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    update_sun_rotation(w, t);
-                }));
+            this.base.queue.push_raw(move |w: &mut World| {
+                update_sun_rotation(w, t);
+            });
             Ok(())
         });
 
@@ -341,14 +314,9 @@ impl UserData for LuaLighting {
             this.fog_color = c;
             let s = this.fog_start;
             let e = this.fog_end;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    update_fog(w, c, s, e);
-                }));
+            this.base.queue.push_raw(move |w: &mut World| {
+                update_fog(w, c, s, e);
+            });
             Ok(())
         });
 
@@ -357,14 +325,9 @@ impl UserData for LuaLighting {
             this.fog_start = s;
             let c = this.fog_color;
             let e = this.fog_end;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    update_fog(w, c, s, e);
-                }));
+            this.base.queue.push_raw(move |w: &mut World| {
+                update_fog(w, c, s, e);
+            });
             Ok(())
         });
 
@@ -373,14 +336,9 @@ impl UserData for LuaLighting {
             this.fog_end = e;
             let c = this.fog_color;
             let s = this.fog_start;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    update_fog(w, c, s, e);
-                }));
+            this.base.queue.push_raw(move |w: &mut World| {
+                update_fog(w, c, s, e);
+            });
             Ok(())
         });
     }
@@ -403,12 +361,12 @@ impl LuaModule for LightingModule {
         let handle = next_handle();
         let q = queue.clone();
 
-        q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+        q.push_raw(move |w: &mut World| {
             let entity = w
                 .spawn((LightingRoot, Transform::default(), Visibility::Inherited))
                 .id();
             w.resource_mut::<HandleMap>().insert(handle, entity, None);
-        }));
+        });
 
         let lighting = LuaLighting {
             base: InstanceData::new(handle, queue.clone(), "Lighting"),
