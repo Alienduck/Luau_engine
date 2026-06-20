@@ -8,3 +8,4 @@ bevy = { workspace = true }
 mlua = { workspace = true }
 engine_core = { workspace = true }
 log = { workspace = true }
+bevy_rapier3d = { workspace = true }
