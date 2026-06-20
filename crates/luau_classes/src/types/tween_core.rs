@@ -1,6 +1,6 @@
 use crate::types::{
     color3::LuaColor3,
-    tween_info::{EasingDirection, EasingStyle},
+    enums::{EasingDirection, EasingStyle},
     udim2::LuaUDim2,
     vector2::LuaVector2,
     vector3::LuaVector3,
