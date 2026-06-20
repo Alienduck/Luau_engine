@@ -1,8 +1,3 @@
-declare Enum: {
-    EasingStyle: { Linear: number, Sine: number, Quad: number },
-    EasingDirection: { In: number, Out: number, InOut: number },
-}
-
 export type Connection = {
     Disconnect: (self: Connection) -> ()
 }
@@ -89,10 +84,13 @@ export type BasePart = Instance & {
     Touched: Signal<BasePart>,
 }
 
-export type Part = BasePart
+export type Part = BasePart & {
+    Shape: number
+}
 
 export type MeshPart = BasePart & {
-    MeshId: string
+    MeshId: string,
+    CollisionFidelity: number
 }
 
 export type Camera = Instance & {
@@ -107,7 +105,6 @@ export type Camera = Instance & {
 
 export type Collider = Instance & {
     Size: Vector3,
-    Shape: "TriMesh"? | "ConvexHull"? | "Box"?
 }
 
 export type Rigidbody = Instance & {
