@@ -29,7 +29,7 @@ use luau_classes::{
 use luau_runtime::{
     bridge::{
         handle::HandleMap,
-        queue::{EngineQueue, process_engine_queue},
+        queue::{EngineQueue, EngineQueueResource, process_engine_queue},
     },
     registry::LuaModule,
     scheduler::{LuaScheduler, tick_scheduler},
@@ -50,13 +50,9 @@ fn main() {
     let vm = LuaVm::new().expect("failed to create Lua VM");
     let mut scheduler = LuaScheduler::new();
 
-    // Make the queue accessible from Lua closures that need it (e.g. Destroy).
     vm.lua().set_app_data(queue.clone());
-
     register_all(vm.lua(), &queue);
 
-    // Extract the shared CFrame Arc from the Lua registry so Bevy can write
-    // to it each frame without going through the queue.
     let cam_cframe: CameraCFrame = {
         let holder = vm
             .lua()
@@ -66,7 +62,6 @@ fn main() {
         CameraCFrame(arc)
     };
 
-    // Load and spawn the entry-point script as the first scheduled coroutine.
     let script =
         fs::read_to_string("scripts/startup.luau").expect("scripts/startup.luau not found");
     let thread = vm
@@ -81,7 +76,6 @@ fn main() {
         .unwrap();
     scheduler.spawn(thread);
 
-    // Create tween and shared with lua thread
     let tween_engine = TweenEngine::default();
     vm.lua().set_app_data(tween_engine);
 
@@ -96,7 +90,7 @@ fn main() {
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
-        .insert_resource(queue)
+        .insert_resource(EngineQueueResource(queue))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(cam_cframe)
@@ -104,8 +98,6 @@ fn main() {
         .insert_non_send_resource(scheduler)
         .add_systems(
             PreUpdate,
-            // Input states must be refreshed before collision processing so
-            // that action-map queries in the same frame see correct values.
             (update_action_states, process_collisions).chain(),
         )
         .add_systems(Startup, setup_scene)
@@ -127,11 +119,6 @@ fn main() {
         .run();
 }
 
-/// Registers all Luau modules (classes and services) into the VM.
-///
-/// Order matters: modules that other modules depend on at registration time
-/// (e.g. `WorkspaceModule` needs the instance cache to exist) must come after
-/// the VM is fully initialised but before any script runs.
 fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
     let modules: &[(&str, fn(&mlua::Lua, &EngineQueue) -> mlua::Result<()>)] = &[
         (Vector2Module::name(), Vector2Module::register),
@@ -168,19 +155,16 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
     }
 }
 
-/// Spawns the camera and directional light entities at startup.
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
         Hdr,
         Camera::default(),
         Camera3d::default(),
-        // Camera2d::default(),
         Bloom::NATURAL,
         Tonemapping::TonyMcMapface,
         Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
         SmartCamera::default(),
     ));
-
     commands.spawn((
         DirectionalLight {
             illuminance: 10_000.0,
