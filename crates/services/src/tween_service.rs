@@ -78,7 +78,7 @@ pub fn process_tweens_system(vm: NonSend<LuaVm>, time: Res<Time>) {
 
     engine
         .active_tweens
-        .retain(|_, t| t.state == PlayState::Playing || t.lua_token.strong_count() > 0);
+        .retain(|_, t| t.state == PlayState::Completed || t.lua_token.strong_count() > 0);
 
     // Drop the engine so Lua can use it
     drop(engine);
