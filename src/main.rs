@@ -101,11 +101,12 @@ fn main() {
             (update_action_states, process_collisions).chain(),
         )
         .add_systems(Startup, setup_scene)
+        // Process engine queue needs to be separate from other normal systems
+        .add_systems(Update, process_engine_queue)
         .add_systems(
             Update,
             (
                 tick_scheduler,
-                process_engine_queue,
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
@@ -114,7 +115,8 @@ fn main() {
                 sync_atmosphere_system,
                 process_button_interactions,
                 process_tweens_system,
-            ),
+            )
+                .chain(),
         )
         .run();
 }
