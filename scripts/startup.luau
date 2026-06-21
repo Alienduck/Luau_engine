@@ -29,8 +29,8 @@ RunService.RenderStepped:Connect(function(delta: number)
 	local camLook = Camera.CFrame.LookVector
 	local camRight = Camera.CFrame.RightVector
 
-	camLook = Vector3.new(camLook.X, 0, camLook.Z).Unit
-	camRight = Vector3.new(camRight.X, 0, camRight.Z).Unit
+	camLook = Vector3.new(camLook.X, camLook.Y, camLook.Z).Unit
+	camRight = Vector3.new(camRight.X, camRight.Y, camRight.Z).Unit
 
 	local dir = Vector3.zero
 
@@ -145,7 +145,8 @@ local mesh_part = MeshPart.new()
 mesh_part.Name = "map"
 mesh_part.Parent = workspace
 mesh_part.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
-mesh_part.MeshId = "models/chicken_idk_map/scene.gltf#Scene0"
+mesh_part.MeshId = math.random(1, 2) == 1 and "models/chicken_idk_map/scene.gltf#Scene0"
+	or "models/stylized_classroom/scene.gltf#Scene0"
 mesh_part.Position = Vector3.zero
 local _cl = Collider.new()
 _cl.Parent = mesh_part
@@ -155,17 +156,6 @@ _rb.Parent = mesh_part
 
 Camera:SetSubject(mesh_part)
 
-local count_down = 0
-local time_to_wait = math.random(1, 6)
+task.wait(1)
 
-RunService.RenderStepped:Connect(function(delta: number)
-	count_down += delta
-	if count_down < time_to_wait then
-		return
-	end
-	count_down = 0
-	local workspace_desc = workspace:GetDescendants()
-	local random_des = workspace_desc[math.random(1, #workspace_desc)]
-	Camera:SetSubject(random_des)
-	print(`Change subject for {random_des.Name}`)
-end)
+Camera:SetSubject(subject)
