@@ -73,7 +73,13 @@ pub fn update_action_states(
     action_map.just_pressed_actions.clear();
     action_map.just_released_actions.clear();
 
-    for (action, bound_keys) in action_map.bindings.clone().iter() {
+    let actions: Vec<(String, Vec<BoundKey>)> = action_map
+        .bindings
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    for (action, bound_keys) in &actions {
         for key in bound_keys {
             let (pressed, just_pressed, just_released) = match key {
                 BoundKey::Keyboard(k) => (
