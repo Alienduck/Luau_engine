@@ -92,7 +92,11 @@ impl UserData for LuaMeshPart {
             this.base_part_data.base.queue.push(
                 luau_runtime::bridge::queue::EngineCommand::SetScale {
                     handle: h,
-                    scale: vec3(v.x, v.y, v.z),
+                    scale: Vec3 {
+                        x: v.x,
+                        y: v.y,
+                        z: v.z,
+                    },
                 },
             );
             Ok(())
