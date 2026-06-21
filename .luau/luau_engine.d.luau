@@ -24,7 +24,7 @@ export type Vector2 = typeof(setmetatable(
 ))
 
 export type Vector3 = typeof(setmetatable(
-    {} :: { X: number, Y: number, Z: number },
+    {} :: { X: number, Y: number, Z: number, Unit: Vector3, Magnitude: number },
     {} :: Vector3Meta
 ))
 
@@ -62,6 +62,7 @@ export type TweenInfo = {
 }
 
 export type Tween = {
+    Completed: Signal<>,
     Play: (self: Tween) -> (),
     Pause: (self: Tween) -> (),
     Cancel: (self: Tween) -> (),
@@ -72,6 +73,10 @@ export type Instance = {
     Parent: Instance?,
     Clone: (self: Instance) -> Instance,
     Destroy: (self: Instance) -> (),
+    GetChildren: (self: Instance) -> { Instance },
+    GetDescendants: (self: Instance) -> { Instance },
+    FindFirstChild: (self: Instance, name: string) -> Instance?,
+    IsDescendantOf: (self: Instance, descendant: Instance) -> boolean,
 }
 
 export type BasePart = Instance & {
