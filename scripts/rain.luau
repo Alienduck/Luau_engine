@@ -50,6 +50,7 @@ function module.Start()
 
 		count = 0
 		local part = __spawn_part({
+			name = "RainDrop",
 			position = Vector3.new(PARAMS.POS_XZ(), PARAMS.POS_Y(), PARAMS.POS_XZ()),
 			size = Vector3.new(1 / 15, math.random(2, 5) / 10, 1 / 15),
 			color = Color3.fromRGB(50, 50, math.random(200, 255)),
