@@ -2,7 +2,10 @@ use bevy::{
     core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
     render::view::Hdr, window::WindowMode,
 };
-use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
+use bevy_rapier3d::{
+    plugin::{NoUserData, RapierPhysicsPlugin},
+    render::{DebugRenderMode, RapierDebugRenderPlugin},
+};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
@@ -90,6 +93,10 @@ fn main() {
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
+        // .add_plugins(RapierDebugRenderPlugin {
+        //     mode: DebugRenderMode::COLLIDER_AABBS,
+        //     ..default()
+        // })
         .insert_resource(EngineQueueResource(queue))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
