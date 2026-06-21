@@ -1,3 +1,4 @@
+use bevy::math::Vec3;
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{FromLua, Lua, UserData, UserDataFields, UserDataMethods};
 
@@ -36,6 +37,27 @@ impl UserData for LuaVector3 {
         fields.add_field_method_set("Z", |_, this, v: f32| {
             this.z = v;
             Ok(())
+        });
+        fields.add_field_method_get("Unit", |_, this| {
+            let normalized = Vec3 {
+                x: this.x,
+                y: this.y,
+                z: this.z,
+            }
+            .normalize();
+            Ok(LuaVector3 {
+                x: normalized.x,
+                y: normalized.y,
+                z: normalized.z,
+            })
+        });
+        fields.add_field_method_get("Magnitude", |_, this| {
+            Ok(Vec3 {
+                x: this.x,
+                y: this.y,
+                z: this.z,
+            }
+            .length())
         });
     }
 
