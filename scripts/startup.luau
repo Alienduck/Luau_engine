@@ -71,6 +71,8 @@ Lighting.Brightness = 10
 Lighting.Ambient = Color3.fromRGB(0, 0, 100)
 Lighting.GlobalShadows = true
 Lighting.ClockTime = 0
+Lighting.FogStart = 20
+Lighting.FogEnd = 500
 print(Lighting.TimeOfDay)
 
 local CLOCK_MULTIPLIER = 2.4
@@ -99,9 +101,22 @@ RunService.RenderStepped:Connect(function(delta: number)
 	end
 end)
 
--- local sky = Sky.new()
--- sky.CubemapPath = "skybox/sky_skybox.ktx2"
--- sky.Parent = Lighting
+local sky = Sky.new()
+sky.CubemapPath = "skybox/sky_skybox.ktx2"
+sky.Parent = Lighting
+
+local atmosphere = Atmosphere.new()
+atmosphere.Parent = Lighting
+atmosphere.Density = 0
+
+local atmo_start_tween = TweenService:Create(atmosphere, TweenInfo.new(3), { Density = 1 })
+local atmo_end_tween = TweenService:Create(atmosphere, TweenInfo.new(3), { Density = 0 })
+RunService.RenderStepped:Connect(function(_delta: number)
+	atmo_start_tween:Play()
+	task.wait(1)
+	atmo_end_tween:Play()
+	task.wait(1)
+end)
 
 local rain = require("scripts/rain")
 rain.Start()
