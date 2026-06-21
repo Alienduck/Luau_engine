@@ -235,17 +235,15 @@ impl UserData for LuaCamera {
     }
 
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_method("SetSubject", |_, this, part: mlua::AnyUserData| {
-            let handle = part
-                .borrow::<crate::instances::part::LuaPart>()?
-                .data
-                .base
-                .handle;
+        methods.add_method("SetSubject", |_, this, instance: mlua::AnyUserData| {
+            let handle =
+                crate::types::instance::instance_handle_from_any(&instance).ok_or_else(|| {
+                    mlua::Error::runtime("Failed to get the instance from the given data")
+                })?;
             this.queue.push_raw(move |w: &mut World| {
                 let entity = w.resource::<HandleMap>().get_entity(handle);
-                let mut q = w.query::<&mut SmartCamera>();
-                if let Ok(mut cam) = q.single_mut(w) {
-                    cam.subject = entity;
+                if let Ok(mut c) = w.query::<&mut SmartCamera>().single_mut(w) {
+                    c.subject = entity
                 }
             });
             Ok(())
