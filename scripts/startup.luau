@@ -153,6 +153,8 @@ local _rb = Rigidbody.new()
 _rb.Anchored = true
 _rb.Parent = mesh_part
 
+Camera:SetSubject(mesh_part)
+
 local count_down = 0
 local time_to_wait = math.random(1, 6)
 
