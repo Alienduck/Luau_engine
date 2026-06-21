@@ -93,10 +93,10 @@ fn main() {
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
-        // .add_plugins(RapierDebugRenderPlugin {
-        //     mode: DebugRenderMode::COLLIDER_AABBS,
-        //     ..default()
-        // })
+        .add_plugins(RapierDebugRenderPlugin {
+            mode: DebugRenderMode::COLLIDER_AABBS,
+            ..default()
+        })
         .insert_resource(EngineQueueResource(queue))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
@@ -108,12 +108,11 @@ fn main() {
             (update_action_states, process_collisions).chain(),
         )
         .add_systems(Startup, setup_scene)
-        // Process engine queue needs to be separate from other normal systems
-        .add_systems(Update, process_engine_queue)
         .add_systems(
             Update,
             (
                 tick_scheduler,
+                process_engine_queue,
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
