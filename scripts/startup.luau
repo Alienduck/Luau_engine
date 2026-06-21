@@ -16,6 +16,9 @@ local keys_pressed = {}
 
 UserInputService.InputBegan:Connect(function(key: string, _: string)
 	keys_pressed[key] = true
+	if key == "KeyQ" then
+		Camera.FirstPerson = not Camera.FirstPerson
+	end
 end)
 
 UserInputService.InputEnded:Connect(function(key: string, _: string)
@@ -23,31 +26,39 @@ UserInputService.InputEnded:Connect(function(key: string, _: string)
 end)
 
 RunService.RenderStepped:Connect(function(delta: number)
+	local camLook = Camera.CFrame.LookVector
+	local camRight = Camera.CFrame.RightVector
+
+	camLook = Vector3.new(camLook.X, 0, camLook.Z).Unit
+	camRight = Vector3.new(camRight.X, 0, camRight.Z).Unit
+
 	local dir = Vector3.zero
 
 	if keys_pressed["KeyW"] then
-		dir = dir + Vector3.new(0, 0, -1)
+		dir = dir + camLook
 	end
 	if keys_pressed["KeyS"] then
-		dir = dir + Vector3.new(0, 0, 1)
+		dir = dir - camLook
 	end
 	if keys_pressed["KeyA"] then
-		dir = dir + Vector3.new(-1, 0, 0)
+		dir = dir - camRight
 	end
 	if keys_pressed["KeyD"] then
-		dir = dir + Vector3.new(1, 0, 0)
+		dir = dir + camRight
 	end
+
 	if keys_pressed["Space"] then
 		dir = dir + Vector3.new(0, 1, 0)
 	end
 	if keys_pressed["ControlLeft"] then
-		dir += Vector3.new(0, -1, 0)
-	end
-	if keys_pressed["KeyQ"] then
-		Camera.FirstPerson = not Camera.FirstPerson
+		dir = dir + Vector3.new(0, -1, 0)
 	end
 
 	if dir.X ~= 0 or dir.Y ~= 0 or dir.Z ~= 0 then
+		if dir.Magnitude > 0 then
+			dir = dir.Unit
+		end
+
 		subject.Position = subject.Position + (dir * (speed * delta))
 	end
 end)
@@ -109,14 +120,16 @@ local atmosphere = Atmosphere.new()
 atmosphere.Parent = Lighting
 atmosphere.Density = 0
 
-local atmo_start_tween = TweenService:Create(atmosphere, TweenInfo.new(3), { Density = 1 })
-local atmo_end_tween = TweenService:Create(atmosphere, TweenInfo.new(3), { Density = 0 })
-RunService.RenderStepped:Connect(function(_delta: number)
-	atmo_start_tween:Play()
-	task.wait(1)
+local atmo_start_tween = TweenService:Create(atmosphere, TweenInfo.new(5), { Density = 1 })
+local atmo_end_tween = TweenService:Create(atmosphere, TweenInfo.new(5), { Density = 0 })
+
+atmo_start_tween.Completed:Connect(function()
 	atmo_end_tween:Play()
-	task.wait(1)
 end)
+atmo_end_tween.Completed:Connect(function()
+	atmo_start_tween:Play()
+end)
+atmo_start_tween:Play()
 
 local rain = require("scripts/rain")
 rain.Start()
@@ -129,6 +142,7 @@ UserInputService.InputBegan:Connect(function(k_input: string, m_input: string)
 end)
 
 local mesh_part = MeshPart.new()
+mesh_part.Name = "map"
 mesh_part.Parent = workspace
 mesh_part.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
 mesh_part.MeshId = "models/chicken_idk_map/scene.gltf#Scene0"
@@ -138,3 +152,18 @@ _cl.Parent = mesh_part
 local _rb = Rigidbody.new()
 _rb.Anchored = true
 _rb.Parent = mesh_part
+
+local count_down = 0
+local time_to_wait = math.random(1, 6)
+
+RunService.RenderStepped:Connect(function(delta: number)
+	count_down += delta
+	if count_down < time_to_wait then
+		return
+	end
+	count_down = 0
+	local workspace_desc = workspace:GetDescendants()
+	local random_des = workspace_desc[math.random(1, #workspace_desc)]
+	Camera:SetSubject(random_des)
+	print(`Change subject for {random_des.Name}`)
+end)
