@@ -10,8 +10,8 @@ use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     instances::{
         base_part::process_collisions,
-        bloom_effect::BloomEffectModule,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
+        lighting::bloom_effect::BloomEffectModule,
         lighting::{atmosphere::AtmosphereModule, sky::SkyModule},
         mesh_part::MeshPartModule,
         part::PartModule,
