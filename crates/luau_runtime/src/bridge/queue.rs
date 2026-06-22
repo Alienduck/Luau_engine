@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use engine_core::components::LuauBloom;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -66,6 +67,12 @@ pub enum EngineCommand {
     SetLightingBrightness { illuminance: f32 },
     /// `DirectionalLight` set the directional light global shadows
     SetLightingGlobalShadows { enabled: bool },
+    /// `Bloom` set the bloom intensity
+    SetBloomIntensity { handle: u64, intensity: f32 },
+    /// `Bloom` set the bloom size
+    SetBloomSize { handle: u64, size: f32 },
+    /// `Bloom` set the bloom size
+    SetBloomThreshold { handle: u64, threshold: f32 },
     /// Despawn entity + remove from HandleMap
     Despawn { handle: u64 },
     /// Re-parent in the Bevy hierarchy
@@ -317,6 +324,27 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
         EngineCommand::SetLightingGlobalShadows { enabled } => {
             if let Ok(mut d) = world.query::<&mut DirectionalLight>().single_mut(world) {
                 d.shadows_enabled = enabled;
+            }
+        }
+        EngineCommand::SetBloomIntensity { handle, intensity } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut b) = world.get_mut::<LuauBloom>(e) {
+                    b.intensity = intensity;
+                }
+            }
+        }
+        EngineCommand::SetBloomSize { handle, size } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut b) = world.get_mut::<LuauBloom>(e) {
+                    b.size = size;
+                }
+            }
+        }
+        EngineCommand::SetBloomThreshold { handle, threshold } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut b) = world.get_mut::<LuauBloom>(e) {
+                    b.threshold = threshold;
+                }
             }
         }
         EngineCommand::Despawn { handle } => {
