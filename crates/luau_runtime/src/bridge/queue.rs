@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use engine_core::components::LuauBloom;
+use engine_core::components::{LuauAtmosphere, LuauBloom};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -73,6 +73,16 @@ pub enum EngineCommand {
     SetBloomSize { handle: u64, size: f32 },
     /// `Bloom` set the bloom size
     SetBloomThreshold { handle: u64, threshold: f32 },
+    /// `Atmosphere` set the atmosphere density
+    SetAtmosphereDensity { handle: u64, density: f32 },
+    /// `Atmosphere` set the atmosphere Color
+    SetAtmosphereColor { handle: u64, color: Color },
+    /// `Atmosphere` set the atmosphere decay
+    SetAtmosphereDecay { handle: u64, decay: Color },
+    /// `Atmosphere` set the atmosphere glare
+    SetAtmosphereGlare { handle: u64, glare: f32 },
+    /// `Atmosphere` set the atmosphere haze
+    SetAtmosphereHaze { handle: u64, haze: f32 },
     /// Despawn entity + remove from HandleMap
     Despawn { handle: u64 },
     /// Re-parent in the Bevy hierarchy
@@ -344,6 +354,41 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut b) = world.get_mut::<LuauBloom>(e) {
                     b.threshold = threshold;
+                }
+            }
+        }
+        EngineCommand::SetAtmosphereDensity { handle, density } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut a) = world.get_mut::<LuauAtmosphere>(e) {
+                    a.density = density;
+                }
+            }
+        }
+        EngineCommand::SetAtmosphereColor { handle, color } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut a) = world.get_mut::<LuauAtmosphere>(e) {
+                    a.color = color;
+                }
+            }
+        }
+        EngineCommand::SetAtmosphereDecay { handle, decay } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut a) = world.get_mut::<LuauAtmosphere>(e) {
+                    a.decay = decay;
+                }
+            }
+        }
+        EngineCommand::SetAtmosphereGlare { handle, glare } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut a) = world.get_mut::<LuauAtmosphere>(e) {
+                    a.glare = glare;
+                }
+            }
+        }
+        EngineCommand::SetAtmosphereHaze { handle, haze } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut a) = world.get_mut::<LuauAtmosphere>(e) {
+                    a.haze = haze;
                 }
             }
         }
