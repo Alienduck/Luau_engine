@@ -1,7 +1,7 @@
 use bevy::{core_pipeline::Skybox, pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
-use engine_core::components::LuauBloom;
+use engine_core::components::{LuauAtmosphere, LuauBloom};
 use luau_classes::{
-    instances::{lighting::atmosphere::LuauAtmosphere, lighting::sky::LuauSky},
+    instances::lighting::sky::LuauSky,
     types::{
         color3::LuaColor3,
         instance::{CloneableInstance, InstanceData},
@@ -206,11 +206,13 @@ pub fn sync_atmosphere_system(
 
     if let Some(atmo) = active_atmo {
         let scale = atmo.density * 0.05;
-        let ext = Vec3::new(atmo.color.r, atmo.color.g, atmo.color.b) * scale;
-        let ins = Vec3::new(atmo.decay.r, atmo.decay.g, atmo.decay.b) * scale;
+        let lua_color: LuaColor3 = atmo.color.into();
+        let lua_decay: LuaColor3 = atmo.decay.into();
+        let ext = Vec3::new(lua_color.r, lua_color.g, lua_color.b) * scale;
+        let ins = Vec3::new(lua_decay.r, lua_decay.g, lua_decay.b) * scale;
 
         let new_fog = DistanceFog {
-            color: Color::srgba(atmo.color.r, atmo.color.g, atmo.color.b, 1.0),
+            color: Color::srgba(lua_color.r, lua_color.g, lua_color.b, 1.0),
             falloff: FogFalloff::Atmospheric {
                 extinction: ext.max(Vec3::splat(0.0001)),
                 inscattering: ins.max(Vec3::splat(0.0001)),
