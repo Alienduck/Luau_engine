@@ -4,20 +4,20 @@ use crate::types::{
 };
 use bevy::{
     ecs::{
+        entity::Entity,
         hierarchy::ChildOf,
         message::MessageReader,
         relationship::Relationship,
         system::{NonSend, Query},
+        world::World,
     },
     math::Vec3,
 };
 use luau_runtime::bridge::queue::{EngineCommand, EngineQueue};
 
-/// Shared state for 3-D part instances (position, size, color, transparency,
-/// touched signal).
-///
-/// Embedded by value in [`LuaPart`] (and any future part subclass).  All
-/// mutations push a typed [`EngineCommand`] — no heap allocation, no vtable.
+#[derive(bevy::ecs::component::Component)]
+pub struct TouchedSignalComponent(pub u64);
+
 #[derive(Clone)]
 pub struct BasePartData {
     pub base: InstanceData,
@@ -51,6 +51,12 @@ impl BasePartData {
             },
             transparency: 0.0,
             material: "Plastic".into(),
+        }
+    }
+
+    pub fn apply_base_components(&self, entity: Entity, w: &mut World) {
+        if let Ok(mut e) = w.get_entity_mut(entity) {
+            e.insert(TouchedSignalComponent(self.touched_signal_id));
         }
     }
 
@@ -136,7 +142,10 @@ impl BasePartData {
 pub fn process_collisions(
     mut rapier_msg: MessageReader<bevy_rapier3d::pipeline::CollisionEvent>,
     vm: NonSend<luau_runtime::vm::LuaVm>,
-    handle_query: Query<&luau_runtime::bridge::handle::LuauHandle>,
+    handle_query: Query<(
+        &luau_runtime::bridge::handle::LuauHandle,
+        Option<&TouchedSignalComponent>,
+    )>,
     parent_query: Query<&ChildOf>,
 ) {
     let Ok(cache) = vm
@@ -146,10 +155,10 @@ pub fn process_collisions(
         return;
     };
 
-    let get_luau_handle = |mut entity: bevy::prelude::Entity| -> Option<u64> {
+    let get_instance_data = |mut entity: bevy::prelude::Entity| -> Option<(u64, Option<u64>)> {
         loop {
-            if let Ok(handle) = handle_query.get(entity) {
-                return Some(handle.0);
+            if let Ok((handle, signal_comp)) = handle_query.get(entity) {
+                return Some((handle.0, signal_comp.map(|s| s.0)));
             }
             if let Ok(parent) = parent_query.get(entity) {
                 entity = parent.get();
@@ -165,32 +174,19 @@ pub fn process_collisions(
         };
 
         for (self_e, other_e) in [(e1, e2), (e2, e1)] {
-            let Some(handle_self) = get_luau_handle(*self_e) else {
+            let Some((_handle_self, signal_id)) = get_instance_data(*self_e) else {
                 continue;
             };
-            let Some(handle_other) = get_luau_handle(*other_e) else {
+            let Some((handle_other, _)) = get_instance_data(*other_e) else {
                 continue;
-            };
-
-            let Ok(self_ud) = cache.get::<mlua::AnyUserData>(handle_self) else {
-                continue;
-            };
-            let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other) else {
-                continue;
-            };
-
-            let signal_id = if let Ok(part) = self_ud.borrow::<crate::instances::part::LuaPart>() {
-                Some(part.data.touched_signal_id)
-            } else if let Ok(mpart) = self_ud.borrow::<crate::instances::mesh_part::LuaMeshPart>() {
-                Some(mpart.base_part_data.touched_signal_id)
-            } else {
-                None
             };
 
             if let Some(id) = signal_id {
-                let signal = LuaSignal { id };
-                if let Err(e) = signal.fire(&vm.lua, other_ud) {
-                    log::error!("Luau Error in Touched event: {}", e);
+                if let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other) {
+                    let signal = LuaSignal { id };
+                    if let Err(e) = signal.fire(&vm.lua, other_ud) {
+                        log::error!("Luau Error in Touched event: {}", e);
+                    }
                 }
             }
         }
