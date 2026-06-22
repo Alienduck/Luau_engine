@@ -1,8 +1,7 @@
 use bevy::{core_pipeline::Skybox, pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
+use engine_core::components::LuauBloom;
 use luau_classes::{
-    instances::{
-        bloom_effect::LuauBloom, lighting::atmosphere::LuauAtmosphere, lighting::sky::LuauSky,
-    },
+    instances::{lighting::atmosphere::LuauAtmosphere, lighting::sky::LuauSky},
     types::{
         color3::LuaColor3,
         instance::{CloneableInstance, InstanceData},
