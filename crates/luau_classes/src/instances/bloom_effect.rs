@@ -1,5 +1,6 @@
 use crate::types::instance::{CloneableInstance, InstanceData};
 use bevy::prelude::*;
+use engine_core::components::LuauBloom;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, next_handle},
@@ -8,15 +9,6 @@ use luau_runtime::{
     registry::LuaModule,
 };
 use mlua::{Lua, UserData, UserDataFields};
-
-/// Struct to handle easier the bloom script side
-/// [TODO]: found a way to handle without the custom struct
-#[derive(Component, Clone)]
-pub struct LuauBloom {
-    pub intensity: f32,
-    pub size: f32,
-    pub threshold: f32,
-}
 
 #[derive(Clone)]
 pub struct LuaBloomEffect {
@@ -66,40 +58,34 @@ impl UserData for LuaBloomEffect {
         fields.add_field_method_get("Intensity", |_, this| Ok(this.intensity));
         fields.add_field_method_set("Intensity", |_, this, v: f32| {
             this.intensity = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
-                        b.intensity = v
-                    }
-                }
-            });
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetBloomIntensity {
+                    handle: this.base.handle,
+                    intensity: v,
+                },
+            );
             Ok(())
         });
         fields.add_field_method_get("Size", |_, this| Ok(this.size));
         fields.add_field_method_set("Size", |_, this, v: f32| {
             this.size = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
-                        b.size = v;
-                    }
-                }
-            });
+            this.base
+                .queue
+                .push(luau_runtime::bridge::queue::EngineCommand::SetBloomSize {
+                    handle: this.base.handle,
+                    size: v,
+                });
             Ok(())
         });
         fields.add_field_method_get("Threshold", |_, this| Ok(this.threshold));
         fields.add_field_method_set("Threshold", |_, this, v: f32| {
             this.threshold = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut b) = w.get_mut::<LuauBloom>(e) {
-                        b.threshold = v;
-                    }
-                }
-            });
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetBloomThreshold {
+                    handle: this.base.handle,
+                    threshold: v,
+                },
+            );
             Ok(())
         });
     }
