@@ -49,6 +49,7 @@ impl CloneableInstance for LuaPart {
         Ok(())
     }
     fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
+        self.data.apply_base_components(entity, w);
         let emissive = if self.data.material == "Neon" {
             LinearRgba::rgb(
                 self.data.color.r * 10.0,
