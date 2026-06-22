@@ -3,30 +3,19 @@ use crate::types::{
     instance::{CloneableInstance, InstanceData},
 };
 use bevy::prelude::*;
+use engine_core::components::LuauAtmosphere;
 use luau_runtime::{
-    bridge::{
-        handle::{HandleMap, next_handle},
-        queue::EngineQueue,
-    },
+    bridge::{handle::next_handle, queue::EngineQueue},
     registry::LuaModule,
 };
 use mlua::{Lua, UserData, UserDataFields, UserDataMethods};
-
-#[derive(Component, Clone)]
-pub struct LuauAtmosphere {
-    pub density: f32,
-    pub color: LuaColor3,
-    pub decay: LuaColor3,
-    pub glare: f32,
-    pub haze: f32,
-}
 
 #[derive(Clone)]
 pub struct LuaAtmosphere {
     pub base: InstanceData,
     pub density: f32,
-    pub color: LuaColor3,
-    pub decay: LuaColor3,
+    pub color: Color,
+    pub decay: Color,
     pub glare: f32,
     pub haze: f32,
 }
@@ -75,70 +64,62 @@ impl UserData for LuaAtmosphere {
         fields.add_field_method_get("Density", |_, this| Ok(this.density));
         fields.add_field_method_set("Density", |_, this, v: f32| {
             this.density = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                        a.density = v;
-                    }
-                }
-            });
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetAtmosphereDensity {
+                    handle: this.base.handle,
+                    density: v,
+                },
+            );
             Ok(())
         });
 
-        fields.add_field_method_get("Color", |_, this| Ok(this.color));
+        fields.add_field_method_get("Color", |_, this| Ok(LuaColor3::from(this.color)));
         fields.add_field_method_set("Color", |_, this, v: LuaColor3| {
-            this.color = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                        a.color = v;
-                    }
-                }
-            });
+            let color = Color::srgb(v.r, v.g, v.b);
+            this.color = color;
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetAtmosphereColor {
+                    handle: this.base.handle,
+                    color,
+                },
+            );
             Ok(())
         });
 
-        fields.add_field_method_get("Decay", |_, this| Ok(this.decay));
+        fields.add_field_method_get("Decay", |_, this| Ok(LuaColor3::from(this.decay)));
         fields.add_field_method_set("Decay", |_, this, v: LuaColor3| {
-            this.decay = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                        a.decay = v;
-                    }
-                }
-            });
+            let decay = Color::srgb(v.r, v.g, v.b);
+            this.decay = decay;
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetAtmosphereDecay {
+                    handle: this.base.handle,
+                    decay,
+                },
+            );
             Ok(())
         });
 
         fields.add_field_method_get("Glare", |_, this| Ok(this.glare));
         fields.add_field_method_set("Glare", |_, this, v: f32| {
             this.glare = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                        a.glare = v;
-                    }
-                }
-            });
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetAtmosphereGlare {
+                    handle: this.base.handle,
+                    glare: v,
+                },
+            );
             Ok(())
         });
 
         fields.add_field_method_get("Haze", |_, this| Ok(this.haze));
         fields.add_field_method_set("Haze", |_, this, v: f32| {
             this.haze = v;
-            let h = this.base.handle;
-            this.base.queue.push_raw(move |w: &mut World| {
-                if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                    if let Some(mut a) = w.get_mut::<LuauAtmosphere>(e) {
-                        a.haze = v;
-                    }
-                }
-            });
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetAtmosphereHaze {
+                    handle: this.base.handle,
+                    haze: v,
+                },
+            );
             Ok(())
         });
     }
@@ -164,16 +145,8 @@ impl LuaModule for AtmosphereModule {
                 let effect = LuaAtmosphere {
                     base: InstanceData::new(handle, q.clone(), "Atmosphere"),
                     density: 0.3,
-                    color: LuaColor3 {
-                        r: 0.78,
-                        g: 0.78,
-                        b: 0.78,
-                    },
-                    decay: LuaColor3 {
-                        r: 0.41,
-                        g: 0.44,
-                        b: 0.49,
-                    },
+                    color: Color::srgb(0.78, 0.78, 0.78),
+                    decay: Color::srgb(0.41, 0.44, 0.49),
                     glare: 0.0,
                     haze: 0.0,
                 };
