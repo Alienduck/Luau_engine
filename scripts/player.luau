@@ -1,0 +1,76 @@
+local player = {}
+
+function player.Start()
+	local subject = Part.new()
+	subject.Name = "Subject"
+	subject.Parent = workspace
+	subject.Size = Vector3.one
+	subject.Position = Vector3.new(0, 1, 0)
+	subject.Transparency = 0
+	subject.Material = "Neon"
+
+	local speed = 25
+	local keys_pressed = {}
+
+	UserInputService.InputBegan:Connect(function(key: string, _: string)
+		keys_pressed[key] = true
+		if key == "KeyQ" then
+			Camera.FirstPerson = not Camera.FirstPerson
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(key: string, _: string)
+		keys_pressed[key] = false
+	end)
+
+	RunService.RenderStepped:Connect(function(delta: number)
+		local camLook = Camera.CFrame.LookVector
+		local camRight = Camera.CFrame.RightVector
+		camLook = Vector3.new(camLook.X, camLook.Y, camLook.Z).Unit
+		camRight = Vector3.new(camRight.X, camRight.Y, camRight.Z).Unit
+
+		local dir = Vector3.zero
+		if keys_pressed["KeyW"] then
+			dir = dir + camLook
+		end
+		if keys_pressed["KeyS"] then
+			dir = dir - camLook
+		end
+		if keys_pressed["KeyA"] then
+			dir = dir - camRight
+		end
+		if keys_pressed["KeyD"] then
+			dir = dir + camRight
+		end
+		if keys_pressed["Space"] then
+			dir = dir + Vector3.new(0, 1, 0)
+		end
+		if keys_pressed["ControlLeft"] then
+			dir = dir + Vector3.new(0, -1, 0)
+		end
+
+		if dir.X ~= 0 or dir.Y ~= 0 or dir.Z ~= 0 then
+			if dir.Magnitude > 0 then
+				dir = dir.Unit
+			end
+			subject.Position = subject.Position + (dir * (speed * delta))
+		end
+	end)
+
+	local function random_color(): Color3
+		return Color3.new(math.random(0, 255) / 255, math.random(0, 255) / 255, math.random(0, 255) / 255)
+	end
+
+	local subject_goal = random_color()
+	RunService.RenderStepped:Connect(function(delta: number)
+		subject.Color = subject.Color:Lerp(subject_goal, delta)
+		if subject.Color == subject_goal then
+			subject_goal = random_color()
+		end
+	end)
+
+	Camera.Distance = 10
+	return subject
+end
+
+return player
