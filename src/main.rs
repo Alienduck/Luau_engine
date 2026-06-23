@@ -95,6 +95,7 @@ fn main() {
         .add_plugins(SmartCameraPlugin)
         .add_plugins(RapierDebugRenderPlugin {
             mode: DebugRenderMode::COLLIDER_AABBS,
+            enabled: false,
             ..default()
         })
         .insert_resource(EngineQueueResource(queue))
