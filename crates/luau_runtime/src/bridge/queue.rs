@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_rapier3d::render::{DebugRenderContext, DebugRenderMode};
 use engine_core::components::{LuauAtmosphere, LuauBloom};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,11 +10,20 @@ use std::rc::Rc;
 /// the Vec stores them contiguously, keeping cache lines full.
 pub enum EngineCommand {
     /// `Transform::translation`
-    SetTranslation { handle: u64, translation: Vec3 },
+    SetTranslation {
+        handle: u64,
+        translation: Vec3,
+    },
     /// `Transform::scale`
-    SetScale { handle: u64, scale: Vec3 },
+    SetScale {
+        handle: u64,
+        scale: Vec3,
+    },
     /// `Transform::rotation`
-    SetRotation { handle: u64, rotation: Quat },
+    SetRotation {
+        handle: u64,
+        rotation: Quat,
+    },
     /// Full CFrame (translation + rotation in one shot)
     SetCFrame {
         handle: u64,
@@ -30,9 +40,17 @@ pub enum EngineCommand {
         alpha: f32,
     },
     /// `StandardMaterial::emissive`
-    SetEmissive { handle: u64, r: f32, g: f32, b: f32 },
+    SetEmissive {
+        handle: u64,
+        r: f32,
+        g: f32,
+        b: f32,
+    },
     /// `Visibility`
-    SetVisibility { handle: u64, visible: bool },
+    SetVisibility {
+        handle: u64,
+        visible: bool,
+    },
     /// `bevy_ui::Node` layout (position + size computed upstream)
     SetNodeLayout {
         handle: u64,
@@ -52,46 +70,104 @@ pub enum EngineCommand {
         a: f32,
     },
     /// `Text::0`
-    SetText { handle: u64, text: String },
+    SetText {
+        handle: u64,
+        text: String,
+    },
     /// `TextColor`
-    SetTextColor { handle: u64, r: f32, g: f32, b: f32 },
+    SetTextColor {
+        handle: u64,
+        r: f32,
+        g: f32,
+        b: f32,
+    },
     /// `TextFont::font_size`
-    SetFontSize { handle: u64, size: f32 },
+    SetFontSize {
+        handle: u64,
+        size: f32,
+    },
     /// `RigidBody` insert/remove on parent entity
-    SetRigidBody { handle: u64, dynamic: bool },
+    SetRigidBody {
+        handle: u64,
+        dynamic: bool,
+    },
     /// `ImageNode` insert an ImageNode
-    SetImageNode { handle: u64, asset_path: String },
+    SetImageNode {
+        handle: u64,
+        asset_path: String,
+    },
     /// `AmbientLight` set the ambient light color
-    SetLightingColor { color: Color },
+    SetLightingColor {
+        color: Color,
+    },
     /// `DirectionalLight` set the directional light luminance
-    SetLightingBrightness { illuminance: f32 },
+    SetLightingBrightness {
+        illuminance: f32,
+    },
     /// `DirectionalLight` set the directional light global shadows
-    SetLightingGlobalShadows { enabled: bool },
+    SetLightingGlobalShadows {
+        enabled: bool,
+    },
     /// `Bloom` set the bloom intensity
-    SetBloomIntensity { handle: u64, intensity: f32 },
+    SetBloomIntensity {
+        handle: u64,
+        intensity: f32,
+    },
     /// `Bloom` set the bloom size
-    SetBloomSize { handle: u64, size: f32 },
+    SetBloomSize {
+        handle: u64,
+        size: f32,
+    },
     /// `Bloom` set the bloom size
-    SetBloomThreshold { handle: u64, threshold: f32 },
+    SetBloomThreshold {
+        handle: u64,
+        threshold: f32,
+    },
     /// `Atmosphere` set the atmosphere density
-    SetAtmosphereDensity { handle: u64, density: f32 },
+    SetAtmosphereDensity {
+        handle: u64,
+        density: f32,
+    },
     /// `Atmosphere` set the atmosphere Color
-    SetAtmosphereColor { handle: u64, color: Color },
+    SetAtmosphereColor {
+        handle: u64,
+        color: Color,
+    },
     /// `Atmosphere` set the atmosphere decay
-    SetAtmosphereDecay { handle: u64, decay: Color },
+    SetAtmosphereDecay {
+        handle: u64,
+        decay: Color,
+    },
     /// `Atmosphere` set the atmosphere glare
-    SetAtmosphereGlare { handle: u64, glare: f32 },
+    SetAtmosphereGlare {
+        handle: u64,
+        glare: f32,
+    },
     /// `Atmosphere` set the atmosphere haze
-    SetAtmosphereHaze { handle: u64, haze: f32 },
+    SetAtmosphereHaze {
+        handle: u64,
+        haze: f32,
+    },
     /// Despawn entity + remove from HandleMap
-    Despawn { handle: u64 },
+    Despawn {
+        handle: u64,
+    },
     /// Re-parent in the Bevy hierarchy
     SetParent {
         child_handle: u64,
         parent_handle: Option<u64>,
     },
     /// Using the `AssetServer` to load an asset from a given path
-    LoadAsset { handle: u64, asset_path: String },
+    LoadAsset {
+        handle: u64,
+        asset_path: String,
+    },
+    EnableRenderCollisionDebug {
+        enable: bool,
+    },
+    SetModeRenderCollisionDebug {
+        mode: u8,
+    },
     /// Any mutation that cannot be expressed as a variant above.
     /// This is the escape hatch — keep usage minimal.
     Raw(Box<dyn FnOnce(&mut World)>),
@@ -422,6 +498,22 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     }
                 }
             }
+        }
+        EngineCommand::EnableRenderCollisionDebug { enable } => {
+            world.resource_mut::<DebugRenderContext>().enabled = enable;
+        }
+        EngineCommand::SetModeRenderCollisionDebug { mode } => {
+            let rapier_mode = match mode {
+                0 => DebugRenderMode::COLLIDER_SHAPES,
+                1 => DebugRenderMode::RIGID_BODY_AXES,
+                2 => DebugRenderMode::MULTIBODY_JOINTS,
+                3 => DebugRenderMode::IMPULSE_JOINTS,
+                4 => DebugRenderMode::JOINTS,
+                5 => DebugRenderMode::SOLVER_CONTACTS,
+                6 => DebugRenderMode::CONTACTS,
+                _ => DebugRenderMode::COLLIDER_AABBS,
+            };
+            world.resource_mut::<DebugRenderContext>().pipeline.mode = rapier_mode;
         }
         EngineCommand::LoadAsset { handle, asset_path } => {
             let handle_scene: Handle<Scene> = world.resource::<AssetServer>().load(&asset_path);
