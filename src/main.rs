@@ -8,11 +8,11 @@ use bevy_rapier3d::{
 };
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
+    debug::collision_render::CollisionRenderModule,
     instances::{
         base_part::process_collisions,
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
-        lighting::bloom_effect::BloomEffectModule,
-        lighting::{atmosphere::AtmosphereModule, sky::SkyModule},
+        lighting::{atmosphere::AtmosphereModule, bloom_effect::BloomEffectModule, sky::SkyModule},
         mesh_part::MeshPartModule,
         part::PartModule,
         physics::{collider::ColliderModule, rigidbody::RigidbodyModule},
@@ -94,8 +94,8 @@ fn main() {
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
         .add_plugins(RapierDebugRenderPlugin {
-            mode: DebugRenderMode::COLLIDER_AABBS,
-            enabled: false,
+            mode: DebugRenderMode::COLLIDER_SHAPES,
+            enabled: true,
             ..default()
         })
         .insert_resource(EngineQueueResource(queue))
@@ -156,6 +156,10 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (LightingModule::name(), LightingModule::register),
         (TweenServiceModule::name(), TweenServiceModule::register),
         (EnumsModule::name(), EnumsModule::register),
+        (
+            CollisionRenderModule::name(),
+            CollisionRenderModule::register,
+        ),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
