@@ -23,6 +23,18 @@ pub enum EasingDirection {
     InOut,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum RenderCollisionMode {
+    ColliderShapes,
+    RigidbodyAxes,
+    MultiBodyJoints,
+    ImpulseJoints,
+    Joints,
+    SolverContacts,
+    Contacts,
+    ColliderAABBS,
+}
+
 pub struct EnumsModule;
 impl LuaModule for EnumsModule {
     fn name() -> &'static str {
@@ -67,6 +79,17 @@ impl LuaModule for EnumsModule {
 
         enum_table.set("EasingStyle", easing_style)?;
         enum_table.set("EasingDirection", easing_direction)?;
+
+        let debug_render_mode = lua.create_table()?;
+        debug_render_mode.set("ColliderShapes", 0_u8)?;
+        debug_render_mode.set("RigidbodyAxes", 1_u8)?;
+        debug_render_mode.set("MultiBodyJoints", 2_u8)?;
+        debug_render_mode.set("ImpulseJoints", 3_u8)?;
+        debug_render_mode.set("Joints", 4_u8)?;
+        debug_render_mode.set("SolverContacts", 5_u8)?;
+        debug_render_mode.set("Contacts", 6_u8)?;
+        debug_render_mode.set("ColliderAABBS", 7_u8)?;
+        enum_table.set("ColliderRenderMode", debug_render_mode)?;
 
         env.set("Enum", enum_table)?;
         Ok(())
