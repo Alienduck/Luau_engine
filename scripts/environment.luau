@@ -69,6 +69,9 @@ function env.Start()
 			end
 		elseif key == "KeyR" then
 			CollisionRender.Enable = not CollisionRender.Enable
+		elseif key == "KeyZ" then
+			CollisionRender.DebugMode = (CollisionRender.DebugMode + 1) % (Enum.ColliderRenderMode.ColliderAABBS + 1)
+			print("Debug Mode passé à :", CollisionRender.DebugMode)
 		end
 	end)
 
