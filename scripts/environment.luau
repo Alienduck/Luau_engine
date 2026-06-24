@@ -67,6 +67,8 @@ function env.Start()
 				atmo_end:Pause()
 				atmosphere.Density = 0
 			end
+		elseif key == "KeyR" then
+			CollisionRender.Enable = not CollisionRender.Enable
 		end
 	end)
 
@@ -77,7 +79,7 @@ function env.Start()
 	mesh_part.Name = "map"
 	mesh_part.Parent = workspace
 	mesh_part.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
-	mesh_part.MeshId = math.random(1, 2) == 1 and "models/chicken_idk_map/scene.gltf#Scene0"
+	mesh_part.MeshId = 2 == 1 and "models/chicken_idk_map/scene.gltf#Scene0"
 		or "models/stylized_classroom/scene.gltf#Scene0"
 	mesh_part.Position = Vector3.zero
 
