@@ -1,3 +1,8 @@
+export type CollisionRender = {
+    Enable: boolean,
+    DebugMode: number,
+}
+
 export type Connection = {
     Disconnect: (self: Connection) -> ()
 }
@@ -194,6 +199,8 @@ export type UserInputService = {
     InputBegan: Signal<string, string>,
     InputEnded: Signal<string, string>,
 }
+
+declare CollisionRender: CollisionRender
 
 declare Vector2: {
     new: (x: number, y: number) -> Vector2,
