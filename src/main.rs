@@ -32,7 +32,7 @@ use luau_classes::{
 use luau_runtime::{
     bridge::{
         handle::HandleMap,
-        queue::{EngineQueue, EngineQueueResource, process_engine_queue},
+        queue::{EngineCommand, EngineQueue, EngineQueueResource, process_engine_queue},
     },
     registry::LuaModule,
     scheduler::{LuaScheduler, tick_scheduler},
@@ -49,12 +49,14 @@ use services::{
 use std::fs;
 
 fn main() {
-    let queue = EngineQueue::default();
+    let (tx, rx) = crossbeam_channel::unbounded::<EngineCommand>();
+
+    let engine_queue = EngineQueue(tx);
     let vm = LuaVm::new().expect("failed to create Lua VM");
     let mut scheduler = LuaScheduler::new();
 
-    vm.lua().set_app_data(queue.clone());
-    register_all(vm.lua(), &queue);
+    vm.lua().set_app_data(engine_queue.clone());
+    register_all(vm.lua(), &engine_queue);
 
     let cam_cframe: CameraCFrame = {
         let holder = vm
@@ -98,7 +100,7 @@ fn main() {
             enabled: false,
             ..default()
         })
-        .insert_resource(EngineQueueResource(queue))
+        .insert_resource(EngineQueueResource(rx))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(cam_cframe)
