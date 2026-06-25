@@ -1,6 +1,6 @@
-local environment = require("scripts/environment")
-local player = require("scripts/player")
-local ui = require("scripts/ui")
+local environment = require("./environment")
+local player = require("./player")
+local ui = require("./ui")
 
 local map = environment.Start()
 local subject = player.Start()

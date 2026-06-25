@@ -1,4 +1,4 @@
-local store = require("scripts/store")
+local store = require("./store")
 local ui = {}
 
 function ui.Start()

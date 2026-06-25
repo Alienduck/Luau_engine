@@ -46,7 +46,7 @@ function env.Start()
 	end)
 	atmo_start:Play()
 
-	local store = require("scripts/store")
+	local store = require("./store")
 
 	store.bloom:on_change(function(enabled: boolean)
 		if enabled then
@@ -84,7 +84,7 @@ function env.Start()
 		end
 	end)
 
-	local rain = require("scripts/rain")
+	local rain = require("./rain")
 	rain.Start()
 
 	local mesh_part = MeshPart.new()

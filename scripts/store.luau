@@ -1,4 +1,4 @@
-local reactive = require("scripts/reactive")
+local reactive = require("./reactive")
 
 return {
 	bloom = reactive.State(true),
