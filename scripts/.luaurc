@@ -4,6 +4,6 @@
   "lintErrors": false,
   "typeErrors": true,
   "aliases": {
-    "engine": ".",
+    "scripts": ".",
   }
 }
