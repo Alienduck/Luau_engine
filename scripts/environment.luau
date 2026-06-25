@@ -18,12 +18,12 @@ function env.Start()
 
 	local bloom = BloomEffect.new()
 	bloom.Intensity = 1
-	bloom.Size = 24.0
+	bloom.Size = 1.0
 	bloom.Threshold = 1
 	bloom.Parent = Lighting
 
-	local bloom_start = TweenService:Create(bloom, TweenInfo.new(3), { Size = 50 })
-	local bloom_end = TweenService:Create(bloom, TweenInfo.new(3), { Size = 0 })
+	local bloom_start = TweenService:Create(bloom, TweenInfo.new(3), { Intensity = 7 })
+	local bloom_end = TweenService:Create(bloom, TweenInfo.new(3), { Intensity = -7 })
 	bloom_start.Completed:Connect(function()
 		bloom_end:Play()
 	end)
@@ -46,32 +46,41 @@ function env.Start()
 	end)
 	atmo_start:Play()
 
-	local bloom_enabled, atmo_enabled = true, true
+	local store = require("scripts/store")
 
-	UserInputService.InputBegan:Connect(function(key: string, _: string)
+	store.bloom:on_change(function(enabled: boolean)
+		if enabled then
+			bloom_start:Play()
+		else
+			bloom_start:Pause()
+			bloom_end:Pause()
+			bloom.Intensity = 0
+		end
+	end)
+
+	store.atmo:on_change(function(enabled: boolean)
+		if enabled then
+			atmo_start:Play()
+		else
+			atmo_start:Pause()
+			atmo_end:Pause()
+			atmosphere.Density = 0
+		end
+	end)
+
+	store.collision:on_change(function(enabled: boolean)
+		CollisionRender.Enable = enabled
+	end)
+
+	UserInputService.InputBegan:Connect(function(key: string)
 		if key == "KeyB" then
-			bloom_enabled = not bloom_enabled
-			if bloom_enabled then
-				bloom_start:Play()
-			else
-				bloom_start:Pause()
-				bloom_end:Pause()
-				bloom.Intensity = 0
-			end
+			store.bloom:set(not store.bloom:get())
 		elseif key == "KeyV" then
-			atmo_enabled = not atmo_enabled
-			if atmo_enabled then
-				atmo_start:Play()
-			else
-				atmo_start:Pause()
-				atmo_end:Pause()
-				atmosphere.Density = 0
-			end
+			store.atmo:set(not store.atmo:get())
 		elseif key == "KeyR" then
-			CollisionRender.Enable = not CollisionRender.Enable
+			store.collision:set(not store.collision:get())
 		elseif key == "KeyZ" then
 			CollisionRender.DebugMode = (CollisionRender.DebugMode + 1) % (Enum.ColliderRenderMode.ColliderAABBS + 1)
-			print("Debug Mode passé à :", CollisionRender.DebugMode)
 		end
 	end)
 
