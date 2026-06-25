@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_rapier3d::render::{DebugRenderContext, DebugRenderMode};
+use crossbeam_channel::{Receiver, Sender};
 use engine_core::components::{LuauAtmosphere, LuauBloom};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -178,15 +179,15 @@ pub type CommandBuffer = Vec<EngineCommand>;
 /// Cheaply-cloneable handle to the shared command buffer.
 ///
 /// Replace every `Arc<Mutex<Vec<WorldCommand>>>` in the codebase with this.
-#[derive(Clone, Default)]
-pub struct EngineQueue(pub Rc<RefCell<CommandBuffer>>);
+#[derive(Clone)]
+pub struct EngineQueue(pub Sender<EngineCommand>);
 
 impl EngineQueue {
     /// Push a typed command.  Costs one `borrow_mut()` (single flag check,
     /// never contended) and one `Vec::push` (amortised O(1)).
     #[inline]
     pub fn push(&self, cmd: EngineCommand) {
-        self.0.borrow_mut().push(cmd);
+        let _ = self.0.send(cmd);
     }
 
     /// Push an untyped closure.  Allocates one `Box`; use only for rare,
@@ -196,40 +197,27 @@ impl EngineQueue {
     where
         F: FnOnce(&mut World) + 'static,
     {
-        self.0.borrow_mut().push(EngineCommand::Raw(Box::new(f)));
+        self.0.send(EngineCommand::Raw(Box::new(f))).ok();
     }
 }
 
 /// Bevy resource that holds the shared command buffer.
 ///
 /// Must only be accessed from the main thread.  The `Send`/`Sync` impls
-/// are safe because Bevy's exclusive system scheduling guarantees that
-/// `process_engine_queue` runs on the main thread with `&mut World`
-/// access, and no other system can touch this resource concurrently.
-pub struct EngineQueueResource(pub EngineQueue);
+/// are handled by the crate `crossbeam_channel`
+#[derive(Resource)]
+pub struct EngineQueueResource(pub Receiver<EngineCommand>);
 
 unsafe impl Send for EngineQueueResource {}
 unsafe impl Sync for EngineQueueResource {}
-
-impl Resource for EngineQueueResource {}
 
 /// Exclusive Bevy system — drains and applies every queued command.
 ///
 /// Runs once per frame, after Luau scripts have been ticked.
 /// No lock, no allocation: just a Vec drain and a match dispatch.
 pub fn process_engine_queue(world: &mut World) {
-    let queue = world
-        .get_resource::<EngineQueueResource>()
-        .expect("EngineQueueResource missing")
-        .0
-        .0
-        .clone();
-
-    let mut buf = queue.borrow_mut();
-    let commands: Vec<EngineCommand> = buf.drain(..).collect();
-    drop(buf);
-
-    for cmd in commands {
+    let receiver = world.resource::<EngineQueueResource>().0.clone();
+    for cmd in receiver.try_iter() {
         apply_command(world, cmd);
     }
 }
