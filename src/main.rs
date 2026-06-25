@@ -10,7 +10,7 @@ use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     debug::collision_render::CollisionRenderModule,
     instances::{
-        base_part::process_collisions,
+        base_part::{self, process_collisions},
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         lighting::{atmosphere::AtmosphereModule, bloom_effect::BloomEffectModule, sky::SkyModule},
         mesh_part::MeshPartModule,
@@ -114,6 +114,7 @@ fn main() {
             (
                 tick_scheduler,
                 process_engine_queue,
+                base_part::sync_transforms_system,
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
