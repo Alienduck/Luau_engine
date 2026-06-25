@@ -34,28 +34,57 @@ impl Default for LuaVm {
 
 fn inject_module_system(lua: &Lua) -> mlua::Result<()> {
     lua.set_named_registry_value("__loaded_modules", lua.create_table()?)?;
-    let require_func = lua.create_function(|lua, mut path_str: String| {
-        if !path_str.ends_with(".luau") && !path_str.ends_with(".lua") {
-            path_str.push_str(".luau");
+
+    let require_func = lua.create_function(|lua, path_str: String| {
+        let mut resolved_path_str = path_str.clone();
+
+        if let Ok(mut caller_source) = lua.load("return debug.info(3, 's')").eval::<String>() {
+            if caller_source.starts_with('@') || caller_source.starts_with('=') {
+                caller_source = caller_source[1..].to_string();
+            } else if caller_source.starts_with("[string \"") && caller_source.ends_with("\"]") {
+                caller_source = caller_source[9..caller_source.len() - 2].to_string();
+            }
+
+            let caller_path = Path::new(&caller_source);
+
+            if let Some(parent_dir) = caller_path.parent() {
+                if parent_dir.as_os_str() != "" {
+                    let joined_path = parent_dir.join(&path_str);
+                    resolved_path_str = joined_path.to_string_lossy().to_string();
+                }
+            }
         }
 
-        let path = Path::new(&path_str);
+        if !resolved_path_str.ends_with(".luau") && !resolved_path_str.ends_with(".lua") {
+            resolved_path_str.push_str(".luau");
+        }
+
+        let path = Path::new(&resolved_path_str);
         if !path.exists() {
             return Err(mlua::Error::runtime(format!(
-                "Module not found: {}",
-                path_str
+                "Module not found: {} (resolved to: {})",
+                path_str, resolved_path_str
             )));
         }
+
         let loaded_table: mlua::Table = lua.named_registry_value("__loaded_modules")?;
-        if let Ok(cached_value) = loaded_table.get::<Value>(path_str.as_str()) {
+
+        if let Ok(cached_value) = loaded_table.get::<Value>(resolved_path_str.as_str()) {
             if !matches!(cached_value, Value::Nil) {
                 return Ok(cached_value);
             }
         }
+
         let source = fs::read_to_string(path).map_err(|e| {
-            mlua::Error::runtime(format!("Failed to read module '{}': {}", path_str, e))
+            mlua::Error::runtime(format!(
+                "Failed to read module '{}': {}",
+                resolved_path_str, e
+            ))
         })?;
-        let module_chunk = lua.load(&source).set_name(&path_str).into_function()?;
+
+        let chunk_name = format!("@{}", resolved_path_str);
+        let module_chunk = lua.load(&source).set_name(&chunk_name).into_function()?;
+
         let result: Value = module_chunk.call(())?;
 
         let cache_value = if matches!(result, Value::Nil) {
@@ -63,7 +92,8 @@ fn inject_module_system(lua: &Lua) -> mlua::Result<()> {
         } else {
             result.clone()
         };
-        loaded_table.set(path_str.as_str(), cache_value)?;
+
+        loaded_table.set(resolved_path_str.as_str(), cache_value)?;
 
         Ok(result)
     })?;
