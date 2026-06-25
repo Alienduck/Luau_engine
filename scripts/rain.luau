@@ -44,6 +44,7 @@ local PARAMS = {
 
 function module.Start()
 	local count = 0
+	local rain_drops: { Part } = {}
 
 	RunService.RenderStepped:Connect(function(delta: number)
 		count += delta
@@ -64,6 +65,16 @@ function module.Start()
 		part.Touched:Connect(function(hit: Instance)
 			part:Destroy()
 		end)
+		table.insert(rain_drops, part)
+
+		for i = #rain_drops, 1, -1 do
+			local drop = rain_drops[i]
+
+			if drop.CFrame.Position.Y < -5 then
+				drop:Destroy()
+				table.remove(rain_drops, i)
+			end
+		end
 	end)
 end
 
