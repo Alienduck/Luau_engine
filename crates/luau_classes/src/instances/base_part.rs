@@ -7,13 +7,21 @@ use bevy::{
         entity::Entity,
         hierarchy::ChildOf,
         message::MessageReader,
+        query::Changed,
         relationship::Relationship,
         system::{NonSend, Query},
         world::World,
     },
     math::Vec3,
+    transform::components::Transform,
 };
-use luau_runtime::bridge::queue::{EngineCommand, EngineQueue};
+use luau_runtime::{
+    bridge::{
+        handle::LuauHandle,
+        queue::{EngineCommand, EngineQueue},
+    },
+    vm::LuaVm,
+};
 
 #[derive(bevy::ecs::component::Component)]
 pub struct TouchedSignalComponent(pub u64);
@@ -188,6 +196,33 @@ pub fn process_collisions(
                         log::error!("Luau Error in Touched event: {}", e);
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Update LuaPosition of BasePart updated by Rapier's physic
+pub fn sync_transforms_system(
+    vm: NonSend<LuaVm>,
+    query: Query<(&LuauHandle, &Transform), Changed<Transform>>,
+) {
+    let Ok(cache) = vm
+        .lua
+        .named_registry_value::<mlua::Table>("__instance_cache")
+    else {
+        return;
+    };
+
+    for (handle, transform) in query.iter() {
+        if let Ok(ud) = cache.get::<mlua::AnyUserData>(handle.0) {
+            if let Ok(mut part) = ud.borrow_mut::<crate::instances::part::LuaPart>() {
+                part.data.cframe.position = transform.translation;
+                part.data.cframe.rotation = transform.rotation;
+            } else if let Ok(mut mesh_part) =
+                ud.borrow_mut::<crate::instances::mesh_part::LuaMeshPart>()
+            {
+                mesh_part.base_part_data.cframe.position = transform.translation;
+                mesh_part.base_part_data.cframe.rotation = transform.rotation;
             }
         }
     }
