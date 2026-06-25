@@ -72,7 +72,7 @@ fn main() {
         .create_thread(
             vm.lua()
                 .load(&script)
-                .set_name("startup")
+                .set_name("@scripts/startup.luau")
                 .into_function()
                 .expect("startup.luau must be valid Luau"),
         )
