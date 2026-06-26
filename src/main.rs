@@ -10,7 +10,7 @@ use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     debug::collision_render::CollisionRenderModule,
     instances::{
-        base_part::{self, process_collisions},
+        base_part::{self, PendingTouches, flush_touched_signals, process_collisions},
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         lighting::{atmosphere::AtmosphereModule, bloom_effect::BloomEffectModule, sky::SkyModule},
         mesh_part::MeshPartModule,
@@ -103,6 +103,7 @@ fn main() {
         .insert_resource(EngineQueueResource(rx))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
+        .insert_resource(PendingTouches::default())
         .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
@@ -115,6 +116,7 @@ fn main() {
             Update,
             (
                 tick_scheduler,
+                flush_touched_signals,
                 process_engine_queue,
                 base_part::sync_transforms_system,
                 trigger_user_input,
