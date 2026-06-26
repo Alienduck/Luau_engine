@@ -2,8 +2,6 @@ use bevy::prelude::*;
 use bevy_rapier3d::render::{DebugRenderContext, DebugRenderMode};
 use crossbeam_channel::{Receiver, Sender};
 use engine_core::components::{LuauAtmosphere, LuauBloom};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 /// A single mutation enqueued by a Luau setter.
 ///
