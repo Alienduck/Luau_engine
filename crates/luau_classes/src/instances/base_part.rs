@@ -9,7 +9,8 @@ use bevy::{
         message::MessageReader,
         query::Changed,
         relationship::Relationship,
-        system::{NonSend, Query},
+        resource::Resource,
+        system::{NonSend, Query, ResMut},
         world::World,
     },
     math::Vec3,
@@ -145,24 +146,20 @@ impl BasePartData {
     }
 }
 
-/// Reads Rapier [`CollisionEvent::Started`] messages and fires the Luau
+#[derive(Resource, Default)]
+pub struct PendingTouches(pub Vec<(u64, u64)>);
+
+/// Reads Rapier [`CollisionEvent::Started`] messages and place it in `PendingTouches`
 /// `Touched` signal on both involved parts.
 pub fn process_collisions(
     mut rapier_msg: MessageReader<bevy_rapier3d::pipeline::CollisionEvent>,
-    vm: NonSend<luau_runtime::vm::LuaVm>,
     handle_query: Query<(
         &luau_runtime::bridge::handle::LuauHandle,
         Option<&TouchedSignalComponent>,
     )>,
     parent_query: Query<&ChildOf>,
+    mut pending: ResMut<PendingTouches>,
 ) {
-    let Ok(cache) = vm
-        .lua
-        .named_registry_value::<mlua::Table>("__instance_cache")
-    else {
-        return;
-    };
-
     let get_instance_data = |mut entity: bevy::prelude::Entity| -> Option<(u64, Option<u64>)> {
         loop {
             if let Ok((handle, signal_comp)) = handle_query.get(entity) {
@@ -175,28 +172,39 @@ pub fn process_collisions(
             }
         }
     };
-
     for msg in rapier_msg.read() {
         let bevy_rapier3d::pipeline::CollisionEvent::Started(e1, e2, _) = msg else {
             continue;
         };
-
         for (self_e, other_e) in [(e1, e2), (e2, e1)] {
-            let Some((_handle_self, signal_id)) = get_instance_data(*self_e) else {
+            let Some((_, signal_id)) = get_instance_data(*self_e) else {
                 continue;
             };
             let Some((handle_other, _)) = get_instance_data(*other_e) else {
                 continue;
             };
-
             if let Some(id) = signal_id {
-                if let Ok(other_ud) = cache.get::<mlua::AnyUserData>(handle_other) {
-                    let signal = LuaSignal { id };
-                    if let Err(e) = signal.fire(&vm.lua, other_ud) {
-                        log::error!("Luau Error in Touched event: {}", e);
-                    }
-                }
+                pending.0.push((id, handle_other));
             }
+        }
+    }
+}
+
+/// Process the collision signals
+pub fn flush_touched_signals(
+    vm: NonSend<luau_runtime::vm::LuaVm>,
+    mut pending: ResMut<PendingTouches>,
+) {
+    let Ok(cache) = vm
+        .lua
+        .named_registry_value::<mlua::Table>("__instance_cache")
+    else {
+        return;
+    };
+    for (signal_id, other_handle) in pending.0.drain(..) {
+        if let Ok(other_ud) = cache.get::<mlua::AnyUserData>(other_handle) {
+            let signal = LuaSignal { id: signal_id };
+            let _ = signal.fire(&vm.lua, other_ud);
         }
     }
 }
