@@ -7,7 +7,7 @@ function player.Start()
 	subject.Size = Vector3.one
 	subject.Position = Vector3.new(0, 1, 0)
 	subject.Transparency = 0
-	subject.Material = "Neon"
+	subject.Material = Enum.Material.Neon
 
 	local speed = 25
 	local keys_pressed = {}

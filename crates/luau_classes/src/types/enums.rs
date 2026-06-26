@@ -35,6 +35,29 @@ pub enum RenderCollisionMode {
     ColliderAABBS,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub enum PartMaterial {
+    #[default]
+    Plastic,
+    Neon,
+}
+
+impl PartMaterial {
+    pub fn from_str(from: &str) -> Self {
+        match from {
+            "Neon" => Self::Neon,
+            _ => Self::Plastic,
+        }
+    }
+
+    pub fn as_str(self: Self) -> &'static str {
+        match self {
+            Self::Neon => "Neon",
+            _ => "Plastic",
+        }
+    }
+}
+
 pub struct EnumsModule;
 impl LuaModule for EnumsModule {
     fn name() -> &'static str {
@@ -90,6 +113,11 @@ impl LuaModule for EnumsModule {
         debug_render_mode.set("Contacts", 6_u8)?;
         debug_render_mode.set("ColliderAABBS", 7_u8)?;
         enum_table.set("ColliderRenderMode", debug_render_mode)?;
+
+        let material_enum = lua.create_table()?;
+        material_enum.set("Plastic", "Plastic")?;
+        material_enum.set("Neon", "Neon")?;
+        enum_table.set("Material", material_enum)?;
 
         env.set("Enum", enum_table)?;
         Ok(())

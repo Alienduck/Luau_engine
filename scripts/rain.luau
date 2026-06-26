@@ -60,7 +60,7 @@ function module.Start()
 			has_collider = true,
 			has_rigidbody = true,
 		})
-		part.Material = "Neon"
+		part.Material = Enum.Material.Neon
 
 		part.Touched:Connect(function(hit: Instance)
 			part:Destroy()

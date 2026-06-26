@@ -22,7 +22,7 @@ function env.Start()
 	bloom.Threshold = 1
 	bloom.Parent = Lighting
 
-	local bloom_start = TweenService:Create(bloom, TweenInfo.new(3), { Intensity = 7 })
+	local bloom_start = TweenService:Create(bloom, TweenInfo.new(3), { Intensity = 6 })
 	local bloom_end = TweenService:Create(bloom, TweenInfo.new(3), { Intensity = -7 })
 	bloom_start.Completed:Connect(function()
 		bloom_end:Play()
