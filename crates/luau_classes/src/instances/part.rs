@@ -2,6 +2,7 @@ use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
     color3::LuaColor3,
+    enums::PartMaterial,
     instance::{CloneableInstance, InstanceData},
     signal::LuaSignal,
     vector3::LuaVector3,
@@ -50,7 +51,7 @@ impl CloneableInstance for LuaPart {
     }
     fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
         self.data.apply_base_components(entity, w);
-        let emissive = if self.data.material == "Neon" {
+        let emissive = if self.data.material == PartMaterial::Neon {
             LinearRgba::rgb(
                 self.data.color.r * 10.0,
                 self.data.color.g * 10.0,
@@ -129,7 +130,7 @@ impl UserData for LuaPart {
             let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
             Ok(cache.get::<Option<mlua::AnyUserData>>(parent_handle)?)
         });
-        fields.add_field_method_get("Material", |_, this| Ok(this.data.material.clone()));
+        fields.add_field_method_get("Material", |_, this| Ok(this.data.material.as_str()));
         fields.add_field_method_get("Shape", |_, this| Ok(this.shape));
         fields.add_field_method_set("Name", |_, this, v: String| {
             this.data.base.set_name(v);
@@ -160,7 +161,7 @@ impl UserData for LuaPart {
             Ok(())
         });
         fields.add_field_method_set("Material", |_, this, v: String| {
-            this.data.set_material(v);
+            this.data.set_material(PartMaterial::from_str(&v));
             Ok(())
         });
         fields.add_field_method_set("Shape", |_, this, v: u8| {
