@@ -2,7 +2,7 @@ use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
     color3::LuaColor3,
-    enums::PartMaterial,
+    enums::{LuauPartShape, PartMaterial},
     instance::{CloneableInstance, InstanceData},
     signal::LuaSignal,
     vector3::LuaVector3,
@@ -20,13 +20,6 @@ use luau_runtime::bridge::{
     queue::EngineQueue,
 };
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
-
-#[derive(Component, Clone, Copy, PartialEq)]
-pub enum LuauPartShape {
-    Block,
-    Ball,
-    Cylinder,
-}
 
 /// Luau-facing `Part` instance — a renderable 3-D box with optional physics.
 ///
@@ -178,6 +171,11 @@ impl UserData for LuaPart {
                             w.resource_mut::<Assets<Mesh>>()
                                 .add(Cylinder::new(0.5, 1.0)),
                             LuauPartShape::Cylinder,
+                        ),
+                        3 => (
+                            w.resource_mut::<Assets<Mesh>>()
+                                .add(Capsule3d::new(0.5, 1.0)),
+                            LuauPartShape::Capsule,
                         ),
                         _ => (
                             w.resource_mut::<Assets<Mesh>>().add(Cuboid::default()),
