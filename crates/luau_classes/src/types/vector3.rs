@@ -21,6 +21,16 @@ impl FromLua for LuaVector3 {
     }
 }
 
+impl From<LuaVector3> for Vec3 {
+    fn from(value: LuaVector3) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
+
 impl UserData for LuaVector3 {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("X", |_, this| Ok(this.x));
