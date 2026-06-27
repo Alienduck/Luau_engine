@@ -1,8 +1,6 @@
 use crate::{
-    instances::{mesh_part::LuauCollisionFidelity, part::LuauPartShape},
-    types::{
-        instance::{CloneableInstance, InstanceData},
-        vector3::LuaVector3,
+    instances::mesh_part::LuauCollisionFidelity, types::{
+        enums::LuauPartShape, instance::{CloneableInstance, InstanceData}, vector3::LuaVector3,
     },
 };
 use bevy::prelude::*;
@@ -127,6 +125,7 @@ impl UserData for LuaCollider {
                                     LuauPartShape::Ball => Collider::ball(hx.max(hy).max(hz)),
                                     LuauPartShape::Cylinder => Collider::cylinder(hy, hx.max(hz)),
                                     LuauPartShape::Block => Collider::cuboid(hx, hy, hz),
+                                    LuauPartShape::Capsule => Collider::capsule_y(hy, hx.max(hz))
                                 };
                                 em.insert((col, ActiveEvents::COLLISION_EVENTS));
                             } else {
