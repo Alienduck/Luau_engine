@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::render::{DebugRenderContext, DebugRenderMode};
 use crossbeam_channel::{Receiver, Sender};
-use engine_core::components::{LuauAtmosphere, LuauBloom};
+use engine_core::components::{LuauAtmosphere, LuauBloom, LuauCharacterController};
 
 /// A single mutation enqueued by a Luau setter.
 ///
@@ -146,6 +146,10 @@ pub enum EngineCommand {
     SetAtmosphereHaze {
         handle: u64,
         haze: f32,
+    },
+    SetCharacterMovement {
+        handle: u64,
+        movement: Vec3,
     },
     /// Despawn entity + remove from HandleMap
     Despawn {
@@ -451,6 +455,13 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut a) = world.get_mut::<LuauAtmosphere>(e) {
                     a.haze = haze;
+                }
+            }
+        }
+        EngineCommand::SetCharacterMovement { handle, movement } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
+                    cc.velocity = movement;
                 }
             }
         }
