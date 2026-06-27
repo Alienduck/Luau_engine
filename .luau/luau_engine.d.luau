@@ -121,6 +121,11 @@ export type Rigidbody = Instance & {
     Anchored: boolean
 }
 
+export type CharacterController = Instance & {
+    MoveDirection: Vector3,
+    WalkSpeed: number,
+}
+
 export type ScreenGui = Instance & {}
 
 export type GuiObject = Instance & {
@@ -250,6 +255,7 @@ declare Part: { new: () -> Part }
 declare MeshPart: { new: () -> MeshPart }
 declare Collider: { new: () -> Collider }
 declare Rigidbody: { new: () -> Rigidbody }
+declare CharacterController: { new: () -> CharacterController }
 declare ScreenGui: { new: () -> ScreenGui }
 declare Frame: { new: () -> Frame }
 declare TextLabel: { new: () -> TextLabel }
