@@ -15,7 +15,11 @@ use luau_classes::{
         lighting::{atmosphere::AtmosphereModule, bloom_effect::BloomEffectModule, sky::SkyModule},
         mesh_part::MeshPartModule,
         part::PartModule,
-        physics::{collider::ColliderModule, rigidbody::RigidbodyModule},
+        physics::{
+            character_controller::{CharacterControllerModule, sync_character_controllers},
+            collider::ColliderModule,
+            rigidbody::RigidbodyModule,
+        },
         ui::{
             frame::FrameModule, image_button::ImageButtonModule, image_label::ImageLabelModule,
             screen_gui::ScreenGuiModule, text_button::TextButtonModule,
@@ -109,7 +113,12 @@ fn main() {
         .insert_non_send_resource(scheduler)
         .add_systems(
             PreUpdate,
-            (update_action_states, process_collisions).chain(),
+            (
+                sync_character_controllers,
+                update_action_states,
+                process_collisions,
+            )
+                .chain(),
         )
         .add_systems(Startup, setup_scene)
         .add_systems(
@@ -145,6 +154,10 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (CameraModule::name(), CameraModule::register),
         (UserInputModule::name(), UserInputModule::register),
         (RigidbodyModule::name(), RigidbodyModule::register),
+        (
+            CharacterControllerModule::name(),
+            CharacterControllerModule::register,
+        ),
         (ColliderModule::name(), ColliderModule::register),
         (RunServiceModule::name(), RunServiceModule::register),
         (ScreenGuiModule::name(), ScreenGuiModule::register),
