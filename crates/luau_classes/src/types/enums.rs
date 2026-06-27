@@ -1,6 +1,14 @@
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::Lua;
 
+#[derive(bevy::prelude::Component, Clone, Copy, PartialEq)]
+pub enum LuauPartShape {
+    Block,
+    Ball,
+    Cylinder,
+    Capsule,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EasingStyle {
     Linear,
@@ -73,7 +81,8 @@ impl LuaModule for EnumsModule {
         part_type.set("Block", 0)?;
         part_type.set("Ball", 1)?;
         part_type.set("Cylinder", 2)?;
-        enum_table.set("PartType", part_type)?;
+        part_type.set("Capsule", 3)?;
+        enum_table.set("Shape", part_type)?;
 
         let col_fid = lua.create_table()?;
         col_fid.set("Default", 0)?;
