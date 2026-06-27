@@ -8,8 +8,18 @@ function player.Start()
 	subject.Position = Vector3.new(0, 1, 0)
 	subject.Transparency = 0
 	subject.Material = Enum.Material.Neon
+	subject.Shape = Enum.Shape.Capsule
 
-	local speed = 25
+	local s_collider = Collider.new()
+	s_collider.Parent = subject
+
+	local rb_subject = Rigidbody.new()
+	rb_subject.Parent = subject
+
+	local controller = CharacterController.new()
+	controller.WalkSpeed = 16
+	controller.Parent = subject
+
 	local keys_pressed = {}
 
 	UserInputService.InputBegan:Connect(function(key: string, _: string)
@@ -49,12 +59,11 @@ function player.Start()
 			dir = dir + Vector3.new(0, -1, 0)
 		end
 
-		if dir.X ~= 0 or dir.Y ~= 0 or dir.Z ~= 0 then
-			if dir.Magnitude > 0 then
-				dir = dir.Unit
-			end
-			subject.Position = subject.Position + (dir * (speed * delta))
+		if dir.Magnitude > 0 then
+			dir = dir.Unit
 		end
+
+		controller.MoveDirection = dir
 	end)
 
 	local function random_color(): Color3
