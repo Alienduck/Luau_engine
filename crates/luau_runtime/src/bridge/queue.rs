@@ -151,6 +151,14 @@ pub enum EngineCommand {
         handle: u64,
         movement: Vec3,
     },
+    SetCharacterJump {
+        handle: u64,
+        jump: bool,
+    },
+    SetCharacterJumpPower {
+        handle: u64,
+        jump_power: f32,
+    },
     /// Despawn entity + remove from HandleMap
     Despawn {
         handle: u64,
@@ -462,6 +470,20 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
                     cc.velocity = movement;
+                }
+            }
+        }
+        EngineCommand::SetCharacterJump { handle, jump } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
+                    cc.wants_to_jump = jump;
+                }
+            }
+        }
+        EngineCommand::SetCharacterJumpPower { handle, jump_power } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
+                    cc.jump_power = jump_power;
                 }
             }
         }
