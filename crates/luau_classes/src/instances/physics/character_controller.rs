@@ -1,7 +1,11 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
 use bevy_rapier3d::{
-    control::{CharacterLength, KinematicCharacterController},
+    control::{
+        CharacterAutostep, CharacterLength, KinematicCharacterController,
+        KinematicCharacterControllerOutput,
+    },
     dynamics::RigidBody,
+    plugin::RapierConfiguration,
 };
 use engine_core::components::LuauCharacterController;
 use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
@@ -17,6 +21,8 @@ pub struct LuaCharacterController {
     pub base: InstanceData,
     pub move_direction: LuaVector3,
     pub walk_speed: f32,
+    pub jump: bool,
+    pub jump_power: f32,
 }
 
 impl CloneableInstance for LuaCharacterController {
@@ -66,6 +72,28 @@ impl UserData for LuaCharacterController {
             );
             Ok(())
         });
+        fields.add_field_method_get("Jump", |_, this| Ok(this.jump));
+        fields.add_field_method_set("Jump", |_, this, v: bool| {
+            this.jump = v;
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetCharacterJump {
+                    handle: this.base.handle,
+                    jump: v,
+                },
+            );
+            Ok(())
+        });
+        fields.add_field_method_get("JumpPower", |_, this| Ok(this.jump_power));
+        fields.add_field_method_set("JumpPower", |_, this, v: f32| {
+            this.jump_power = v;
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetCharacterJumpPower {
+                    handle: this.base.handle,
+                    jump_power: v,
+                },
+            );
+            Ok(())
+        });
     }
 
     fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
@@ -78,23 +106,54 @@ impl UserData for LuaCharacterController {
 
 pub fn sync_character_controllers(
     mut commands: Commands,
-    controllers: Query<(&ChildOf, &LuauCharacterController)>,
-    mut parents: Query<&mut KinematicCharacterController>,
+    rapier_config_query: Query<&RapierConfiguration>,
+    mut controllers: Query<(&ChildOf, &mut LuauCharacterController)>,
+    mut parents: Query<(
+        &mut KinematicCharacterController,
+        Option<&KinematicCharacterControllerOutput>,
+    )>,
 ) {
     let fixed_dt = 1.0 / 60.0;
+    let gravity = if let Ok(rapier_config) = rapier_config_query.single() {
+        rapier_config.gravity.y
+    } else {
+        -9.81
+    };
 
-    for (parent, ctrl) in controllers.iter() {
-        let offset = ctrl.velocity * fixed_dt;
+    for (parent, mut ctrl) in controllers.iter_mut() {
+        let mut current_v_velocity = ctrl.vertical_velocity;
 
-        if let Ok(mut kcc) = parents.get_mut(parent.get()) {
-            kcc.translation = Some(offset);
+        if let Ok((mut kcc, kcc_output)) = parents.get_mut(parent.get()) {
+            let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
+
+            if is_grounded {
+                if ctrl.wants_to_jump {
+                    current_v_velocity = ctrl.jump_power;
+                    ctrl.wants_to_jump = false;
+                } else if current_v_velocity < 0.0 {
+                    current_v_velocity = 0.0;
+                }
+            } else {
+                current_v_velocity += gravity * fixed_dt;
+            }
+
+            ctrl.vertical_velocity = current_v_velocity;
+
+            let mut final_velocity = ctrl.velocity;
+            final_velocity.y = current_v_velocity;
+
+            kcc.translation = Some(final_velocity * fixed_dt);
         } else {
             commands.entity(parent.get()).insert((
                 KinematicCharacterController {
-                    translation: Some(offset),
                     snap_to_ground: Some(CharacterLength::Absolute(0.1)),
-                    offset: CharacterLength::Absolute(0.01),
+                    offset: CharacterLength::Absolute(0.02),
                     slide: true,
+                    autostep: Some(CharacterAutostep {
+                        max_height: CharacterLength::Absolute(0.5),
+                        min_width: CharacterLength::Absolute(0.2),
+                        include_dynamic_bodies: true,
+                    }),
                     ..default()
                 },
                 RigidBody::KinematicPositionBased,
@@ -119,6 +178,8 @@ impl luau_runtime::registry::LuaModule for CharacterControllerModule {
                     base: InstanceData::new(handle, q.clone(), "CharacterController"),
                     move_direction: LuaVector3::default(),
                     walk_speed: 16.0,
+                    jump: false,
+                    jump_power: 24.0,
                 };
                 let c = ctrl.clone();
                 q.push_raw(move |w: &mut World| {
