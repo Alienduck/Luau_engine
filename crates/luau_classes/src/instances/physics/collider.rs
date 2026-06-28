@@ -1,6 +1,9 @@
 use crate::{
-    instances::mesh_part::LuauCollisionFidelity, types::{
-        enums::LuauPartShape, instance::{CloneableInstance, InstanceData}, vector3::LuaVector3,
+    instances::mesh_part::LuauCollisionFidelity,
+    types::{
+        enums::LuauPartShape,
+        instance::{CloneableInstance, InstanceData},
+        vector3::LuaVector3,
     },
 };
 use bevy::prelude::*;
@@ -87,6 +90,7 @@ impl UserData for LuaCollider {
                                                 ..default()
                                             },
                                             ActiveEvents::COLLISION_EVENTS,
+                                            Friction::new(0.0),
                                         ));
                                     }
                                     LuauCollisionFidelity::Precise => {
@@ -98,12 +102,14 @@ impl UserData for LuaCollider {
                                                 ..default()
                                             },
                                             ActiveEvents::COLLISION_EVENTS,
+                                            Friction::new(0.0),
                                         ));
                                     }
                                     LuauCollisionFidelity::Box => {
                                         em.insert((
                                             Collider::cuboid(hx, hy, hz),
                                             ActiveEvents::COLLISION_EVENTS,
+                                            Friction::new(0.0),
                                         ));
                                     }
                                     LuauCollisionFidelity::Default => {
@@ -117,6 +123,7 @@ impl UserData for LuaCollider {
                                                 ..default()
                                             },
                                             ActiveEvents::COLLISION_EVENTS,
+                                            Friction::new(0.0),
                                         ));
                                     }
                                 }
@@ -125,13 +132,18 @@ impl UserData for LuaCollider {
                                     LuauPartShape::Ball => Collider::ball(hx.max(hy).max(hz)),
                                     LuauPartShape::Cylinder => Collider::cylinder(hy, hx.max(hz)),
                                     LuauPartShape::Block => Collider::cuboid(hx, hy, hz),
-                                    LuauPartShape::Capsule => Collider::capsule_y(hy, hx.max(hz))
+                                    LuauPartShape::Capsule => Collider::capsule_y(hy, hx.max(hz)),
                                 };
-                                em.insert((col, ActiveEvents::COLLISION_EVENTS));
+                                em.insert((
+                                    col,
+                                    ActiveEvents::COLLISION_EVENTS,
+                                    Friction::new(0.0),
+                                ));
                             } else {
                                 em.insert((
                                     Collider::cuboid(hx, hy, hz),
                                     ActiveEvents::COLLISION_EVENTS,
+                                    Friction::new(0.0),
                                 ));
                             }
                         }
