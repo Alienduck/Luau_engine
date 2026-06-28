@@ -17,7 +17,8 @@ function player.Start()
 	rb_subject.Parent = subject
 
 	local controller = CharacterController.new()
-	controller.WalkSpeed = 16
+	controller.WalkSpeed = 10
+	controller.JumpPower = 10
 	controller.Parent = subject
 
 	local keys_pressed = {}
@@ -26,6 +27,8 @@ function player.Start()
 		keys_pressed[key] = true
 		if key == "KeyQ" then
 			Camera.FirstPerson = not Camera.FirstPerson
+		elseif key == "Space" then
+			controller.Jump = true
 		end
 	end)
 
@@ -51,12 +54,6 @@ function player.Start()
 		end
 		if keys_pressed["KeyD"] then
 			dir = dir + camRight
-		end
-		if keys_pressed["Space"] then
-			dir = dir + Vector3.new(0, 1, 0)
-		end
-		if keys_pressed["ControlLeft"] then
-			dir = dir + Vector3.new(0, -1, 0)
 		end
 
 		if dir.Magnitude > 0 then
