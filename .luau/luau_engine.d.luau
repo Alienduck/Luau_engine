@@ -124,6 +124,8 @@ export type Rigidbody = Instance & {
 export type CharacterController = Instance & {
     MoveDirection: Vector3,
     WalkSpeed: number,
+    Jump: boolean,
+    JumpPower: number,
 }
 
 export type ScreenGui = Instance & {}
