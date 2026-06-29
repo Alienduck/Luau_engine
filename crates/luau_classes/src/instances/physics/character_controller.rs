@@ -22,6 +22,7 @@ pub struct LuaCharacterController {
     pub walk_speed: f32,
     pub jump: bool,
     pub jump_power: f32,
+    pub no_clip: bool,
 }
 
 impl CloneableInstance for LuaCharacterController {
@@ -93,6 +94,17 @@ impl UserData for LuaCharacterController {
             );
             Ok(())
         });
+        fields.add_field_method_get("NoClip", |_, this| Ok(this.no_clip));
+        fields.add_field_method_set("NoClip", |_, this, v: bool| {
+            this.no_clip = v;
+            this.base.queue.push(
+                luau_runtime::bridge::queue::EngineCommand::SetCharacterNoClip {
+                    handle: this.base.handle,
+                    no_clip: v,
+                },
+            );
+            Ok(())
+        });
     }
 
     fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
@@ -119,25 +131,44 @@ pub fn sync_character_controllers(
     } else {
         -9.81
     };
+
     for (parent, mut ctrl) in controllers.iter_mut() {
         let mut current_v_velocity = ctrl.vertical_velocity;
+
         if let Ok((mut kcc, kcc_output, gravity_scale)) = parents.get_mut(parent.get()) {
             let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
             let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
             let applied_gravity = base_gravity * scale;
-            if is_grounded {
-                if ctrl.wants_to_jump {
-                    current_v_velocity = ctrl.jump_power;
-                    ctrl.wants_to_jump = false;
-                } else if current_v_velocity < 0.0 {
-                    current_v_velocity = 0.0;
-                }
+
+            if ctrl.no_clip {
+                current_v_velocity = 0.0;
+                kcc.filter_groups = Some(bevy_rapier3d::geometry::CollisionGroups::new(
+                    bevy_rapier3d::geometry::Group::NONE,
+                    bevy_rapier3d::geometry::Group::NONE,
+                ));
             } else {
-                current_v_velocity += applied_gravity * fixed_dt;
+                kcc.filter_groups = None;
+                kcc.filter_flags = bevy_rapier3d::pipeline::QueryFilterFlags::EXCLUDE_SENSORS;
+                if is_grounded {
+                    if ctrl.wants_to_jump {
+                        current_v_velocity = ctrl.jump_power;
+                        ctrl.wants_to_jump = false;
+                    } else if current_v_velocity < 0.0 {
+                        current_v_velocity = 0.0;
+                    }
+                } else {
+                    current_v_velocity += applied_gravity * fixed_dt;
+                }
             }
+
             ctrl.vertical_velocity = current_v_velocity;
+
             let mut final_velocity = ctrl.velocity;
-            final_velocity.y = current_v_velocity;
+
+            if !ctrl.no_clip {
+                final_velocity.y = current_v_velocity;
+            }
+
             kcc.translation = Some(final_velocity * fixed_dt);
         } else {
             commands.entity(parent.get()).insert((
@@ -145,6 +176,7 @@ pub fn sync_character_controllers(
                     snap_to_ground: Some(CharacterLength::Absolute(0.1)),
                     offset: CharacterLength::Absolute(0.02),
                     slide: true,
+                    apply_impulse_to_dynamic_bodies: true,
                     autostep: Some(CharacterAutostep {
                         max_height: CharacterLength::Absolute(0.5),
                         min_width: CharacterLength::Absolute(0.2),
@@ -177,6 +209,7 @@ impl luau_runtime::registry::LuaModule for CharacterControllerModule {
                     walk_speed: 16.0,
                     jump: false,
                     jump_power: 24.0,
+                    no_clip: false,
                 };
                 let c = ctrl.clone();
                 q.push_raw(move |w: &mut World| {
