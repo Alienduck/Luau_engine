@@ -1,4 +1,3 @@
-local store = require("./store")
 local player = {}
 
 function player.Start()
@@ -33,6 +32,9 @@ function player.Start()
 		if key == "Space" then
 			controller.Jump = true
 		end
+		if key == "KeyC" then
+			controller.NoClip = not controller.NoClip
+		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(key: string, _: string)
@@ -40,10 +42,11 @@ function player.Start()
 	end)
 
 	RunService.RenderStepped:Connect(function(delta: number)
+		local n = controller.NoClip
 		local camLook = Camera.CFrame.LookVector
 		local camRight = Camera.CFrame.RightVector
-		camLook = Vector3.new(camLook.X, camLook.Y, camLook.Z).Unit
-		camRight = Vector3.new(camRight.X, camRight.Y, camRight.Z).Unit
+		camLook = Vector3.new(camLook.X, n and camLook.Y or 0, camLook.Z).Unit
+		camRight = Vector3.new(camRight.X, n and camRight.Y or 0, camRight.Z).Unit
 
 		local dir = Vector3.zero
 		if keys_pressed["KeyW"] then
@@ -57,6 +60,9 @@ function player.Start()
 		end
 		if keys_pressed["KeyD"] then
 			dir = dir + camRight
+		end
+		if keys_pressed["Space"] and n then
+			dir = dir + Vector3.new(0, 1, 0)
 		end
 
 		if dir.Magnitude > 0 then
