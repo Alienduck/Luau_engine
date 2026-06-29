@@ -16,6 +16,7 @@ use crate::types::instance::{CloneableInstance, InstanceData};
 pub struct LuaRigidbody {
     pub base: InstanceData,
     pub anchored: bool,
+    pub gravity_scale: f32,
 }
 
 impl CloneableInstance for LuaRigidbody {
@@ -69,6 +70,7 @@ impl UserData for LuaRigidbody {
                 this.base.queue.push(EngineCommand::SetRigidBody {
                     handle: new_h,
                     dynamic,
+                    gravity_scale: this.gravity_scale,
                 });
             }
 
@@ -83,7 +85,21 @@ impl UserData for LuaRigidbody {
                 this.base.queue.push(EngineCommand::SetRigidBody {
                     handle: parent_h,
                     dynamic: !v,
+                    gravity_scale: this.gravity_scale,
                 });
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("GravityScale", |_, this| Ok(this.gravity_scale));
+        fields.add_field_method_set("GravityScale", |_, this, v: f32| {
+            this.gravity_scale = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base
+                    .queue
+                    .push(EngineCommand::SetRigidBodyGravityScale {
+                        handle: parent_h,
+                        gravity_scale: v,
+                    });
             }
             Ok(())
         });
@@ -112,6 +128,7 @@ impl LuaModule for RigidbodyModule {
                 let rb = LuaRigidbody {
                     base: InstanceData::new(handle, q.clone(), "Rigidbody"),
                     anchored: false,
+                    gravity_scale: 1.0,
                 };
 
                 let spawn_copy = rb.clone();
