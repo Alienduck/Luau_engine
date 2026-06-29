@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy_rapier3d::render::{DebugRenderContext, DebugRenderMode};
+use bevy_rapier3d::{
+    geometry::{Friction, Restitution, Sensor},
+    render::{DebugRenderContext, DebugRenderMode},
+};
 use crossbeam_channel::{Receiver, Sender};
 use engine_core::components::{LuauAtmosphere, LuauBloom, LuauCharacterController};
 
@@ -89,6 +92,27 @@ pub enum EngineCommand {
     SetRigidBody {
         handle: u64,
         dynamic: bool,
+        gravity_scale: f32,
+    },
+    /// `RigidBody` set the gravity scale
+    SetRigidBodyGravityScale {
+        handle: u64,
+        gravity_scale: f32,
+    },
+    /// `Collider` set if the collider is active or not
+    SetColliderCollide {
+        handle: u64,
+        can_collide: bool,
+    },
+    /// `Collider` set the friction of the collider
+    SetColliderFriction {
+        handle: u64,
+        friction: f32,
+    },
+    /// `Collider` set the restitution of the collider
+    SetColliderRestitution {
+        handle: u64,
+        restitution: f32,
     },
     /// `ImageNode` insert an ImageNode
     SetImageNode {
@@ -373,15 +397,83 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
-        EngineCommand::SetRigidBody { handle, dynamic } => {
-            use bevy_rapier3d::dynamics::RigidBody;
+        EngineCommand::SetRigidBody {
+            handle,
+            dynamic,
+            gravity_scale,
+        } => {
+            use bevy_rapier3d::dynamics::{GravityScale, RigidBody, Sleeping};
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
                     em.insert(if dynamic {
                         RigidBody::Dynamic
                     } else {
                         RigidBody::Fixed
-                    });
+                    })
+                    .insert(GravityScale(gravity_scale));
+
+                    if let Some(mut sleep) = em.get_mut::<Sleeping>() {
+                        sleep.sleeping = false;
+                    } else {
+                        em.insert(Sleeping {
+                            sleeping: false,
+                            ..Default::default()
+                        });
+                    }
+                }
+            }
+        }
+
+        EngineCommand::SetRigidBodyGravityScale {
+            handle,
+            gravity_scale,
+        } => {
+            use bevy_rapier3d::dynamics::{GravityScale, Sleeping};
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    em.insert(GravityScale(gravity_scale));
+                    if let Some(mut sleep) = em.get_mut::<Sleeping>() {
+                        sleep.sleeping = false;
+                    } else {
+                        em.insert(Sleeping {
+                            sleeping: false,
+                            ..Default::default()
+                        });
+                    }
+                }
+            }
+        }
+        EngineCommand::SetColliderCollide {
+            handle,
+            can_collide,
+        } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                let mut entity_mut = world.entity_mut(e);
+                if can_collide {
+                    entity_mut.remove::<Sensor>();
+                } else {
+                    entity_mut.insert(Sensor::default());
+                }
+            }
+        }
+        EngineCommand::SetColliderFriction { handle, friction } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if world.get::<Friction>(e).is_some() {
+                    world.get_mut::<Friction>(e).unwrap().coefficient = friction;
+                } else {
+                    world.entity_mut(e).insert(Friction::new(friction));
+                }
+            }
+        }
+        EngineCommand::SetColliderRestitution {
+            handle,
+            restitution,
+        } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if world.get::<Restitution>(e).is_some() {
+                    world.get_mut::<Restitution>(e).unwrap().coefficient = restitution;
+                } else {
+                    world.entity_mut(e).insert(Restitution::new(restitution));
                 }
             }
         }
