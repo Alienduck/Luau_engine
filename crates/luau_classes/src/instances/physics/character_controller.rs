@@ -4,7 +4,6 @@ use bevy_rapier3d::{
         CharacterAutostep, CharacterLength, KinematicCharacterController,
         KinematicCharacterControllerOutput,
     },
-    dynamics::RigidBody,
     plugin::RapierConfiguration,
 };
 use engine_core::components::LuauCharacterController;
@@ -111,21 +110,21 @@ pub fn sync_character_controllers(
     mut parents: Query<(
         &mut KinematicCharacterController,
         Option<&KinematicCharacterControllerOutput>,
+        Option<&bevy_rapier3d::prelude::GravityScale>,
     )>,
 ) {
     let fixed_dt = 1.0 / 60.0;
-    let gravity = if let Ok(rapier_config) = rapier_config_query.single() {
+    let base_gravity = if let Ok(rapier_config) = rapier_config_query.single() {
         rapier_config.gravity.y
     } else {
         -9.81
     };
-
     for (parent, mut ctrl) in controllers.iter_mut() {
         let mut current_v_velocity = ctrl.vertical_velocity;
-
-        if let Ok((mut kcc, kcc_output)) = parents.get_mut(parent.get()) {
+        if let Ok((mut kcc, kcc_output, gravity_scale)) = parents.get_mut(parent.get()) {
             let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
-
+            let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
+            let applied_gravity = base_gravity * scale;
             if is_grounded {
                 if ctrl.wants_to_jump {
                     current_v_velocity = ctrl.jump_power;
@@ -134,14 +133,11 @@ pub fn sync_character_controllers(
                     current_v_velocity = 0.0;
                 }
             } else {
-                current_v_velocity += gravity * fixed_dt;
+                current_v_velocity += applied_gravity * fixed_dt;
             }
-
             ctrl.vertical_velocity = current_v_velocity;
-
             let mut final_velocity = ctrl.velocity;
             final_velocity.y = current_v_velocity;
-
             kcc.translation = Some(final_velocity * fixed_dt);
         } else {
             commands.entity(parent.get()).insert((
@@ -154,9 +150,10 @@ pub fn sync_character_controllers(
                         min_width: CharacterLength::Absolute(0.2),
                         include_dynamic_bodies: true,
                     }),
+                    filter_flags: bevy_rapier3d::pipeline::QueryFilterFlags::EXCLUDE_SENSORS,
                     ..default()
                 },
-                RigidBody::KinematicPositionBased,
+                bevy_rapier3d::prelude::RigidBody::KinematicPositionBased,
             ));
         }
     }
