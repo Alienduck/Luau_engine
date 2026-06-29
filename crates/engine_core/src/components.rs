@@ -24,4 +24,5 @@ pub struct LuauCharacterController {
     pub vertical_velocity: f32,
     pub jump_power: f32,
     pub wants_to_jump: bool,
+    pub no_clip: bool,
 }
