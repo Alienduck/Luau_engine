@@ -115,10 +115,14 @@ export type Camera = Instance & {
 
 export type Collider = Instance & {
     Size: Vector3,
+    Friction: number,
+    CanCollide: boolean,
+    Restitution: number,
 }
 
 export type Rigidbody = Instance & {
-    Anchored: boolean
+    Anchored: boolean,
+    GravityScale: number,
 }
 
 export type CharacterController = Instance & {
