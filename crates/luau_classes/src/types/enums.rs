@@ -66,6 +66,15 @@ impl PartMaterial {
     }
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
+pub enum ColliderRestitution {
+    Min,
+    Max,
+    #[default]
+    Average,
+    Multiply,
+}
+
 pub struct EnumsModule;
 impl LuaModule for EnumsModule {
     fn name() -> &'static str {
@@ -127,6 +136,13 @@ impl LuaModule for EnumsModule {
         material_enum.set("Plastic", "Plastic")?;
         material_enum.set("Neon", "Neon")?;
         enum_table.set("Material", material_enum)?;
+
+        let collision_restitution_mode = lua.create_table()?;
+        collision_restitution_mode.set("Min", ColliderRestitution::Min as u8)?;
+        collision_restitution_mode.set("Max", ColliderRestitution::Max as u8)?;
+        collision_restitution_mode.set("Average", ColliderRestitution::Average as u8)?;
+        collision_restitution_mode.set("Multiply", ColliderRestitution::Multiply as u8)?;
+        enum_table.set("Restitution", collision_restitution_mode)?;
 
         env.set("Enum", enum_table)?;
         Ok(())
