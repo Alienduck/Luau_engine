@@ -72,6 +72,15 @@ function env.Start()
 		CollisionRender.Enable = enabled
 	end)
 
+	local wall = Part.new()
+	wall.Parent = workspace
+	wall.Color = Color3.new(0.1, 0.1, 0.1)
+	wall.Position = Vector3.new(0, 0, 1)
+	wall.Size = Vector3.new(1, 10, 1)
+
+	local wall_collider = Collider.new()
+	wall_collider.Parent = wall
+
 	UserInputService.InputBegan:Connect(function(key: string)
 		if key == "KeyB" then
 			store.bloom:set(not store.bloom:get())
@@ -81,6 +90,8 @@ function env.Start()
 			store.collision:set(not store.collision:get())
 		elseif key == "KeyZ" then
 			CollisionRender.DebugMode = (CollisionRender.DebugMode + 1) % (Enum.ColliderRenderMode.ColliderAABBS + 1)
+		elseif key == "KeyC" then
+			wall_collider.CanCollide = not wall_collider.CanCollide
 		end
 	end)
 
