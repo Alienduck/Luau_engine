@@ -1,3 +1,4 @@
+local store = require("./store")
 local player = {}
 
 function player.Start()
@@ -5,7 +6,7 @@ function player.Start()
 	subject.Name = "Subject"
 	subject.Parent = workspace
 	subject.Size = Vector3.one
-	subject.Position = Vector3.new(0, 1, 0)
+	subject.Position = Vector3.new(0, 2, 0)
 	subject.Transparency = 0
 	subject.Material = Enum.Material.Neon
 	subject.Shape = Enum.Shape.Capsule
@@ -15,11 +16,12 @@ function player.Start()
 
 	local rb_subject = Rigidbody.new()
 	rb_subject.Parent = subject
+	rb_subject.GravityScale = 3
 
 	local controller = CharacterController.new()
-	controller.WalkSpeed = 10
-	controller.JumpPower = 10
 	controller.Parent = subject
+	controller.WalkSpeed = 10
+	controller.JumpPower = 20
 
 	local keys_pressed = {}
 
@@ -27,7 +29,8 @@ function player.Start()
 		keys_pressed[key] = true
 		if key == "KeyQ" then
 			Camera.FirstPerson = not Camera.FirstPerson
-		elseif key == "Space" then
+		end
+		if key == "Space" then
 			controller.Jump = true
 		end
 	end)
