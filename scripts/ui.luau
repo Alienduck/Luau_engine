@@ -4,7 +4,7 @@ local ui = {}
 function ui.Start()
 	local container = Frame.new()
 	container.Position = UDim2.fromScale(0.02, 0.02)
-	container.Size = UDim2.fromScale(0.25, 0.35)
+	container.Size = UDim2.fromScale(0.25, 0.4)
 	container.BackgroundTransparency = 0.5
 	container.BackgroundColor3 = Color3.new(0, 0, 0)
 
@@ -32,7 +32,7 @@ function ui.Start()
 			.. colTxt
 			.. "\n"
 			.. "[Z] Cycle Collision Mode\n\n"
-			.. "[F] Toggle UI"
+			.. "[F] Toggle UI\n"
 	end
 
 	store.bloom:on_change(renderUI)
