@@ -28,6 +28,9 @@ pub struct LuaCollider {
     /// Half-extents of the box collider, expressed as full size (divided by 2
     /// when passed to Rapier).
     pub size: LuaVector3,
+    pub friction: f32,
+    pub can_collide: bool,
+    pub restitution: f32,
 }
 
 impl CloneableInstance for LuaCollider {
@@ -44,20 +47,8 @@ impl CloneableInstance for LuaCollider {
 
 impl UserData for LuaCollider {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
-        fields.add_field_method_get("Name", |_, this| Ok(this.base.name.clone()));
-        fields.add_field_method_get("ClassName", |_, this| Ok(this.base.class_name));
+        crate::impl_base_instance_fields!(fields);
         fields.add_field_method_get("Size", |_, this| Ok(this.size));
-        fields.add_field_method_get("Parent", |lua, this| {
-            let Some(parent_handle) = this.base.parent_handle else {
-                return Ok(None);
-            };
-            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
-            Ok(cache.get::<Option<mlua::AnyUserData>>(parent_handle)?)
-        });
-        fields.add_field_method_set("Name", |_, this, v: String| {
-            this.base.set_name(v);
-            Ok(())
-        });
         fields.add_field_method_set("Size", |_, this, v: LuaVector3| {
             this.size = v;
             Ok(())
@@ -69,87 +60,126 @@ impl UserData for LuaCollider {
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
             let (hx, hy, hz) = (this.size.x / 2.0, this.size.y / 2.0, this.size.z / 2.0);
             this.base.set_parent(lua, parent);
+
+            let friction = this.friction;
+            let restitution = this.restitution;
+            let can_collide = this.can_collide;
+
             this.base.queue.push_raw(move |w: &mut World| {
                 if let Some(old_h) = old_handle {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
                         if let Ok(mut em) = w.get_entity_mut(e) {
-                            em.remove::<(Collider, ActiveEvents, AsyncSceneCollider, Ccd)>();
+                            em.remove::<(
+                                Collider,
+                                ActiveEvents,
+                                AsyncSceneCollider,
+                                Ccd,
+                                Sensor,
+                                Friction,
+                                Restitution,
+                            )>();
                         }
                     }
                 }
                 if let Some(new_h) = new_handle {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
                         if let Ok(mut em) = w.get_entity_mut(e) {
-                            em.insert(Ccd::enabled());
+                            em.insert((
+                                Ccd::enabled(),
+                                ActiveEvents::COLLISION_EVENTS,
+                                Friction::new(friction),
+                                Restitution::coefficient(restitution),
+                            ));
+
+                            if !can_collide {
+                                em.insert(Sensor);
+                            } else {
+                                em.remove::<Sensor>();
+                            }
+
                             if let Some(fidelity) = em.get::<LuauCollisionFidelity>() {
                                 match fidelity {
                                     LuauCollisionFidelity::Hull => {
-                                        em.insert((
-                                            AsyncSceneCollider {
-                                                shape: Some(ComputedColliderShape::ConvexHull),
-                                                ..default()
-                                            },
-                                            ActiveEvents::COLLISION_EVENTS,
-                                            Friction::new(0.0),
-                                        ));
+                                        em.insert(AsyncSceneCollider {
+                                            shape: Some(ComputedColliderShape::ConvexHull),
+                                            ..default()
+                                        });
                                     }
                                     LuauCollisionFidelity::Precise => {
-                                        em.insert((
-                                            AsyncSceneCollider {
-                                                shape: Some(ComputedColliderShape::TriMesh(
-                                                    TriMeshFlags::default(),
-                                                )),
-                                                ..default()
-                                            },
-                                            ActiveEvents::COLLISION_EVENTS,
-                                            Friction::new(0.0),
-                                        ));
-                                    }
-                                    LuauCollisionFidelity::Box => {
-                                        em.insert((
-                                            Collider::cuboid(hx, hy, hz),
-                                            ActiveEvents::COLLISION_EVENTS,
-                                            Friction::new(0.0),
-                                        ));
+                                        em.insert(AsyncSceneCollider {
+                                            shape: Some(ComputedColliderShape::TriMesh(
+                                                TriMeshFlags::default(),
+                                            )),
+                                            ..default()
+                                        });
                                     }
                                     LuauCollisionFidelity::Default => {
-                                        em.insert((
-                                            AsyncSceneCollider {
-                                                shape: Some(
-                                                    ComputedColliderShape::ConvexDecomposition(
-                                                        VHACDParameters::default(),
-                                                    ),
+                                        em.insert(AsyncSceneCollider {
+                                            shape: Some(
+                                                ComputedColliderShape::ConvexDecomposition(
+                                                    VHACDParameters::default(),
                                                 ),
-                                                ..default()
-                                            },
-                                            ActiveEvents::COLLISION_EVENTS,
-                                            Friction::new(0.0),
-                                        ));
+                                            ),
+                                            ..default()
+                                        });
+                                    }
+                                    LuauCollisionFidelity::Box => {
+                                        em.insert(Collider::cuboid(hx, hy, hz));
                                     }
                                 }
                             } else if let Some(shape) = em.get::<LuauPartShape>() {
-                                let col = match shape {
+                                em.insert(match shape {
                                     LuauPartShape::Ball => Collider::ball(hx.max(hy).max(hz)),
                                     LuauPartShape::Cylinder => Collider::cylinder(hy, hx.max(hz)),
                                     LuauPartShape::Block => Collider::cuboid(hx, hy, hz),
                                     LuauPartShape::Capsule => Collider::capsule_y(hy, hx.max(hz)),
-                                };
-                                em.insert((
-                                    col,
-                                    ActiveEvents::COLLISION_EVENTS,
-                                    Friction::new(0.0),
-                                ));
+                                });
                             } else {
-                                em.insert((
-                                    Collider::cuboid(hx, hy, hz),
-                                    ActiveEvents::COLLISION_EVENTS,
-                                    Friction::new(0.0),
-                                ));
+                                em.insert(Collider::cuboid(hx, hy, hz));
                             }
                         }
                     }
                 }
             });
+            Ok(())
+        });
+        fields.add_field_method_get("CanCollide", |_, this| Ok(this.can_collide));
+        fields.add_field_method_set("CanCollide", |_, this, v: bool| {
+            this.can_collide = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetColliderCollide {
+                        handle: parent_h,
+                        can_collide: v,
+                    },
+                );
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("Friction", |_, this| Ok(this.friction));
+        fields.add_field_method_set("Friction", |_, this, v: f32| {
+            this.friction = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetColliderFriction {
+                        handle: parent_h,
+                        friction: v,
+                    },
+                );
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("Restitution", |_, this| Ok(this.restitution));
+        fields.add_field_method_set("Restitution", |_, this, v: f32| {
+            this.restitution = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetColliderRestitution {
+                        handle: parent_h,
+                        restitution: v,
+                    },
+                );
+            }
             Ok(())
         });
     }
@@ -181,6 +211,9 @@ impl LuaModule for ColliderModule {
                         y: 1.0,
                         z: 1.0,
                     },
+                    friction: 0.0,
+                    restitution: 0.0,
+                    can_collide: true,
                 };
                 let spawn_copy = col.clone();
                 q.push_raw(move |w: &mut World| {
