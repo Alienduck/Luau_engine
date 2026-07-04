@@ -8,7 +8,10 @@ use luau_runtime::{
 };
 use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
 
-use crate::types::instance::{CloneableInstance, InstanceData};
+use crate::types::{
+    instance::{CloneableInstance, InstanceData},
+    vector3::LuaVector3,
+};
 
 /// Luau-facing `Rigidbody` — attaches a [`RigidBody::Dynamic`] component to
 /// its parent entity when parented and removes it when unparented.
@@ -17,6 +20,9 @@ pub struct LuaRigidbody {
     pub base: InstanceData,
     pub anchored: bool,
     pub gravity_scale: f32,
+    pub mass: f32,
+    pub velocity: Vec3,
+    pub angular_velocity: Vec3,
 }
 
 impl CloneableInstance for LuaRigidbody {
@@ -103,11 +109,54 @@ impl UserData for LuaRigidbody {
             }
             Ok(())
         });
+        fields.add_field_method_get("Mass", |_, this| Ok(this.mass));
+        fields.add_field_method_set("Mass", |_, this, v: f32| {
+            this.mass = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(EngineCommand::SetRigidbodyMass {
+                    handle: parent_h,
+                    mass: v,
+                });
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("Velocity", |_, this| {
+            let v: LuaVector3 = this.velocity.into();
+            Ok(v)
+        });
+        fields.add_field_method_get("Angular", |_, this| {
+            let v: LuaVector3 = this.angular_velocity.into();
+            Ok(v)
+        });
     }
 
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         crate::impl_instance_userdata!(methods);
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.base.name.clone()));
+        methods.add_method_mut("ApplyImpulse", |_, this, velocity: LuaVector3| {
+            let impulse: Vec3 = velocity.into();
+            this.velocity = impulse;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(EngineCommand::ApplyRigidbodyImpulse {
+                    handle: parent_h,
+                    impulse,
+                });
+            }
+            Ok(())
+        });
+        methods.add_method_mut("ApplyAngularImpulse", |_, this, angular: LuaVector3| {
+            let angular_velocity: Vec3 = angular.into();
+            this.angular_velocity = angular_velocity;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base
+                    .queue
+                    .push(EngineCommand::SetRigidbodyAngularVelocity {
+                        handle: parent_h,
+                        angular_velocity,
+                    });
+            }
+            Ok(())
+        });
     }
 }
 
@@ -129,6 +178,9 @@ impl LuaModule for RigidbodyModule {
                     base: InstanceData::new(handle, q.clone(), "Rigidbody"),
                     anchored: false,
                     gravity_scale: 1.0,
+                    mass: 1.0,
+                    velocity: Vec3::ZERO,
+                    angular_velocity: Vec3::ZERO,
                 };
 
                 let spawn_copy = rb.clone();
