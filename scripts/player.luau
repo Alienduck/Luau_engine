@@ -1,5 +1,8 @@
 local player = {}
 
+-- Modules
+local entity = require("./entity")
+
 function player.Start()
 	local subject = Part.new()
 	subject.Name = "Subject"
@@ -23,6 +26,7 @@ function player.Start()
 	controller.JumpPower = 20
 
 	local keys_pressed = {}
+	local entities: { entity.EntityModule } = {}
 
 	UserInputService.InputBegan:Connect(function(key: string, _: string)
 		keys_pressed[key] = true
@@ -34,6 +38,15 @@ function player.Start()
 		end
 		if key == "KeyC" then
 			controller.NoClip = not controller.NoClip
+		end
+		if key == "KeyX" then
+			local entity = entity.new({ position = subject.Position })
+			table.insert(entities, entity)
+		end
+		if key == "KeyE" then
+			for i, entity in ipairs(entities) do
+				entity.rb:ApplyImpulse(entity.rb.Velocity + Vector3.new(0, 5, 0))
+			end
 		end
 	end)
 
