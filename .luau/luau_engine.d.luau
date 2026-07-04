@@ -123,6 +123,12 @@ export type Collider = Instance & {
 export type Rigidbody = Instance & {
     Anchored: boolean,
     GravityScale: number,
+    Mass: number,
+    Velocity: Vector3,
+    AngularVelocity: Vector3,
+
+    ApplyImpulse: (self: Rigidbody, velocity: Vector3) -> (),
+    ApplyAngularImpulse: (self: Rigidbody, angular: Vector3) -> (),
 }
 
 export type CharacterController = Instance & {
