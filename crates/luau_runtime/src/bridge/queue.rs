@@ -99,6 +99,18 @@ pub enum EngineCommand {
         handle: u64,
         gravity_scale: f32,
     },
+    SetRigidbodyMass {
+        handle: u64,
+        mass: f32,
+    },
+    ApplyRigidbodyImpulse {
+        handle: u64,
+        impulse: Vec3,
+    },
+    SetRigidbodyAngularVelocity {
+        handle: u64,
+        angular_velocity: Vec3,
+    },
     /// `Collider` set if the collider is active or not
     SetColliderCollide {
         handle: u64,
@@ -428,7 +440,6 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
-
         EngineCommand::SetRigidBodyGravityScale {
             handle,
             gravity_scale,
@@ -443,6 +454,51 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                         em.insert(Sleeping {
                             sleeping: false,
                             ..Default::default()
+                        });
+                    }
+                }
+            }
+        }
+        EngineCommand::SetRigidbodyMass { handle, mass } => {
+            use bevy_rapier3d::geometry::ColliderMassProperties;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    if let Some(mut cmp) = em.get_mut::<ColliderMassProperties>() {
+                        *cmp = ColliderMassProperties::Mass(mass);
+                    } else {
+                        em.insert(ColliderMassProperties::Mass(mass));
+                    }
+                }
+            }
+        }
+        EngineCommand::ApplyRigidbodyImpulse { handle, impulse } => {
+            use bevy_rapier3d::dynamics::ExternalImpulse;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    if let Some(mut ei) = em.get_mut::<ExternalImpulse>() {
+                        ei.impulse = impulse;
+                    } else {
+                        em.insert(ExternalImpulse {
+                            impulse,
+                            ..default()
+                        });
+                    }
+                }
+            }
+        }
+        EngineCommand::SetRigidbodyAngularVelocity {
+            handle,
+            angular_velocity,
+        } => {
+            use bevy_rapier3d::dynamics::Velocity;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    if let Some(mut v) = em.get_mut::<Velocity>() {
+                        v.angular = angular_velocity;
+                    } else {
+                        em.insert(Velocity {
+                            angular: angular_velocity,
+                            ..default()
                         });
                     }
                 }
