@@ -101,6 +101,19 @@ impl UserData for LuaMeshPart {
             );
             Ok(())
         });
+        fields.add_field_method_get("Transparency", |_, this| {
+            Ok(this.base_part_data.transparency)
+        });
+        fields.add_field_method_set("Transparency", |_, this, t: f32| {
+            this.base_part_data.set_transparency(t);
+            Ok(())
+        });
+
+        fields.add_field_method_get("Color", |_, this| Ok(this.base_part_data.color));
+        fields.add_field_method_set("Color", |_, this, c: crate::types::color3::LuaColor3| {
+            this.base_part_data.set_color(c);
+            Ok(())
+        });
         fields.add_field_method_get("CollisionFidelity", |_, this| Ok(this.collision_fidelity));
         fields.add_field_method_set("CollisionFidelity", |_, this, v: u8| {
             this.collision_fidelity = v;
