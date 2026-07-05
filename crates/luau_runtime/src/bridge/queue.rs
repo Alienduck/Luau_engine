@@ -71,6 +71,14 @@ pub enum EngineCommand {
         margin_left: Val,
         margin_top: Val,
     },
+    SetUiRotation {
+        handle: u64,
+        rotation: f32,
+    },
+    SetZindex {
+        handle: u64,
+        zindex: i32,
+    },
     /// `BackgroundColor`
     SetBackgroundColor {
         handle: u64,
@@ -426,6 +434,30 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
+        EngineCommand::SetUiRotation { handle, rotation } => {
+            use bevy::ui::UiTransform;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut ut) = world.get_mut::<UiTransform>(e) {
+                    ut.rotation = Rot2::degrees(rotation);
+                } else {
+                    if let Ok(mut em) = world.get_entity_mut(e) {
+                        em.insert(UiTransform::from_rotation(Rot2::degrees(rotation)));
+                    }
+                }
+            }
+        }
+        EngineCommand::SetZindex { handle, zindex } => {
+            use bevy::ui::ZIndex;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut zi) = world.get_mut::<ZIndex>(e) {
+                    zi.0 = zindex;
+                } else {
+                    if let Ok(mut em) = world.get_entity_mut(e) {
+                        em.insert(ZIndex(zindex));
+                    }
+                }
+            }
+        }
         EngineCommand::SetBackgroundColor { handle, r, g, b, a } => {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut bg) = world.get_mut::<BackgroundColor>(e) {
@@ -459,7 +491,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             dynamic,
             gravity_scale,
         } => {
-            use bevy_rapier3d::dynamics::{GravityScale, RigidBody, Sleeping};
+            use bevy_rapier3d::dynamics::{GravityScale, RigidBody, Sleeping, Velocity};
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
                     em.insert(if dynamic {
@@ -467,7 +499,8 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     } else {
                         RigidBody::Fixed
                     })
-                    .insert(GravityScale(gravity_scale));
+                    .insert(GravityScale(gravity_scale))
+                    .insert(Velocity::default());
 
                     if let Some(mut sleep) = em.get_mut::<Sleeping>() {
                         sleep.sleeping = false;
