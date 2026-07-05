@@ -51,6 +51,9 @@ function player.Start()
 		if key == "KeyJ" then
 			subject.CastShadow = not subject.CastShadow
 		end
+		if key == "Tab" then
+			print(rb_subject.Velocity)
+		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(key: string, _: string)
