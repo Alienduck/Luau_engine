@@ -238,7 +238,7 @@ pub enum EngineCommand {
     },
     /// Any mutation that cannot be expressed as a variant above.
     /// This is the escape hatch — keep usage minimal.
-    Raw(Box<dyn FnOnce(&mut World)>),
+    Raw(Box<dyn FnOnce(&mut World) + Send + Sync>),
 }
 
 pub type CommandBuffer = Vec<EngineCommand>;
@@ -262,7 +262,7 @@ impl EngineQueue {
     #[inline]
     pub fn push_raw<F>(&self, f: F)
     where
-        F: FnOnce(&mut World) + 'static,
+        F: FnOnce(&mut World) + 'static + Send + Sync,
     {
         self.0.send(EngineCommand::Raw(Box::new(f))).ok();
     }
