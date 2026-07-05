@@ -123,6 +123,27 @@ impl UserData for LuaMeshPart {
                 });
             Ok(())
         });
+        fields.add_field_method_get("Rotation", |_, this| {
+            Ok(LuaVector3::from(this.base_part_data.cframe.rotation))
+        });
+        fields.add_field_method_set("Rotation", |_, this, v: LuaVector3| {
+            this.base_part_data.set_orientation(v);
+            Ok(())
+        });
+        fields.add_field_method_get("CastShadow", |_, this| {
+            Ok(this.base_part_data.shadow_caster)
+        });
+        fields.add_field_method_set("CastShadow", |_, this, v: bool| {
+            this.base_part_data.set_shadow_cast(v);
+            Ok(())
+        });
+        fields.add_field_method_get("ReceiveShadow", |_, this| {
+            Ok(this.base_part_data.shadow_receiver)
+        });
+        fields.add_field_method_set("ReceiveShadow", |_, this, v: bool| {
+            this.base_part_data.set_shadow_receiver(v);
+            Ok(())
+        });
     }
 
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
