@@ -48,6 +48,10 @@ function ui.Start()
 			store.uiVisible:set(not store.uiVisible:get())
 		end
 	end)
+
+	RunService.RenderStepped:Connect(function(delta: number)
+		container.Rotation += 5 * delta
+	end)
 end
 
 return ui
