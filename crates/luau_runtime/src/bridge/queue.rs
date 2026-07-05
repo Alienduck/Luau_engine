@@ -41,6 +41,14 @@ pub enum EngineCommand {
         /// 0.0 = opaque
         alpha: f32,
     },
+    SetShadowCast {
+        handle: u64,
+        cast: bool,
+    },
+    SetShadowReceiver {
+        handle: u64,
+        receive: bool,
+    },
     /// `StandardMaterial::emissive`
     SetEmissive {
         handle: u64,
@@ -336,6 +344,38 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                         } else {
                             AlphaMode::Opaque
                         };
+                    }
+                }
+            }
+        }
+        EngineCommand::SetShadowCast { handle, cast } => {
+            use bevy::light::NotShadowCaster;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    if cast {
+                        if em.contains::<NotShadowCaster>() {
+                            em.remove::<NotShadowCaster>();
+                        }
+                    } else {
+                        if !em.contains::<NotShadowCaster>() {
+                            em.insert(NotShadowCaster);
+                        }
+                    }
+                }
+            }
+        }
+        EngineCommand::SetShadowReceiver { handle, receive } => {
+            use bevy::light::NotShadowReceiver;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    if receive {
+                        if em.contains::<NotShadowReceiver>() {
+                            em.remove::<NotShadowReceiver>();
+                        }
+                    } else {
+                        if !em.contains::<NotShadowReceiver>() {
+                            em.insert(NotShadowReceiver);
+                        }
                     }
                 }
             }
