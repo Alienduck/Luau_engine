@@ -40,6 +40,8 @@ pub struct BasePartData {
     /// 0.0 = fully opaque, 1.0 = fully transparent.
     pub transparency: f32,
     pub material: PartMaterial,
+    pub shadow_caster: bool,
+    pub shadow_receiver: bool,
 }
 
 impl BasePartData {
@@ -60,6 +62,8 @@ impl BasePartData {
             },
             transparency: 0.0,
             material: PartMaterial::Plastic,
+            shadow_caster: true,
+            shadow_receiver: true,
         }
     }
 
@@ -94,6 +98,14 @@ impl BasePartData {
         self.base.queue.push(EngineCommand::SetTranslation {
             handle: self.base.handle,
             translation: Vec3::new(p.x, p.y, p.z),
+        });
+    }
+
+    pub fn set_orientation(&mut self, o: LuaVector3) {
+        self.cframe.rotation = o.into();
+        self.base.queue.push(EngineCommand::SetRotation {
+            handle: self.base.handle,
+            rotation: o.into(),
         });
     }
 
@@ -142,6 +154,22 @@ impl BasePartData {
             g: self.color.g,
             b: self.color.b,
             alpha: 1.0 - t,
+        });
+    }
+
+    pub fn set_shadow_cast(&mut self, s: bool) {
+        self.shadow_caster = s;
+        self.base.queue.push(EngineCommand::SetShadowCast {
+            handle: self.base.handle,
+            cast: s,
+        });
+    }
+
+    pub fn set_shadow_receiver(&mut self, r: bool) {
+        self.shadow_receiver = r;
+        self.base.queue.push(EngineCommand::SetShadowReceiver {
+            handle: self.base.handle,
+            receive: r,
         });
     }
 }
