@@ -1,12 +1,13 @@
 use bevy::prelude::*;
+use bevy_rapier3d::dynamics::Velocity;
 use luau_runtime::{
     bridge::{
-        handle::next_handle,
+        handle::{LuauHandle, next_handle},
         queue::{EngineCommand, EngineQueue},
     },
     registry::LuaModule,
 };
-use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
+use mlua::{Lua, MetaMethod::ToString, ObjectLike, UserData, UserDataFields, UserDataMethods};
 
 use crate::types::{
     instance::{CloneableInstance, InstanceData},
@@ -197,5 +198,36 @@ impl LuaModule for RigidbodyModule {
             })?,
         )?;
         lua.globals().set("Rigidbody", t)
+    }
+}
+
+pub fn sync_velocity_rigidbody_system(
+    vm: NonSend<luau_runtime::vm::LuaVm>,
+    query: Query<(&LuauHandle, &Velocity), Changed<Velocity>>,
+) {
+    let Ok(cache) = vm
+        .lua
+        .named_registry_value::<mlua::Table>("__instance_cache")
+    else {
+        return;
+    };
+
+    for (part_handle, velocity) in query.iter() {
+        if let Ok(part_ud) = cache.get::<mlua::AnyUserData>(part_handle.0) {
+            let children_handles: Vec<u64> = match part_ud.call_method("__get_children", ()) {
+                Ok(handles) => handles,
+                Err(_) => continue,
+            };
+
+            for child_handle in children_handles {
+                if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
+                    if let Ok(mut rb) = child_ud.borrow_mut::<LuaRigidbody>() {
+                        rb.velocity = velocity.linear;
+                        rb.angular_velocity = velocity.angular;
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
