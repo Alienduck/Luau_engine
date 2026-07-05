@@ -7,10 +7,12 @@ use crate::types::{color3::LuaColor3, udim2::LuaUDim2, vector2::LuaVector2};
 pub struct GuiObject {
     pub anchor_point: LuaVector2,
     pub position: LuaUDim2,
+    pub rotation: f32,
     pub size: LuaUDim2,
     pub background_transparency: f32,
     pub background_color: LuaColor3,
     pub visible: bool,
+    pub zindex: i32,
 }
 
 impl Default for GuiObject {
@@ -18,10 +20,12 @@ impl Default for GuiObject {
         Self {
             anchor_point: LuaVector2::default(),
             position: LuaUDim2::default(),
+            rotation: 0.0,
             size: LuaUDim2::default(),
             background_color: LuaColor3::default(),
             background_transparency: 0.0,
             visible: true,
+            zindex: 0,
         }
     }
 }
@@ -64,6 +68,14 @@ impl GuiObject {
             handle,
             visible: self.visible,
         });
+        queue.push(EngineCommand::SetUiRotation {
+            handle,
+            rotation: self.rotation,
+        });
+        queue.push(EngineCommand::SetZindex {
+            handle,
+            zindex: self.zindex,
+        });
     }
 
     /// Pushes a single typed [`EngineCommand::SetBackgroundColor`] command.
@@ -96,6 +108,14 @@ macro_rules! impl_gui_object_fields {
         $fields.add_field_method_set("Position", |_, this, v: $crate::types::udim2::LuaUDim2| {
             use $crate::types::instance::CloneableInstance;
             this.gui.position = v;
+            this.gui
+                .enqueue_layout_update(this.base().handle, &this.base().queue);
+            Ok(())
+        });
+
+        $fields.add_field_method_get("Rotation", |_, this| Ok(this.gui.rotation));
+        $fields.add_field_method_set("Rotation", |_, this, v: f32| {
+            this.gui.rotation = v;
             this.gui
                 .enqueue_layout_update(this.base().handle, &this.base().queue);
             Ok(())
@@ -142,6 +162,14 @@ macro_rules! impl_gui_object_fields {
             this.gui
                 .enqueue_layout_update(this.base().handle, &this.base().queue);
             Ok(())
-        })
+        });
+
+        $fields.add_field_method_get("Zindex", |_, this| Ok(this.gui.zindex));
+        $fields.add_field_method_set("Zindex", |_, this, v: i32| {
+            this.gui.zindex = v;
+            this.gui
+                .enqueue_layout_update(this.base().handle, &this.base().queue);
+            Ok(())
+        });
     };
 }
