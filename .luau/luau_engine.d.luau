@@ -86,10 +86,13 @@ export type Instance = {
 
 export type BasePart = Instance & {
     Position: Vector3,
+    Rotation: Vector3,
     CFrame: CFrame,
     Size: Vector3,
     Color: Color3,
     Transparency: number,
+    CastShadow: boolean,
+    ReceiveShadow: boolean,
     Material: string,
     Touched: Signal<BasePart>,
 }
