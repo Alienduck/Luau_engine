@@ -48,6 +48,9 @@ function player.Start()
 				entity.rb:ApplyImpulse(entity.rb.Velocity + Vector3.new(0, 5, 0))
 			end
 		end
+		if key == "KeyJ" then
+			subject.CastShadow = not subject.CastShadow
+		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(key: string, _: string)
