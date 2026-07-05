@@ -108,9 +108,6 @@ function env.Start()
 		local rb = Rigidbody.new()
 		rb.Anchored = true
 		rb.Parent = model
-
-		task.wait(2)
-		model:Destroy()
 	end)
 
 	return model
