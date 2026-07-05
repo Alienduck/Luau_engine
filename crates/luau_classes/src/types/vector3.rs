@@ -1,4 +1,4 @@
-use bevy::math::Vec3;
+use bevy::math::{Quat, Vec3};
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{FromLua, Lua, UserData, UserDataFields, UserDataMethods};
 
@@ -38,6 +38,24 @@ impl From<Vec3> for LuaVector3 {
             y: value.y,
             z: value.z,
         }
+    }
+}
+
+impl From<Quat> for LuaVector3 {
+    fn from(value: Quat) -> Self {
+        let (yaw, pitch, roll) = value.to_euler(bevy::math::EulerRot::YXZ);
+
+        Self {
+            x: pitch.to_degrees(),
+            y: yaw.to_degrees(),
+            z: roll.to_degrees(),
+        }
+    }
+}
+
+impl From<LuaVector3> for Quat {
+    fn from(value: LuaVector3) -> Self {
+        Quat::from_euler(bevy::math::EulerRot::YXZ, value.y, value.x, value.z)
     }
 }
 
