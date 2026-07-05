@@ -87,21 +87,33 @@ function env.Start()
 	local rain = require("./rain")
 	rain.Start()
 
-	local mesh_part = MeshPart.new()
-	mesh_part.Name = "map"
-	mesh_part.Parent = workspace
-	mesh_part.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
-	mesh_part.MeshId = 2 == 1 and "models/chicken_idk_map/scene.gltf#Scene0"
-		or "models/stylized_classroom/scene.gltf#Scene0"
-	mesh_part.Position = Vector3.zero
+	local model = Model.from(
+		2 == 1 and "models/chicken_idk_map/scene.gltf#Scene0" or "models/stylized_classroom/scene.gltf#Scene0"
+	)
+	model.Name = "map"
+	model.Parent = workspace
+	model.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
 
-	local cl = Collider.new()
-	cl.Parent = mesh_part
-	local rb = Rigidbody.new()
-	rb.Anchored = true
-	rb.Parent = mesh_part
+	model.Loaded:Connect(function()
+		print("Le modèle 3D est chargé !")
 
-	return mesh_part
+		for _, part in ipairs(model:GetDescendants()) do
+			if part.ClassName == "Part" then
+				(part :: Part).Transparency = math.random(0, 100) / 100
+			end
+		end
+
+		local cl = Collider.new()
+		cl.Parent = model
+		local rb = Rigidbody.new()
+		rb.Anchored = true
+		rb.Parent = model
+
+		task.wait(2)
+		model:Destroy()
+	end)
+
+	return model
 end
 
 return env
