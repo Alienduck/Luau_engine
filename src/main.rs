@@ -14,6 +14,7 @@ use luau_classes::{
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
         lighting::{atmosphere::AtmosphereModule, bloom_effect::BloomEffectModule, sky::SkyModule},
         mesh_part::MeshPartModule,
+        model::{ModelModule, sync_model_hierarchy_system},
         part::PartModule,
         physics::{
             character_controller::{CharacterControllerModule, sync_character_controllers},
@@ -129,6 +130,7 @@ fn main() {
                 process_engine_queue,
                 base_part::sync_transforms_system,
                 luau_classes::instances::physics::rigidbody::sync_velocity_rigidbody_system,
+                sync_model_hierarchy_system,
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
@@ -152,6 +154,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (TweenInfoModule::name(), TweenInfoModule::register),
         (PartModule::name(), PartModule::register),
         (MeshPartModule::name(), MeshPartModule::register),
+        (ModelModule::name(), ModelModule::register),
         (CameraModule::name(), CameraModule::register),
         (UserInputModule::name(), UserInputModule::register),
         (RigidbodyModule::name(), RigidbodyModule::register),
