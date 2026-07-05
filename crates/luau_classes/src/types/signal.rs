@@ -46,9 +46,18 @@ impl LuaSignal {
         let multi_args = args.into_lua_multi(lua)?;
         if let Ok(signals) = lua.named_registry_value::<mlua::Table>("__signals") {
             if let Ok(callbacks) = signals.get::<mlua::Table>(self.id) {
+                // Get the global task spawner
+                let task_spawn: Option<mlua::Function> = lua.globals().get("__task_spawn").ok();
+
                 for pair in callbacks.pairs::<u64, mlua::Function>() {
                     if let Ok((_, func)) = pair {
-                        let _ = func.call::<()>(multi_args.clone());
+                        if let Some(ref spawner) = task_spawn {
+                            // Execute the function in coroutine handled by LuaScheduler
+                            let _ = spawner.call::<()>((func, multi_args.clone()));
+                        } else {
+                            // Fallback
+                            let _ = func.call::<()>(multi_args.clone());
+                        }
                     }
                 }
             }
