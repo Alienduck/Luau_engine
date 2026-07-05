@@ -128,6 +128,7 @@ fn main() {
                 flush_touched_signals,
                 process_engine_queue,
                 base_part::sync_transforms_system,
+                luau_classes::instances::physics::rigidbody::sync_velocity_rigidbody_system,
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
