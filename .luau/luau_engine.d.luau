@@ -147,10 +147,12 @@ export type ScreenGui = Instance & {}
 export type GuiObject = Instance & {
     AnchorPoint: Vector2,
     Position: UDim2,
+    Rotation: number,
     Size: UDim2,
     BackgroundTransparency: number,
     BackgroundColor3: Color3,
     Visible: boolean,
+    Zindex: number,
 }
 
 export type Frame = GuiObject
