@@ -75,6 +75,7 @@ export type Tween = {
 
 export type Instance = {
     Name: string,
+    ClassName: string,
     Parent: Instance?,
     Clone: (self: Instance) -> Instance,
     Destroy: (self: Instance) -> (),
@@ -104,6 +105,11 @@ export type Part = BasePart & {
 export type MeshPart = BasePart & {
     MeshId: string,
     CollisionFidelity: number
+}
+
+export type Model = Instance & {
+    Loaded: Signal<>,
+    CollisionFidelity: number,
 }
 
 export type Camera = Instance & {
@@ -271,6 +277,7 @@ declare task: {
 
 declare Part: { new: () -> Part }
 declare MeshPart: { new: () -> MeshPart }
+declare Model: { new: () -> Model, from: (path: string) -> Model }
 declare Collider: { new: () -> Collider }
 declare Rigidbody: { new: () -> Rigidbody }
 declare CharacterController: { new: () -> CharacterController }
