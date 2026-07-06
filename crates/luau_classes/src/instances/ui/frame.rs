@@ -63,7 +63,9 @@ impl LuaModule for FrameModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                // TODO: replace with a command impl Scene with new bsn from
+                // Bevy 0.19
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
                             Node {
@@ -74,7 +76,7 @@ impl LuaModule for FrameModule {
                         ))
                         .id();
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
 
                 let frame = LuaFrame {
                     base: InstanceData::new(handle, q.clone(), "Frame"),

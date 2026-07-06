@@ -1,3 +1,4 @@
+use bevy::math::{Quat, Vec3};
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{FromLua, Lua, UserData, UserDataFields, UserDataMethods};
 
@@ -20,6 +21,44 @@ impl FromLua for LuaVector3 {
     }
 }
 
+impl From<LuaVector3> for Vec3 {
+    fn from(value: LuaVector3) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
+
+impl From<Vec3> for LuaVector3 {
+    fn from(value: Vec3) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
+
+impl From<Quat> for LuaVector3 {
+    fn from(value: Quat) -> Self {
+        let (yaw, pitch, roll) = value.to_euler(bevy::math::EulerRot::YXZ);
+
+        Self {
+            x: pitch.to_degrees(),
+            y: yaw.to_degrees(),
+            z: roll.to_degrees(),
+        }
+    }
+}
+
+impl From<LuaVector3> for Quat {
+    fn from(value: LuaVector3) -> Self {
+        Quat::from_euler(bevy::math::EulerRot::YXZ, value.y, value.x, value.z)
+    }
+}
+
 impl UserData for LuaVector3 {
     fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
         fields.add_field_method_get("X", |_, this| Ok(this.x));
@@ -36,6 +75,27 @@ impl UserData for LuaVector3 {
         fields.add_field_method_set("Z", |_, this, v: f32| {
             this.z = v;
             Ok(())
+        });
+        fields.add_field_method_get("Unit", |_, this| {
+            let normalized = Vec3 {
+                x: this.x,
+                y: this.y,
+                z: this.z,
+            }
+            .normalize();
+            Ok(LuaVector3 {
+                x: normalized.x,
+                y: normalized.y,
+                z: normalized.z,
+            })
+        });
+        fields.add_field_method_get("Magnitude", |_, this| {
+            Ok(Vec3 {
+                x: this.x,
+                y: this.y,
+                z: this.z,
+            }
+            .length())
         });
     }
 

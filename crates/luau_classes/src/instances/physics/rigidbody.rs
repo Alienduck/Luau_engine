@@ -1,35 +1,38 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::dynamics::Velocity;
 use luau_runtime::{
     bridge::{
-        handle::{HandleMap, next_handle},
-        queue::EngineQueue,
+        handle::{LuauHandle, next_handle},
+        queue::{EngineCommand, EngineQueue},
     },
     registry::LuaModule,
 };
-use mlua::{Lua, MetaMethod::ToString, UserData, UserDataFields, UserDataMethods};
+use mlua::{Lua, MetaMethod::ToString, ObjectLike, UserData, UserDataFields, UserDataMethods};
 
-use crate::types::instance::{CloneableInstance, InstanceData};
+use crate::types::{
+    instance::{CloneableInstance, InstanceData},
+    vector3::LuaVector3,
+};
 
 /// Luau-facing `Rigidbody` — attaches a [`RigidBody::Dynamic`] component to
 /// its parent entity when parented and removes it when unparented.
-///
-/// Designed to be parented to a `Part`; the physics body is added/removed on
-/// the parent entity, not on the Rigidbody's own entity.
 #[derive(Clone)]
 pub struct LuaRigidbody {
     pub base: InstanceData,
+    pub anchored: bool,
+    pub gravity_scale: f32,
+    pub mass: f32,
+    pub velocity: Vec3,
+    pub angular_velocity: Vec3,
 }
 
 impl CloneableInstance for LuaRigidbody {
     fn base(&self) -> &InstanceData {
         &self.base
     }
-
     fn base_mut(&mut self) -> &mut InstanceData {
         &mut self.base
     }
-
     fn apply_bevy_components(&self, _entity: Entity, _w: &mut World) {}
 }
 
@@ -49,42 +52,112 @@ impl UserData for LuaRigidbody {
             this.base.set_name(v);
             Ok(())
         });
+
         fields.add_field_method_set("Parent", |lua, this, parent: Option<mlua::AnyUserData>| {
             let old_handle = this.base.parent_handle;
             let new_handle = parent
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
 
-            this.base.set_parent(lua, parent);
+            let dynamic = !this.anchored;
 
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(old_h) = old_handle {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
-                            if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.remove::<RigidBody>();
-                            }
+            if let Some(old_h) = old_handle {
+                this.base.queue.push_raw(move |w: &mut World| {
+                    use bevy_rapier3d::dynamics::RigidBody;
+                    use luau_runtime::bridge::handle::HandleMap;
+                    if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
+                        if let Ok(mut em) = w.get_entity_mut(e) {
+                            em.remove::<RigidBody>();
                         }
                     }
-                    if let Some(new_h) = new_handle {
-                        if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
-                            if let Ok(mut em) = w.get_entity_mut(e) {
-                                em.insert(RigidBody::Dynamic);
-                            }
-                        }
-                    }
-                }));
+                });
+            }
+
+            if let Some(new_h) = new_handle {
+                this.base.queue.push(EngineCommand::SetRigidBody {
+                    handle: new_h,
+                    dynamic,
+                    gravity_scale: this.gravity_scale,
+                });
+            }
+
+            this.base.set_parent(lua, parent);
             Ok(())
+        });
+
+        fields.add_field_method_get("Anchored", |_, this| Ok(this.anchored));
+        fields.add_field_method_set("Anchored", |_, this, v: bool| {
+            this.anchored = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(EngineCommand::SetRigidBody {
+                    handle: parent_h,
+                    dynamic: !v,
+                    gravity_scale: this.gravity_scale,
+                });
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("GravityScale", |_, this| Ok(this.gravity_scale));
+        fields.add_field_method_set("GravityScale", |_, this, v: f32| {
+            this.gravity_scale = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base
+                    .queue
+                    .push(EngineCommand::SetRigidBodyGravityScale {
+                        handle: parent_h,
+                        gravity_scale: v,
+                    });
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("Mass", |_, this| Ok(this.mass));
+        fields.add_field_method_set("Mass", |_, this, v: f32| {
+            this.mass = v;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(EngineCommand::SetRigidbodyMass {
+                    handle: parent_h,
+                    mass: v,
+                });
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("Velocity", |_, this| {
+            let v: LuaVector3 = this.velocity.into();
+            Ok(v)
+        });
+        fields.add_field_method_get("Angular", |_, this| {
+            let v: LuaVector3 = this.angular_velocity.into();
+            Ok(v)
         });
     }
 
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
         crate::impl_instance_userdata!(methods);
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.base.name.clone()));
+        methods.add_method_mut("ApplyImpulse", |_, this, velocity: LuaVector3| {
+            let impulse: Vec3 = velocity.into();
+            this.velocity = impulse;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base.queue.push(EngineCommand::ApplyRigidbodyImpulse {
+                    handle: parent_h,
+                    impulse,
+                });
+            }
+            Ok(())
+        });
+        methods.add_method_mut("ApplyAngularImpulse", |_, this, angular: LuaVector3| {
+            let angular_velocity: Vec3 = angular.into();
+            this.angular_velocity = angular_velocity;
+            if let Some(parent_h) = this.base.parent_handle {
+                this.base
+                    .queue
+                    .push(EngineCommand::SetRigidbodyAngularVelocity {
+                        handle: parent_h,
+                        angular_velocity,
+                    });
+            }
+            Ok(())
+        });
     }
 }
 
@@ -104,13 +177,18 @@ impl LuaModule for RigidbodyModule {
                 let handle = next_handle();
                 let rb = LuaRigidbody {
                     base: InstanceData::new(handle, q.clone(), "Rigidbody"),
+                    anchored: false,
+                    gravity_scale: 1.0,
+                    mass: 1.0,
+                    velocity: Vec3::ZERO,
+                    angular_velocity: Vec3::ZERO,
                 };
 
                 let spawn_copy = rb.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = spawn_copy.base().spawn_base_entity(w);
                     spawn_copy.apply_bevy_components(entity, w);
-                }));
+                });
 
                 let ud = lua_ctx.create_userdata(rb)?;
                 lua_ctx
@@ -120,5 +198,36 @@ impl LuaModule for RigidbodyModule {
             })?,
         )?;
         lua.globals().set("Rigidbody", t)
+    }
+}
+
+pub fn sync_velocity_rigidbody_system(
+    vm: NonSend<luau_runtime::vm::LuaVm>,
+    query: Query<(&LuauHandle, &Velocity), Changed<Velocity>>,
+) {
+    let Ok(cache) = vm
+        .lua
+        .named_registry_value::<mlua::Table>("__instance_cache")
+    else {
+        return;
+    };
+
+    for (part_handle, velocity) in query.iter() {
+        if let Ok(part_ud) = cache.get::<mlua::AnyUserData>(part_handle.0) {
+            let children_handles: Vec<u64> = match part_ud.call_method("__get_children", ()) {
+                Ok(handles) => handles,
+                Err(_) => continue,
+            };
+
+            for child_handle in children_handles {
+                if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
+                    if let Ok(mut rb) = child_ud.borrow_mut::<LuaRigidbody>() {
+                        rb.velocity = velocity.linear;
+                        rb.angular_velocity = velocity.angular;
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

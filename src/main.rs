@@ -2,16 +2,25 @@ use bevy::{
     core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
     render::view::Hdr, window::WindowMode,
 };
-use bevy_rapier3d::plugin::{NoUserData, RapierPhysicsPlugin};
+use bevy_rapier3d::{
+    plugin::{NoUserData, RapierPhysicsPlugin},
+    render::{DebugRenderMode, RapierDebugRenderPlugin},
+};
 use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
+    debug::collision_render::CollisionRenderModule,
     instances::{
-        base_part::process_collisions,
-        bloom_effect::BloomEffectModule,
+        base_part::{self, PendingTouches, flush_touched_signals, process_collisions},
         camera::{CameraCFrame, CameraCFrameHolder, CameraModule, SmartCamera, SmartCameraPlugin},
-        lighting::{atmosphere::AtmosphereModule, sky::SkyModule},
+        lighting::{atmosphere::AtmosphereModule, bloom_effect::BloomEffectModule, sky::SkyModule},
+        mesh_part::MeshPartModule,
+        model::{ModelModule, sync_model_hierarchy_system},
         part::PartModule,
-        physics::{collider::ColliderModule, rigidbody::RigidbodyModule},
+        physics::{
+            character_controller::{CharacterControllerModule, sync_character_controllers},
+            collider::ColliderModule,
+            rigidbody::RigidbodyModule,
+        },
         ui::{
             frame::FrameModule, image_button::ImageButtonModule, image_label::ImageLabelModule,
             screen_gui::ScreenGuiModule, text_button::TextButtonModule,
@@ -20,14 +29,15 @@ use luau_classes::{
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, udim2::Udim2Module, vector2::Vector2Module,
+        cframe::CFrameModule, color3::Color3Module, enums::EnumsModule,
+        tween_info::TweenInfoModule, udim2::Udim2Module, vector2::Vector2Module,
         vector3::Vector3Module,
     },
 };
 use luau_runtime::{
     bridge::{
         handle::HandleMap,
-        queue::{EngineQueue, process_engine_queue},
+        queue::{EngineCommand, EngineQueue, EngineQueueResource, process_engine_queue},
     },
     registry::LuaModule,
     scheduler::{LuaScheduler, tick_scheduler},
@@ -38,22 +48,21 @@ use services::{
         LightingModule, sync_atmosphere_system, sync_post_processing_system, sync_sky_system,
     },
     run_service::{RunServiceModule, trigger_run_service},
+    tween_service::{TweenEngine, TweenServiceModule, process_tweens_system},
     user_input::{UserInputModule, trigger_user_input},
 };
 use std::fs;
 
 fn main() {
-    let queue = EngineQueue::default();
+    let (tx, rx) = crossbeam_channel::unbounded::<EngineCommand>();
+
+    let engine_queue = EngineQueue(tx);
     let vm = LuaVm::new().expect("failed to create Lua VM");
     let mut scheduler = LuaScheduler::new();
 
-    // Make the queue accessible from Lua closures that need it (e.g. Destroy).
-    vm.lua().set_app_data(queue.clone());
+    vm.lua().set_app_data(engine_queue.clone());
+    register_all(vm.lua(), &engine_queue);
 
-    register_all(vm.lua(), &queue);
-
-    // Extract the shared CFrame Arc from the Lua registry so Bevy can write
-    // to it each frame without going through the queue.
     let cam_cframe: CameraCFrame = {
         let holder = vm
             .lua()
@@ -63,7 +72,6 @@ fn main() {
         CameraCFrame(arc)
     };
 
-    // Load and spawn the entry-point script as the first scheduled coroutine.
     let script =
         fs::read_to_string("scripts/startup.luau").expect("scripts/startup.luau not found");
     let thread = vm
@@ -71,12 +79,15 @@ fn main() {
         .create_thread(
             vm.lua()
                 .load(&script)
-                .set_name("startup")
+                .set_name("@scripts/startup.luau")
                 .into_function()
                 .expect("startup.luau must be valid Luau"),
         )
         .unwrap();
     scheduler.spawn(thread);
+
+    let tween_engine = TweenEngine::default();
+    vm.lua().set_app_data(tween_engine);
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -89,24 +100,37 @@ fn main() {
         }))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(SmartCameraPlugin)
-        .insert_resource(queue)
+        .add_plugins(RapierDebugRenderPlugin {
+            mode: DebugRenderMode::COLLIDER_SHAPES,
+            enabled: false,
+            ..default()
+        })
+        .insert_resource(EngineQueueResource(rx))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
+        .insert_resource(PendingTouches::default())
         .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
         .add_systems(
             PreUpdate,
-            // Input states must be refreshed before collision processing so
-            // that action-map queries in the same frame see correct values.
-            (update_action_states, process_collisions).chain(),
+            (
+                sync_character_controllers,
+                update_action_states,
+                process_collisions,
+            )
+                .chain(),
         )
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
             (
                 tick_scheduler,
+                flush_touched_signals,
                 process_engine_queue,
+                base_part::sync_transforms_system,
+                luau_classes::instances::physics::rigidbody::sync_velocity_rigidbody_system,
+                sync_model_hierarchy_system,
                 trigger_user_input,
                 trigger_run_service,
                 sync_dormancy_system,
@@ -114,27 +138,30 @@ fn main() {
                 sync_sky_system,
                 sync_atmosphere_system,
                 process_button_interactions,
+                process_tweens_system,
             )
                 .chain(),
         )
         .run();
 }
 
-/// Registers all Luau modules (classes and services) into the VM.
-///
-/// Order matters: modules that other modules depend on at registration time
-/// (e.g. `WorkspaceModule` needs the instance cache to exist) must come after
-/// the VM is fully initialised but before any script runs.
 fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
     let modules: &[(&str, fn(&mlua::Lua, &EngineQueue) -> mlua::Result<()>)] = &[
         (Vector2Module::name(), Vector2Module::register),
         (Vector3Module::name(), Vector3Module::register),
         (Color3Module::name(), Color3Module::register),
         (CFrameModule::name(), CFrameModule::register),
+        (TweenInfoModule::name(), TweenInfoModule::register),
         (PartModule::name(), PartModule::register),
+        (MeshPartModule::name(), MeshPartModule::register),
+        (ModelModule::name(), ModelModule::register),
         (CameraModule::name(), CameraModule::register),
         (UserInputModule::name(), UserInputModule::register),
         (RigidbodyModule::name(), RigidbodyModule::register),
+        (
+            CharacterControllerModule::name(),
+            CharacterControllerModule::register,
+        ),
         (ColliderModule::name(), ColliderModule::register),
         (RunServiceModule::name(), RunServiceModule::register),
         (ScreenGuiModule::name(), ScreenGuiModule::register),
@@ -149,6 +176,12 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
+        (TweenServiceModule::name(), TweenServiceModule::register),
+        (EnumsModule::name(), EnumsModule::register),
+        (
+            CollisionRenderModule::name(),
+            CollisionRenderModule::register,
+        ),
     ];
     for (name, register) in modules {
         if let Err(e) = register(lua, queue) {
@@ -157,19 +190,16 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
     }
 }
 
-/// Spawns the camera and directional light entities at startup.
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
         Hdr,
         Camera::default(),
         Camera3d::default(),
-        // Camera2d::default(),
         Bloom::NATURAL,
         Tonemapping::TonyMcMapface,
         Transform::from_xyz(0.0, 5.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
         SmartCamera::default(),
     ));
-
     commands.spawn((
         DirectionalLight {
             illuminance: 10_000.0,

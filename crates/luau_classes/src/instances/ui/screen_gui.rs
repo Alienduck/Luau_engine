@@ -75,7 +75,7 @@ impl LuaModule for ScreenGuiModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn(Node {
                             width: Val::Percent(100.0),
@@ -84,7 +84,7 @@ impl LuaModule for ScreenGuiModule {
                         })
                         .id();
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
 
                 let sg = LuaScreenGui {
                     base: InstanceData::new(handle, q.clone(), "ScreenGui"),

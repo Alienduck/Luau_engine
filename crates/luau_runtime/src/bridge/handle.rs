@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
@@ -18,7 +17,9 @@ pub struct EntityEntry {
 
 /// Maps Luau handles (u64) to Bevy entities.
 #[derive(Resource, Default)]
-pub struct HandleMap(pub HashMap<u64, EntityEntry>);
+pub struct HandleMap {
+    entries: Vec<Option<EntityEntry>>,
+}
 
 impl HandleMap {
     pub fn insert(
@@ -27,19 +28,36 @@ impl HandleMap {
         entity: Entity,
         material: Option<Handle<StandardMaterial>>,
     ) {
-        self.0.insert(handle, EntityEntry { entity, material });
+        let index = handle as usize;
+        if index >= self.entries.len() {
+            self.entries.resize_with(index + 1, || None);
+        }
+        self.entries[index] = Some(EntityEntry { entity, material });
     }
 
+    #[inline(always)]
     pub fn get_entity(&self, handle: u64) -> Option<Entity> {
-        self.0.get(&handle).map(|e| e.entity)
+        let index = handle as usize;
+        self.entries
+            .get(index)
+            .and_then(|entry| entry.as_ref().map(|e| e.entity))
     }
 
+    #[inline(always)]
     pub fn get_material(&self, handle: u64) -> Option<Handle<StandardMaterial>> {
-        self.0.get(&handle).and_then(|e| e.material.clone())
+        let index = handle as usize;
+        self.entries
+            .get(index)
+            .and_then(|entry| entry.as_ref().and_then(|e| e.material.clone()))
     }
 
     pub fn remove(&mut self, handle: u64) -> Option<EntityEntry> {
-        self.0.remove(&handle)
+        let index = handle as usize;
+        if index < self.entries.len() {
+            self.entries[index].take()
+        } else {
+            None
+        }
     }
 }
 

@@ -195,94 +195,67 @@ impl UserData for LuaCamera {
 
         fields.add_field_method_set("FirstPerson", |_, this, v: bool| {
             this.first_person = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.first_person = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                if let Ok(mut cam) = w.query::<&mut SmartCamera>().single_mut(w) {
+                    cam.first_person = v;
+                }
+            });
             Ok(())
         });
         fields.add_field_method_set("Distance", |_, this, v: f32| {
             this.distance = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.distance = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.distance = v;
+                }
+            });
             Ok(())
         });
         fields.add_field_method_set("Sensitivity", |_, this, v: f32| {
             this.sensitivity = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.sensitivity = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.sensitivity = v;
+                }
+            });
             Ok(())
         });
         fields.add_field_method_set("Fov", |_, this, v: f32| {
             this.fov = v;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.fov = v;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.fov = v;
+                }
+            });
             Ok(())
         });
     }
 
     fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
-        methods.add_method("SetSubject", |_, this, part: mlua::AnyUserData| {
-            let handle = part
-                .borrow::<crate::instances::part::LuaPart>()?
-                .0
-                .base
-                .handle;
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let entity = w.resource::<HandleMap>().get_entity(handle);
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.subject = entity;
-                    }
-                }));
+        methods.add_method("SetSubject", |_, this, instance: mlua::AnyUserData| {
+            let handle =
+                crate::types::instance::instance_handle_from_any(&instance).ok_or_else(|| {
+                    mlua::Error::runtime("Failed to get the instance from the given data")
+                })?;
+            this.queue.push_raw(move |w: &mut World| {
+                let entity = w.resource::<HandleMap>().get_entity(handle);
+                if let Ok(mut c) = w.query::<&mut SmartCamera>().single_mut(w) {
+                    c.subject = entity
+                }
+            });
             Ok(())
         });
 
         methods.add_method("ClearSubject", |_, this, ()| {
-            this.queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let mut q = w.query::<&mut SmartCamera>();
-                    if let Ok(mut cam) = q.single_mut(w) {
-                        cam.subject = None;
-                    }
-                }));
+            this.queue.push_raw(move |w: &mut World| {
+                let mut q = w.query::<&mut SmartCamera>();
+                if let Ok(mut cam) = q.single_mut(w) {
+                    cam.subject = None;
+                }
+            });
             Ok(())
         });
     }

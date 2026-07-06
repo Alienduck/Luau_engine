@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, next_handle},
-        queue::EngineQueue,
+        queue::{EngineCommand, EngineQueue},
     },
     registry::LuaModule,
 };
@@ -38,21 +38,10 @@ impl UserData for LuaImageLabel {
         fields.add_field_method_set("Image", |_, this, v: String| {
             this.image = v.clone();
             let h = this.base.handle;
-            this.base
-                .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    let handle = w.resource::<AssetServer>().load(&v);
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if w.get::<ImageNode>(e).is_some() {
-                            w.get_mut::<ImageNode>(e).unwrap().image = handle;
-                        } else {
-                            w.entity_mut(e).insert(ImageNode::new(handle));
-                        }
-                    }
-                }));
+            this.base.queue.push(EngineCommand::SetImageNode {
+                handle: h,
+                asset_path: v,
+            });
             Ok(())
         });
     }
@@ -76,7 +65,7 @@ impl LuaModule for ImageLabelModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
                             Node {
@@ -87,7 +76,7 @@ impl LuaModule for ImageLabelModule {
                         ))
                         .id();
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
 
                 let label = LuaImageLabel {
                     base: InstanceData::new(handle, q.clone(), "ImageLabel"),

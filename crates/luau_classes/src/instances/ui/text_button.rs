@@ -79,16 +79,7 @@ impl UserData for LuaTextButton {
             let h = this.base.handle;
             this.base
                 .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut t) = w.get_mut::<Text>(e) {
-                            t.0 = v;
-                        }
-                    }
-                }));
+                .push(luau_runtime::bridge::queue::EngineCommand::SetText { handle: h, text: v });
             Ok(())
         });
 
@@ -98,16 +89,12 @@ impl UserData for LuaTextButton {
             let h = this.base.handle;
             this.base
                 .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut tc) = w.get_mut::<TextColor>(e) {
-                            tc.0 = Color::srgba(c.r, c.g, c.b, 1.0);
-                        }
-                    }
-                }));
+                .push(luau_runtime::bridge::queue::EngineCommand::SetTextColor {
+                    handle: h,
+                    r: c.r,
+                    g: c.g,
+                    b: c.b,
+                });
             Ok(())
         });
 
@@ -117,16 +104,10 @@ impl UserData for LuaTextButton {
             let h = this.base.handle;
             this.base
                 .queue
-                .0
-                .lock()
-                .unwrap()
-                .push(Box::new(move |w: &mut World| {
-                    if let Some(e) = w.resource::<HandleMap>().get_entity(h) {
-                        if let Some(mut tf) = w.get_mut::<TextFont>(e) {
-                            tf.font_size = s;
-                        }
-                    }
-                }));
+                .push(luau_runtime::bridge::queue::EngineCommand::SetFontSize {
+                    handle: h,
+                    size: s,
+                });
             Ok(())
         });
     }
@@ -166,7 +147,7 @@ impl LuaModule for TextButtonModule {
                 };
 
                 let clone_for_spawn = button.clone();
-                q.0.lock().unwrap().push(Box::new(move |w: &mut World| {
+                q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
                             Node {
@@ -184,7 +165,7 @@ impl LuaModule for TextButtonModule {
                         .id();
                     clone_for_spawn.apply_bevy_components(entity, w);
                     w.resource_mut::<HandleMap>().insert(handle, entity, None);
-                }));
+                });
 
                 let ud = lua_ctx.create_userdata(button)?;
                 lua_ctx

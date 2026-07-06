@@ -1,3 +1,4 @@
+use bevy::prelude::*;
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::{FromLua, Lua, UserData, UserDataFields, UserDataMethods};
 
@@ -6,6 +7,28 @@ pub struct LuaColor3 {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+}
+
+impl From<Color> for LuaColor3 {
+    fn from(value: Color) -> Self {
+        let c = value.to_srgba();
+        Self {
+            r: c.red,
+            g: c.green,
+            b: c.blue,
+        }
+    }
+}
+
+impl From<LuaColor3> for Color {
+    fn from(value: LuaColor3) -> Self {
+        Self::Srgba(Srgba {
+            red: value.b,
+            green: value.g,
+            blue: value.b,
+            alpha: 1.0,
+        })
+    }
 }
 
 impl FromLua for LuaColor3 {
