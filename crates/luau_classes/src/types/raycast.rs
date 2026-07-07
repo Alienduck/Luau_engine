@@ -34,8 +34,19 @@ impl UserData for RaycastParams {
         fields.add_field_method_get("FilterDescendantInstances", |_, this| {
             Ok(this.filter_descendant_instances.clone())
         });
-        fields.add_field_method_set("FilterDescendantInstances", |_, this, v: Vec<u64>| {
-            this.filter_descendant_instances = v;
+        fields.add_field_method_set("FilterDescendantInstances", |_, this, v: mlua::Table| {
+            let mut handles = Vec::new();
+            for pair in v.pairs::<mlua::Integer, mlua::AnyUserData>() {
+                if let Ok((_, ud)) = pair {
+                    if let Ok(part) = ud.borrow::<crate::instances::part::LuaPart>() {
+                        handles.push(part.data.base.handle);
+                    } else if let Ok(mesh) = ud.borrow::<crate::instances::mesh_part::LuaMeshPart>()
+                    {
+                        handles.push(mesh.base_part_data.base.handle);
+                    }
+                }
+            }
+            this.filter_descendant_instances = handles;
             Ok(())
         });
         fields.add_field_method_get("FilterType", |_, this| Ok(this.filter_type as u8));
@@ -112,53 +123,68 @@ pub fn workspace_raycast(
     if dir == Vec3::ZERO {
         return Ok(None);
     }
-    let mut query = world.query::<RapierContext>();
-    let rapier_context_item = query
-        .single(world)
-        .map_err(|_| mlua::Error::runtime("RapierContext missing"))?;
-    let rapier_context = RapierContext {
-        simulation: rapier_context_item.simulation,
-        colliders: rapier_context_item.colliders,
-        joints: rapier_context_item.joints,
-        rigidbody_set: rapier_context_item.rigidbody_set,
-    };
-    let mut filter = QueryFilter::new();
 
-    let predicate;
+    let mut entity_filter_list = Vec::new();
+    let mut filter_type = RaycastFilterType::Exclude;
 
     if let Some(p) = &params {
-        predicate = move |entity: Entity| match p.filter_type {
-            RaycastFilterType::Exclude => {
-                !p.filter_descendant_instances.contains(&entity.to_bits())
+        filter_type = p.filter_type.clone();
+        let mut query = world.query::<(Entity, &LuauHandle)>();
+        for (entity, handle) in query.iter(world) {
+            if p.filter_descendant_instances.contains(&handle.0) {
+                entity_filter_list.push(entity.to_bits());
             }
-            RaycastFilterType::Include => p.filter_descendant_instances.contains(&entity.to_bits()),
-        };
+        }
+    }
+
+    let predicate = move |entity: Entity| match filter_type {
+        RaycastFilterType::Exclude => !entity_filter_list.contains(&entity.to_bits()),
+        RaycastFilterType::Include => entity_filter_list.contains(&entity.to_bits()),
+    };
+
+    let mut filter = QueryFilter::new();
+    if params.is_some() {
         filter = filter.predicate(&predicate);
     }
-    Ok(rapier_context
-        .cast_ray_and_get_normal(origin, dir, max_toi, true, filter)
-        .map(|(entity, intersection)| {
-            let handle = world.get::<LuauHandle>(entity).map_or(0, |h| h.0);
-            let mut material = BasePartMaterial::Plastic;
-            if handle != 0 {
-                if let Ok(cache) = lua.named_registry_value::<mlua::Table>("__instance_cache") {
-                    if let Ok(ud) = cache.get::<mlua::AnyUserData>(handle) {
-                        if let Ok(part) = ud.borrow::<crate::instances::part::LuaPart>() {
-                            material = part.data.material.clone();
-                        } else if let Ok(mesh_part) =
-                            ud.borrow::<crate::instances::mesh_part::LuaMeshPart>()
-                        {
-                            material = mesh_part.base_part_data.material.clone();
-                        }
+
+    let intersection_result = {
+        let mut query = world.query::<RapierContext>();
+        let rapier_context_item = query
+            .single(world)
+            .map_err(|_| mlua::Error::runtime("RapierContext missing"))?;
+
+        let rapier_context = RapierContext {
+            simulation: rapier_context_item.simulation,
+            colliders: rapier_context_item.colliders,
+            joints: rapier_context_item.joints,
+            rigidbody_set: rapier_context_item.rigidbody_set,
+        };
+
+        rapier_context.cast_ray_and_get_normal(origin, dir, max_toi, true, filter)
+    };
+
+    Ok(intersection_result.map(|(entity, intersection)| {
+        let handle = world.get::<LuauHandle>(entity).map_or(0, |h| h.0);
+        let mut material = BasePartMaterial::Plastic;
+        if handle != 0 {
+            if let Ok(cache) = lua.named_registry_value::<mlua::Table>("__instance_cache") {
+                if let Ok(ud) = cache.get::<mlua::AnyUserData>(handle) {
+                    if let Ok(part) = ud.borrow::<crate::instances::part::LuaPart>() {
+                        material = part.data.material.clone();
+                    } else if let Ok(mesh_part) =
+                        ud.borrow::<crate::instances::mesh_part::LuaMeshPart>()
+                    {
+                        material = mesh_part.base_part_data.material.clone();
                     }
                 }
             }
-            RaycastResult {
-                instance: handle,
-                position: intersection.point,
-                distance: intersection.time_of_impact,
-                material,
-                normal: intersection.normal,
-            }
-        }))
+        }
+        RaycastResult {
+            instance: handle,
+            position: intersection.point,
+            distance: intersection.time_of_impact,
+            material,
+            normal: intersection.normal,
+        }
+    }))
 }
