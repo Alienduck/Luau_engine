@@ -1,4 +1,8 @@
-use crate::types::instance::{CloneableInstance, InstanceData};
+use crate::types::{
+    instance::{CloneableInstance, InstanceData},
+    raycast::{RaycastParams, workspace_raycast},
+    vector3::LuaVector3,
+};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{ColliderDisabled, RigidBodyDisabled};
 use luau_runtime::{
@@ -65,6 +69,19 @@ impl UserData for LuaWorkspace {
         methods.add_method("Destroy", |_, _, ()| -> mlua::Result<()> {
             Err(mlua::Error::runtime("Workspace cannot be destroyed"))
         });
+
+        methods.add_method(
+                    "Raycast",
+                    |lua, _, (origin, direction, params): (LuaVector3, LuaVector3, Option<RaycastParams>)| {
+                        let world_ptr = *lua
+                            .app_data_ref::<*mut World>()
+                            .ok_or_else(|| mlua::Error::runtime("World_ptr missing"))?;
+                        let world = unsafe { &mut *world_ptr };
+                        let origin_vec = Vec3::new(origin.x, origin.y, origin.z);
+                        let direction_vec = Vec3::new(direction.x, direction.y, direction.z);
+                        workspace_raycast(lua, world, origin_vec, direction_vec, params)
+                    },
+                );
 
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.base.name.clone()));
     }
