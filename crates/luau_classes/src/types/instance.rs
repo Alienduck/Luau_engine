@@ -294,6 +294,90 @@ macro_rules! impl_instance_userdata {
                 )))
             },
         );
+
+        $methods.add_meta_method("__type", |_, _, ()| Ok("Instance"));
+
+        $methods.add_method("IsA", |_, this, class_name: String| {
+            use $crate::types::instance::CloneableInstance;
+            let actual_class = this.base().class_name;
+
+            if actual_class == class_name {
+                return Ok(true);
+            }
+            if class_name == "Instance" {
+                return Ok(true);
+            }
+            if class_name == "BasePart" && (actual_class == "Part" || actual_class == "MeshPart") {
+                return Ok(true);
+            }
+            if class_name == "GuiObject"
+                && (actual_class == "Frame"
+                    || actual_class == "TextLabel"
+                    || actual_class == "TextButton"
+                    || actual_class == "ImageLabel"
+                    || actual_class == "ImageButton")
+            {
+                return Ok(true);
+            }
+
+            Ok(false)
+        });
+
+        $methods.add_meta_method(mlua::MetaMethod::Index, |lua, this, key: mlua::Value| {
+            use $crate::types::instance::CloneableInstance;
+            let class_name = this.base().class_name;
+            let name = this.base().name.clone();
+
+            let key_str = match key {
+                mlua::Value::String(s) => s.to_str()?.to_string(),
+                _ => {
+                    return Err(mlua::Error::runtime(format!(
+                        "Attempt to index {} with non-string key",
+                        class_name
+                    )));
+                }
+            };
+
+            let cache: mlua::Table = lua.named_registry_value("__instance_cache")?;
+            for &handle in &this.base().children_handles {
+                if let Ok(ud) = cache.get::<mlua::AnyUserData>(handle) {
+                    if let Some(child_name) = $crate::types::instance::instance_name_from_any(&ud) {
+                        if child_name == key_str {
+                            return Ok(mlua::Value::UserData(ud));
+                        }
+                    }
+                }
+            }
+
+            Err(mlua::Error::runtime(format!(
+                "{} is not a valid member of {} \"{}\"",
+                key_str, class_name, name
+            )))
+        });
+
+        $methods.add_meta_method(
+            mlua::MetaMethod::NewIndex,
+            |_, this, (key, _value): (mlua::Value, mlua::Value)| -> mlua::Result<()> {
+                use $crate::types::instance::CloneableInstance;
+                let class_name = this.base().class_name;
+                let name = this.base().name.clone();
+
+                let key_str = match key {
+                    mlua::Value::String(s) => s.to_str()?.to_string(),
+                    _ => {
+                        return Err(mlua::Error::runtime(format!(
+                            "Attempt to modify {} with non-string key",
+                            class_name
+                        )));
+                    }
+                };
+
+                Err(mlua::Error::runtime(format!(
+                    "{} is not a valid member of {} \"{}\"",
+                    key_str, class_name, name
+                )))
+            },
+        );
     };
 }
 
