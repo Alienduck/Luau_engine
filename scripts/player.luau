@@ -54,17 +54,40 @@ function player.Start()
 		if key == "Tab" then
 			print(rb_subject.Velocity)
 		end
-		if key == "KeyL" then
+		if key == "Left" then
+			local origin = Camera.CFrame.Position
 			local raycast_params = RaycastParams.new()
+
 			if Camera.FirstPerson then
 				raycast_params.FilterDescendantInstances = { subject }
 				raycast_params.FilterType = Enum.RaycastFilterType.Exclude
 			end
-			local result = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 100, raycast_params)
+
+			local result = workspace:Raycast(origin, Camera.CFrame.LookVector * 100, raycast_params)
 			if not result then
 				return
 			end
-			print(result.Material)
+
+			local dist = (result.Position - origin).Magnitude
+
+			local ray_part = Part.new()
+			ray_part.Parent = workspace
+			ray_part.Size = Vector3.new(0.05, 0.05, dist)
+			ray_part.CFrame = CFrame.lookAt(origin, result.Position) * CFrame.new(0, 0, -dist / 2)
+			ray_part.Color = Color3.new(1, 0, 0)
+
+			local norm_len = 2.0
+			local norm_part = Part.new()
+			norm_part.Parent = workspace
+			norm_part.Size = Vector3.new(0.05, 0.05, norm_len)
+			norm_part.CFrame = CFrame.lookAt(result.Position, result.Position + result.Normal)
+				* CFrame.new(0, 0, -norm_len / 2)
+			norm_part.Color = Color3.new(0, 1, 0)
+
+			task.delay(1, function()
+				ray_part:Destroy()
+				norm_part:Destroy()
+			end)
 		end
 	end)
 
