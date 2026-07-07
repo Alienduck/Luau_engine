@@ -43,9 +43,18 @@ impl LuaModule for RunServiceModule {
 /// Bevy system — fires `RunService.RenderStepped` with the frame delta time.
 ///
 /// Must run every frame, after the engine queue is processed.
-pub fn trigger_run_service(vm: NonSend<LuaVm>, time: Res<Time>) {
+pub fn trigger_run_service(world: &mut World) {
+    let delta = world.resource::<Time>().delta().as_secs_f64();
+    let world_ptr = world as *mut World;
+
+    let vm = world.non_send_resource::<LuaVm>();
     let lua = vm.lua();
+
+    lua.set_app_data(world_ptr);
+
     if let Ok(id) = lua.named_registry_value::<u64>("__rs_render_stepped") {
-        let _ = LuaSignal { id }.fire(lua, time.delta().as_secs_f64());
+        let _ = LuaSignal { id }.fire(lua, delta);
     }
+
+    lua.remove_app_data::<*mut World>();
 }
