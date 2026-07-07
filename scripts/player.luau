@@ -56,9 +56,11 @@ function player.Start()
 		end
 		if key == "KeyL" then
 			local raycast_params = RaycastParams.new()
-			raycast_params.FilterDescendantInstances = { subject }
-			raycast_params.FilterType = Enum.RaycastFilterType.Exclude
-			local result = workspace:Raycast(subject.Position, subject.CFrame.LookVector, raycast_params)
+			if Camera.FirstPerson then
+				raycast_params.FilterDescendantInstances = { subject }
+				raycast_params.FilterType = Enum.RaycastFilterType.Exclude
+			end
+			local result = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 100, raycast_params)
 			if not result then
 				return
 			end
