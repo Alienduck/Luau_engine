@@ -54,6 +54,16 @@ function player.Start()
 		if key == "Tab" then
 			print(rb_subject.Velocity)
 		end
+		if key == "KeyL" then
+			local raycast_params = RaycastParams.new()
+			raycast_params.FilterDescendantInstances = { subject }
+			raycast_params.FilterType = Enum.RaycastFilterType.Exclude
+			local result = workspace:Raycast(subject.Position, subject.CFrame.LookVector, raycast_params)
+			if not result then
+				return
+			end
+			print(result.Material)
+		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(key: string, _: string)
