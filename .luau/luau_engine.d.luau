@@ -73,6 +73,19 @@ export type Tween = {
     Cancel: (self: Tween) -> (),
 }
 
+export type RaycastParams = {
+    FilterDescendantInstances: { Instance },
+    FilterType: number,
+}
+
+export type RaycastResult = {
+    Instance: Instance,
+    Position: Vector3,
+    Distance: number,
+    Material: number,
+    Normal: Vector3
+}
+
 export type Instance = {
     Name: string,
     ClassName: string,
@@ -207,7 +220,9 @@ export type Atmosphere = Instance & {
     Haze: number,
 }
 
-export type Workspace = Instance
+export type Workspace = Instance & {
+    Raycast: (self: Workspace, origin: Vector3, direction: Vector3, params: RaycastParams?) -> RaycastResult?
+}
 
 export type Lighting = Instance & {
     Ambient: Color3,
@@ -267,6 +282,10 @@ declare TweenInfo: {
 
 declare TweenService: {
     Create: (self: any, instance: Instance, info: TweenInfo, properties: { [string]: any }) -> Tween,
+}
+
+declare RaycastParams: {
+    new: () -> RaycastParams
 }
 
 declare task: {
