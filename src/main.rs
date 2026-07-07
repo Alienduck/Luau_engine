@@ -29,7 +29,7 @@ use luau_classes::{
         workspace::{WorkspaceModule, sync_dormancy_system},
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, enums::EnumsModule,
+        cframe::CFrameModule, color3::Color3Module, enums::EnumsModule, raycast::RaycastModule,
         tween_info::TweenInfoModule, udim2::Udim2Module, vector2::Vector2Module,
         vector3::Vector3Module,
     },
@@ -152,6 +152,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Color3Module::name(), Color3Module::register),
         (CFrameModule::name(), CFrameModule::register),
         (TweenInfoModule::name(), TweenInfoModule::register),
+        (RaycastModule::name(), RaycastModule::register),
         (PartModule::name(), PartModule::register),
         (MeshPartModule::name(), MeshPartModule::register),
         (ModelModule::name(), ModelModule::register),
