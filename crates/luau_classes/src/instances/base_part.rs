@@ -1,5 +1,5 @@
 use crate::types::{
-    cframe::LuaCFrame, color3::LuaColor3, enums::PartMaterial, instance::InstanceData,
+    cframe::LuaCFrame, color3::LuaColor3, enums::BasePartMaterial, instance::InstanceData,
     signal::LuaSignal, vector3::LuaVector3,
 };
 use bevy::{
@@ -39,7 +39,7 @@ pub struct BasePartData {
     pub color: LuaColor3,
     /// 0.0 = fully opaque, 1.0 = fully transparent.
     pub transparency: f32,
-    pub material: PartMaterial,
+    pub material: BasePartMaterial,
     pub shadow_caster: bool,
     pub shadow_receiver: bool,
 }
@@ -61,7 +61,7 @@ impl BasePartData {
                 b: 0.8,
             },
             transparency: 0.0,
-            material: PartMaterial::Plastic,
+            material: BasePartMaterial::Plastic,
             shadow_caster: true,
             shadow_receiver: true,
         }
@@ -73,10 +73,10 @@ impl BasePartData {
         }
     }
 
-    pub fn set_material(&mut self, m: PartMaterial) {
+    pub fn set_material(&mut self, m: BasePartMaterial) {
         self.material = m;
         let (r, g, b) = (self.color.r, self.color.g, self.color.b);
-        if m == PartMaterial::Neon {
+        if m == BasePartMaterial::Neon {
             self.base.queue.push(EngineCommand::SetEmissive {
                 handle: self.base.handle,
                 r: r * 10.0,
@@ -136,7 +136,7 @@ impl BasePartData {
             b: c.b,
             alpha,
         });
-        if self.material == PartMaterial::Neon {
+        if self.material == BasePartMaterial::Neon {
             self.base.queue.push(EngineCommand::SetEmissive {
                 handle: self.base.handle,
                 r: c.r * 10.0,

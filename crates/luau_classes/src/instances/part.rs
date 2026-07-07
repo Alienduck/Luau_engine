@@ -2,7 +2,7 @@ use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
     color3::LuaColor3,
-    enums::{LuauPartShape, PartMaterial},
+    enums::{BasePartMaterial, LuauPartShape},
     instance::{CloneableInstance, InstanceData},
     signal::LuaSignal,
     vector3::LuaVector3,
@@ -44,7 +44,7 @@ impl CloneableInstance for LuaPart {
     }
     fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
         self.data.apply_base_components(entity, w);
-        let emissive = if self.data.material == PartMaterial::Neon {
+        let emissive = if self.data.material == BasePartMaterial::Neon {
             LinearRgba::rgb(
                 self.data.color.r * 10.0,
                 self.data.color.g * 10.0,
@@ -138,7 +138,7 @@ impl UserData for LuaPart {
             Ok(())
         });
         fields.add_field_method_set("Material", |_, this, v: String| {
-            this.data.set_material(PartMaterial::from_str(&v));
+            this.data.set_material(BasePartMaterial::from_str(&v));
             Ok(())
         });
         fields.add_field_method_set("Shape", |_, this, v: u8| {
