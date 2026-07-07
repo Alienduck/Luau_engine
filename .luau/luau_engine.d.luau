@@ -23,6 +23,12 @@ type Vector3Meta = {
     __mul: (Vector3, number) -> Vector3,
 }
 
+type CFrameMeta = {
+    __add: (CFrame, CFrame) -> CFrame,
+    __sub: (CFrame, CFrame) -> CFrame,
+    __mul: (CFrame, CFrame) -> CFrame,
+}
+
 export type Vector2 = typeof(setmetatable(
     {} :: { X: number, Y: number },
     {} :: Vector2Meta
@@ -40,20 +46,21 @@ export type Color3 = {
     Lerp: (self: Color3, goal: Color3, alpha: number) -> Color3,
 }
 
-export type CFrame = {
-    Position: Vector3,
-    LookVector: Vector3,
-    RightVector: Vector3,
-    UpVector: Vector3,
-    X: number,
-    Y: number,
-    Z: number,
-    Inverse: (self: CFrame) -> CFrame,
-    Lerp: (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
-    ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
-} & {
-    __mul: (CFrame, CFrame) -> CFrame,
-}
+export type CFrame = typeof(setmetatable(
+    {} :: {
+        Position: Vector3,
+        LookVector: Vector3,
+        RightVector: Vector3,
+        UpVector: Vector3,
+        X: number,
+        Y: number,
+        Z: number,
+        Inverse: (self: CFrame) -> CFrame,
+        Lerp: (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
+        ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
+    },
+    {} :: CFrameMeta
+))
 
 export type UDim2 = {}
 
@@ -291,6 +298,7 @@ declare RaycastParams: {
 declare task: {
     spawn: <T...>(f: (T...) -> (), T...) -> thread,
     defer: <T...>(f: (T...) -> (), T...) -> thread,
+    delay: <T...>(delay: number, f: (T...) -> (), T...) -> thread,
     wait: (time: number?) -> number,
 }
 
