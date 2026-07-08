@@ -123,6 +123,7 @@ pub fn sync_character_controllers(
         &mut KinematicCharacterController,
         Option<&KinematicCharacterControllerOutput>,
         Option<&bevy_rapier3d::prelude::GravityScale>,
+        Option<&bevy_rapier3d::geometry::CollisionGroups>,
     )>,
 ) {
     let fixed_dt = 1.0 / 60.0;
@@ -135,7 +136,9 @@ pub fn sync_character_controllers(
     for (parent, mut ctrl) in controllers.iter_mut() {
         let mut current_v_velocity = ctrl.vertical_velocity;
 
-        if let Ok((mut kcc, kcc_output, gravity_scale)) = parents.get_mut(parent.get()) {
+        if let Ok((mut kcc, kcc_output, gravity_scale, collision_group)) =
+            parents.get_mut(parent.get())
+        {
             let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
             let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
             let applied_gravity = base_gravity * scale;
@@ -147,7 +150,7 @@ pub fn sync_character_controllers(
                     bevy_rapier3d::geometry::Group::NONE,
                 ));
             } else {
-                kcc.filter_groups = None;
+                kcc.filter_groups = collision_group.copied();
                 kcc.filter_flags = bevy_rapier3d::pipeline::QueryFilterFlags::EXCLUDE_SENSORS;
                 if is_grounded {
                     if ctrl.wants_to_jump {
