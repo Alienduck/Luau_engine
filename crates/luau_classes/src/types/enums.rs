@@ -1,6 +1,7 @@
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::Lua;
 use num_enum::FromPrimitive;
+use strum_macros::{AsRefStr, Display, EnumString};
 
 #[derive(bevy::prelude::Component, Clone, Copy, PartialEq)]
 pub enum LuauPartShape {
@@ -50,28 +51,25 @@ pub enum RenderCollisionMode {
     ColliderAABBS,
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
+#[derive(
+    Default,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    FromPrimitive,
+    EnumString,
+    AsRefStr,
+    Display,
+)]
 #[repr(u8)]
 pub enum BasePartMaterial {
     #[default]
     Plastic,
     Neon,
-}
-
-impl BasePartMaterial {
-    pub fn from_str(from: &str) -> Self {
-        match from {
-            "Neon" => Self::Neon,
-            _ => Self::Plastic,
-        }
-    }
-
-    pub fn as_str(self: Self) -> &'static str {
-        match self {
-            Self::Neon => "Neon",
-            _ => "Plastic",
-        }
-    }
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
