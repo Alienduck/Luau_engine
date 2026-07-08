@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
@@ -115,7 +117,9 @@ impl UserData for LuaPart {
                 id: this.data.touched_signal_id,
             })
         });
-        fields.add_field_method_get("Material", |_, this| Ok(this.data.material.as_str()));
+        fields.add_field_method_get("Material", |_, this| {
+            Ok(this.data.material.as_ref().to_string())
+        });
         fields.add_field_method_get("Shape", |_, this| Ok(this.shape));
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.data.set_position(v);
@@ -138,7 +142,8 @@ impl UserData for LuaPart {
             Ok(())
         });
         fields.add_field_method_set("Material", |_, this, v: String| {
-            this.data.set_material(BasePartMaterial::from_str(&v));
+            this.data
+                .set_material(BasePartMaterial::from_str(&v).unwrap_or_default());
             Ok(())
         });
         fields.add_field_method_set("Shape", |_, this, v: u8| {
