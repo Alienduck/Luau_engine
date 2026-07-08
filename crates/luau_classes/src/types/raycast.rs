@@ -18,6 +18,7 @@ use crate::types::{
 pub struct RaycastParams {
     pub filter_descendant_instances: Vec<u64>,
     pub filter_type: RaycastFilterType,
+    pub restpect_collider: bool,
 }
 
 impl mlua::FromLua for RaycastParams {
@@ -57,6 +58,11 @@ impl UserData for RaycastParams {
             this.filter_type = RaycastFilterType::from(v);
             Ok(())
         });
+        fields.add_field_method_get("RespectCollider", |_, this| Ok(this.restpect_collider));
+        fields.add_field_method_set("RespectCollider", |_, this, v: bool| {
+            this.restpect_collider = v;
+            Ok(())
+        });
     }
 }
 
@@ -88,6 +94,31 @@ impl UserData for RaycastResult {
             })
         });
     }
+
+    fn add_methods<M: mlua::prelude::LuaUserDataMethods<Self>>(methods: &mut M) {
+        methods.add_meta_method(
+            mlua::MetaMethod::ToString,
+            |lua, this, ()| -> mlua::Result<String> {
+                let cache = lua.named_registry_value::<mlua::Table>("__instance_cache")?;
+
+                let instance_name = if let Ok(ud) = cache.get::<mlua::AnyUserData>(this.instance) {
+                    crate::types::instance::instance_name_from_any(&ud)
+                        .unwrap_or_else(|| "Unknown".to_string())
+                } else {
+                    "None".to_string()
+                };
+
+                Ok(format!(
+                    "RaycastResult {{\n    Instance: {},\n    Position: {},\n    Distance: {},\n    Material: {},\n    Normal: {}\n}}",
+                    instance_name,
+                    this.position,
+                    this.distance,
+                    this.material.as_ref(),
+                    this.normal
+                ))
+            },
+        );
+    }
 }
 
 pub struct RaycastModule;
@@ -104,6 +135,7 @@ impl LuaModule for RaycastModule {
             Ok(RaycastParams {
                 filter_descendant_instances: Vec::new(),
                 filter_type: RaycastFilterType::Exclude,
+                restpect_collider: true,
             })
         })?;
 
@@ -129,9 +161,11 @@ pub fn workspace_raycast(
 
     let mut entity_filter_list = HashSet::new();
     let mut filter_type = RaycastFilterType::Exclude;
+    let mut respect_collider = true;
 
     if let Some(p) = &params {
         filter_type = p.filter_type.clone();
+        respect_collider = p.restpect_collider;
         let handle_map = world.resource::<HandleMap>();
         let mut stack = Vec::new();
 
@@ -155,6 +189,9 @@ pub fn workspace_raycast(
     };
 
     let mut filter = QueryFilter::new();
+    if respect_collider {
+        filter = filter.exclude_sensors();
+    }
     if params.is_some() {
         filter = filter.predicate(&predicate);
     }
