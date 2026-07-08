@@ -21,6 +21,8 @@ log = "0.4"
 bevy_rapier3d = { version = "0.34.0", features = ["async-collider"] }
 crossbeam-channel = "0.5.15"
 num_enum = "0.7.6"
+strum = "0.28.0"
+strum_macros = "0.28.0"
 
 engine_core = { path = "crates/engine_core" }
 luau_runtime = { path = "crates/luau_runtime" }
