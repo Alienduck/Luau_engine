@@ -14,7 +14,7 @@ function player.Start()
 	subject.Shape = Enum.Shape.Capsule
 
 	PhysicsService:RegisterCollisionGroup("Player")
-	PhysicsService:CollisionGroupSetCollidable("Default", "Player", false)
+	PhysicsService:CollisionGroupSetCollidable("Default", "Player", true)
 	local s_collider = Collider.new()
 	s_collider.Parent = subject
 	s_collider.CollisionGroup = "Player"
