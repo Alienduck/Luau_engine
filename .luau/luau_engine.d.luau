@@ -170,6 +170,7 @@ export type Collider = Instance & {
     Friction: number,
     CanCollide: boolean,
     Restitution: number,
+    CollisionGroup: string
 }
 
 export type Rigidbody = Instance & {
@@ -265,6 +266,11 @@ export type Lighting = Instance & {
     FogStart: number,
 }
 
+export type PhysicsService = Instance & {
+    RegisterCollisionGroup: (self: PhysicsService, name: string) -> (),
+    CollisionGroupSetCollidable: (self: PhysicsService, group1: string, group2: string, collidable: boolean) -> (),
+}
+
 export type RunService = {
     RenderStepped: Signal<number>,
 }
@@ -346,6 +352,7 @@ declare Atmosphere: { new: () -> Atmosphere }
 
 declare workspace: Workspace
 declare Lighting: Lighting
+declare PhysicsService: PhysicsService
 declare Camera: Camera
 declare RunService: RunService
 declare UserInputService: UserInputService
