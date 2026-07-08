@@ -1,7 +1,10 @@
-use bevy::prelude::*;
+use bevy::{platform::collections::HashSet, prelude::*};
 use bevy_rapier3d::prelude::*;
 use luau_runtime::{
-    bridge::{handle::LuauHandle, queue::EngineQueue},
+    bridge::{
+        handle::{HandleMap, LuauHandle},
+        queue::EngineQueue,
+    },
     registry::LuaModule,
 };
 use mlua::{Lua, UserData};
@@ -124,22 +127,31 @@ pub fn workspace_raycast(
         return Ok(None);
     }
 
-    let mut entity_filter_list = Vec::new();
+    let mut entity_filter_list = HashSet::new();
     let mut filter_type = RaycastFilterType::Exclude;
 
     if let Some(p) = &params {
         filter_type = p.filter_type.clone();
-        let mut query = world.query::<(Entity, &LuauHandle)>();
-        for (entity, handle) in query.iter(world) {
-            if p.filter_descendant_instances.contains(&handle.0) {
-                entity_filter_list.push(entity.to_bits());
+        let handle_map = world.resource::<HandleMap>();
+        let mut stack = Vec::new();
+
+        for handle in &p.filter_descendant_instances {
+            if let Some(entity) = handle_map.get_entity(*handle) {
+                stack.push(entity);
+            }
+        }
+
+        while let Some(current_entity) = stack.pop() {
+            entity_filter_list.insert(current_entity);
+            if let Some(children) = world.get::<Children>(current_entity) {
+                stack.extend(children.iter());
             }
         }
     }
 
     let predicate = move |entity: Entity| match filter_type {
-        RaycastFilterType::Exclude => !entity_filter_list.contains(&entity.to_bits()),
-        RaycastFilterType::Include => entity_filter_list.contains(&entity.to_bits()),
+        RaycastFilterType::Exclude => !entity_filter_list.contains(&entity),
+        RaycastFilterType::Include => entity_filter_list.contains(&entity),
     };
 
     let mut filter = QueryFilter::new();
