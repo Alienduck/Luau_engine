@@ -4,7 +4,10 @@ use bevy_rapier3d::{
     render::{DebugRenderContext, DebugRenderMode},
 };
 use crossbeam_channel::{Receiver, Sender};
-use engine_core::components::{LuauAtmosphere, LuauBloom, LuauCharacterController};
+use engine_core::{
+    components::{LuauAtmosphere, LuauBloom, LuauCharacterController},
+    resource::PhysicsCollisionGroups,
+};
 
 /// A single mutation enqueued by a Luau setter.
 ///
@@ -142,6 +145,10 @@ pub enum EngineCommand {
         handle: u64,
         restitution: f32,
     },
+    SetCollisionGroup {
+        handle: u64,
+        group: String,
+    },
     /// `ImageNode` insert an ImageNode
     SetImageNode {
         handle: u64,
@@ -158,6 +165,14 @@ pub enum EngineCommand {
     /// `DirectionalLight` set the directional light global shadows
     SetLightingGlobalShadows {
         enabled: bool,
+    },
+    RegisterCollisionGroup {
+        name: String,
+    },
+    SetCollisionGroupCollidable {
+        group1: String,
+        group2: String,
+        collidable: bool,
     },
     /// `Bloom` set the bloom intensity
     SetBloomIntensity {
@@ -611,6 +626,34 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
+        EngineCommand::SetCollisionGroup { handle, group } => {
+            use bevy_rapier3d::geometry::{CollisionGroups, Group};
+            use engine_core::resource::PhysicsCollisionGroups;
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                let mut group_id = 0;
+                let mut filter_mask = u32::MAX;
+
+                if let Some(mut registry) = world.get_resource_mut::<PhysicsCollisionGroups>() {
+                    if let Some(&id) = registry.groups.get(&group) {
+                        group_id = id;
+                    } else if registry.next_id < 32 {
+                        group_id = registry.next_id;
+                        registry.groups.insert(group.clone(), group_id);
+                        registry.next_id += 1;
+                    }
+                    filter_mask = registry.masks[group_id as usize];
+                }
+
+                let rapier_groups = CollisionGroups::new(
+                    Group::from_bits_truncate(1 << group_id),
+                    Group::from_bits_truncate(filter_mask),
+                );
+
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    em.insert(rapier_groups);
+                }
+            }
+        }
         EngineCommand::SetImageNode { handle, asset_path } => {
             let image_handle = world.resource::<AssetServer>().load(&asset_path);
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
@@ -634,6 +677,52 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
         EngineCommand::SetLightingGlobalShadows { enabled } => {
             if let Ok(mut d) = world.query::<&mut DirectionalLight>().single_mut(world) {
                 d.shadows_enabled = enabled;
+            }
+        }
+        EngineCommand::RegisterCollisionGroup { name } => {
+            if let Some(mut registry) = world.get_resource_mut::<PhysicsCollisionGroups>() {
+                let next_id = registry.next_id;
+                if !registry.groups.contains_key(&name) && registry.next_id < 32 {
+                    registry.groups.insert(name, next_id);
+                    registry.next_id += 1;
+                }
+            }
+        }
+        EngineCommand::SetCollisionGroupCollidable {
+            group1,
+            group2,
+            collidable,
+        } => {
+            let mut id1_opt = None;
+            let mut id2_opt = None;
+            if let Some(registry) = world.get_resource::<PhysicsCollisionGroups>() {
+                id1_opt = registry.groups.get(&group1).copied();
+                id2_opt = registry.groups.get(&group2).copied();
+            }
+            if let (Some(id1), Some(id2)) = (id1_opt, id2_opt) {
+                let masks = {
+                    let mut registry = world.resource_mut::<PhysicsCollisionGroups>();
+                    if collidable {
+                        registry.masks[id1 as usize] |= 1 << id2;
+                        registry.masks[id2 as usize] |= 1 << id1;
+                    } else {
+                        registry.masks[id1 as usize] &= !(1 << id2);
+                        registry.masks[id2 as usize] &= !(1 << id1);
+                    }
+                    registry.masks
+                };
+                let mut query = world.query::<&mut bevy_rapier3d::geometry::CollisionGroups>();
+                for mut cg in query.iter_mut(world) {
+                    let memberships = cg.memberships.bits();
+                    if memberships != 0 {
+                        let group_id = memberships.trailing_zeros();
+                        if group_id < 32 {
+                            cg.filters = bevy_rapier3d::geometry::Group::from_bits_truncate(
+                                masks[group_id as usize],
+                            );
+                        }
+                    }
+                }
             }
         }
         EngineCommand::SetBloomIntensity { handle, intensity } => {
