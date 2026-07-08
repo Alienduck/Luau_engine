@@ -71,10 +71,10 @@ function player.Start()
 			local dist = (result.Position - origin).Magnitude
 
 			local ray_part = Part.new()
-			ray_part.Parent = workspace
 			ray_part.Size = Vector3.new(0.05, 0.05, dist)
 			ray_part.CFrame = CFrame.lookAt(origin, result.Position) * CFrame.new(0, 0, -dist / 2)
 			ray_part.Color = Color3.new(1, 0, 0)
+			ray_part.Parent = workspace
 
 			local norm_len = 2.0
 			local norm_part = Part.new()
