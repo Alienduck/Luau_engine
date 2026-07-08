@@ -6,7 +6,10 @@ use bevy_rapier3d::{
     plugin::{NoUserData, RapierPhysicsPlugin},
     render::{DebugRenderMode, RapierDebugRenderPlugin},
 };
-use engine_core::input::{ActionMap, update_action_states};
+use engine_core::{
+    input::{ActionMap, update_action_states},
+    resource::PhysicsCollisionGroups,
+};
 use luau_classes::{
     debug::collision_render::CollisionRenderModule,
     instances::{
@@ -18,7 +21,7 @@ use luau_classes::{
         part::PartModule,
         physics::{
             character_controller::{CharacterControllerModule, sync_character_controllers},
-            collider::ColliderModule,
+            collider::{ColliderModule, apply_default_collision_groups_system},
             rigidbody::RigidbodyModule,
         },
         ui::{
@@ -47,6 +50,7 @@ use services::{
     lighting::{
         LightingModule, sync_atmosphere_system, sync_post_processing_system, sync_sky_system,
     },
+    physic_service::PhysicsServiceModule,
     run_service::{RunServiceModule, trigger_run_service},
     tween_service::{TweenEngine, TweenServiceModule, process_tweens_system},
     user_input::{UserInputModule, trigger_user_input},
@@ -109,6 +113,7 @@ fn main() {
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(PendingTouches::default())
+        .insert_resource(PhysicsCollisionGroups::default())
         .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
@@ -129,6 +134,7 @@ fn main() {
                 flush_touched_signals,
                 process_engine_queue,
                 base_part::sync_transforms_system,
+                apply_default_collision_groups_system,
                 luau_classes::instances::physics::rigidbody::sync_velocity_rigidbody_system,
                 sync_model_hierarchy_system,
                 trigger_user_input,
@@ -177,6 +183,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
+        (PhysicsServiceModule::name(), PhysicsServiceModule::register),
         (TweenServiceModule::name(), TweenServiceModule::register),
         (EnumsModule::name(), EnumsModule::register),
         (
