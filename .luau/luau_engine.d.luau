@@ -80,9 +80,32 @@ export type Tween = {
     Cancel: (self: Tween) -> (),
 }
 
+--[=[
+    RaycastParams is used for `workspace:Raycast()` set the field to edit Raycast behavior.
+    @param FilterDescendantInstances: *{ Instance }* | **empty array by default**
+    @param FilterType: *Enum.FilterType* | **Exclude by default**
+    @param RespectCollider: *boolean* | **true by default**
+    # Examples
+    ```lua
+    local raycast_params = RaycastParams.new()
+    raycast_params.FilterDescendantInstances = { player_part }
+    raycast_params.FilterType = Enum.FilterType.Exclude
+    raycast_params.FilterTpe = false
+
+    local raycast_result = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector, raycast_params)
+
+    if not raycast_result then return end
+
+    print(raycast_result)
+    ```
+]=]
 export type RaycastParams = {
+    -- Used to know which Instance to aim, empty by default
     FilterDescendantInstances: { Instance },
+    -- Used to know what to do from Instances inside `FilterDescendantInstances`, Exclude by default
     FilterType: number,
+    -- Used to know if only Instances with Colliders are interacting with Raycast, true by default
+    RespectCollider: boolean,
 }
 
 export type RaycastResult = {
@@ -291,6 +314,9 @@ declare TweenService: {
     Create: (self: any, instance: Instance, info: TweenInfo, properties: { [string]: any }) -> Tween,
 }
 
+--[=[
+    - RaycastParams is a class to give parameters for `workspace:Raycast()`
+]=]
 declare RaycastParams: {
     new: () -> RaycastParams
 }
