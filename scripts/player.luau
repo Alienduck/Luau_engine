@@ -67,6 +67,7 @@ function player.Start()
 			if not result then
 				return
 			end
+			print(result)
 
 			local dist = (result.Position - origin).Magnitude
 
