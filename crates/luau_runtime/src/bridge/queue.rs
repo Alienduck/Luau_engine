@@ -737,7 +737,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
 
             if let Some(child) = child_e {
                 if let Ok(mut e_mut) = world.get_entity_mut(child) {
-                    e_mut.remove_parent_in_place();
+                    e_mut.remove::<ChildOf>();
                     e_mut.insert(if parent_e.is_some() {
                         Visibility::Inherited
                     } else {
