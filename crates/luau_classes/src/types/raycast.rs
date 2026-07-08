@@ -19,6 +19,7 @@ pub struct RaycastParams {
     pub filter_descendant_instances: Vec<u64>,
     pub filter_type: RaycastFilterType,
     pub restpect_collider: bool,
+    pub collision_group: String,
 }
 
 impl mlua::FromLua for RaycastParams {
@@ -136,6 +137,7 @@ impl LuaModule for RaycastModule {
                 filter_descendant_instances: Vec::new(),
                 filter_type: RaycastFilterType::Exclude,
                 restpect_collider: true,
+                collision_group: "Default".into(),
             })
         })?;
 
@@ -162,10 +164,20 @@ pub fn workspace_raycast(
     let mut entity_filter_list = HashSet::new();
     let mut filter_type = RaycastFilterType::Exclude;
     let mut respect_collider = true;
+    let mut ray_group_id = 0;
 
     if let Some(p) = &params {
         filter_type = p.filter_type.clone();
         respect_collider = p.restpect_collider;
+
+        if let Some(registry) =
+            world.get_resource::<engine_core::resource::PhysicsCollisionGroups>()
+        {
+            if let Some(&id) = registry.groups.get(&p.collision_group) {
+                ray_group_id = id;
+            }
+        }
+
         let handle_map = world.resource::<HandleMap>();
         let mut stack = Vec::new();
 
@@ -192,6 +204,16 @@ pub fn workspace_raycast(
     if respect_collider {
         filter = filter.exclude_sensors();
     }
+
+    if let Some(registry) = world.get_resource::<engine_core::resource::PhysicsCollisionGroups>() {
+        let filter_mask = registry.masks[ray_group_id as usize];
+        let ray_groups = bevy_rapier3d::geometry::CollisionGroups::new(
+            bevy_rapier3d::geometry::Group::from_bits_truncate(1 << ray_group_id),
+            bevy_rapier3d::geometry::Group::from_bits_truncate(filter_mask),
+        );
+        filter = filter.groups(ray_groups);
+    }
+
     if params.is_some() {
         filter = filter.predicate(&predicate);
     }
