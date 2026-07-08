@@ -13,8 +13,11 @@ function player.Start()
 	subject.Material = Enum.Material.Neon
 	subject.Shape = Enum.Shape.Capsule
 
+	PhysicsService:RegisterCollisionGroup("Player")
+	PhysicsService:CollisionGroupSetCollidable("Default", "Player", false)
 	local s_collider = Collider.new()
 	s_collider.Parent = subject
+	s_collider.CollisionGroup = "Player"
 
 	local rb_subject = Rigidbody.new()
 	rb_subject.Parent = subject
