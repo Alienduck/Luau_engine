@@ -3,7 +3,7 @@ use bevy::{
     render::view::Hdr, window::WindowMode,
 };
 use bevy_rapier3d::{
-    plugin::{NoUserData, RapierPhysicsPlugin},
+    plugin::{NoUserData, RapierPhysicsPlugin, TimestepMode},
     render::{DebugRenderMode, RapierDebugRenderPlugin},
 };
 use engine_core::{
@@ -102,7 +102,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().in_fixed_schedule())
         .add_plugins(SmartCameraPlugin)
         .add_plugins(RapierDebugRenderPlugin {
             mode: DebugRenderMode::COLLIDER_SHAPES,
@@ -114,18 +114,18 @@ fn main() {
         .insert_resource(ActionMap::default())
         .insert_resource(PendingTouches::default())
         .insert_resource(PhysicsCollisionGroups::default())
+        .insert_resource(TimestepMode::Fixed {
+            dt: 1.0 / 64.0,
+            substeps: 1,
+        })
         .insert_resource(cam_cframe)
         .insert_non_send_resource(vm)
         .insert_non_send_resource(scheduler)
         .add_systems(
             PreUpdate,
-            (
-                sync_character_controllers,
-                update_action_states,
-                process_collisions,
-            )
-                .chain(),
+            (update_action_states, process_collisions).chain(),
         )
+        .add_systems(FixedUpdate, sync_character_controllers)
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
