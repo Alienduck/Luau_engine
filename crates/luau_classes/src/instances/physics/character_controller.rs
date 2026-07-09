@@ -7,7 +7,7 @@ use bevy_rapier3d::{
     dynamics::{GravityScale, RigidBody},
     geometry::{CollisionGroups, Group},
     pipeline::QueryFilterFlags,
-    plugin::RapierConfiguration,
+    plugin::{RapierConfiguration, TimestepMode},
 };
 use engine_core::components::LuauCharacterController;
 use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
@@ -120,6 +120,8 @@ impl UserData for LuaCharacterController {
 
 pub fn sync_character_controllers(
     mut commands: Commands,
+    time: Res<Time>,
+    timestep_mode: Res<TimestepMode>,
     rapier_config_query: Query<&RapierConfiguration>,
     mut controllers: Query<(&ChildOf, &mut LuauCharacterController)>,
     mut parents: Query<(
@@ -129,33 +131,35 @@ pub fn sync_character_controllers(
         Option<&CollisionGroups>,
     )>,
 ) {
-    let dt = 1.0 / 60.0;
-    let base_gravity = if let Ok(rapier_config) = rapier_config_query.single() {
-        rapier_config.gravity.y
-    } else {
-        -9.81
+    let base_gravity = rapier_config_query
+        .single()
+        .map(|c| c.gravity.y)
+        .unwrap_or(-9.81);
+
+    let dt = match *timestep_mode {
+        TimestepMode::Variable {
+            max_dt, time_scale, ..
+        } => (time.delta_secs() * time_scale).min(max_dt),
+        TimestepMode::Fixed { dt, .. } => dt,
+        TimestepMode::Interpolated { dt, .. } => dt,
     };
 
     for (parent, mut ctrl) in controllers.iter_mut() {
         let mut current_v_velocity = ctrl.vertical_velocity;
-
         let jump_requested = ctrl.wants_to_jump;
         ctrl.wants_to_jump = false;
-
         if let Ok((mut kcc, kcc_output, gravity_scale, collision_groups)) =
             parents.get_mut(parent.get())
         {
             let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
             let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
             let applied_gravity = base_gravity * scale;
-
             if ctrl.no_clip {
                 current_v_velocity = 0.0;
                 kcc.filter_groups = Some(CollisionGroups::new(Group::NONE, Group::NONE));
             } else {
                 kcc.filter_groups = collision_groups.copied();
                 kcc.filter_flags = QueryFilterFlags::EXCLUDE_SENSORS;
-
                 if is_grounded {
                     if jump_requested {
                         current_v_velocity = ctrl.jump_power;
@@ -164,7 +168,6 @@ pub fn sync_character_controllers(
                     }
                 } else {
                     current_v_velocity += applied_gravity * dt;
-
                     if current_v_velocity > 0.0 {
                         if let Some(out) = kcc_output {
                             if out.desired_translation.y > 0.0
@@ -176,19 +179,16 @@ pub fn sync_character_controllers(
                     }
                 }
             }
-
             ctrl.vertical_velocity = current_v_velocity;
             let mut final_velocity = ctrl.velocity;
-
             if !ctrl.no_clip {
                 final_velocity.y = current_v_velocity;
             }
-
             kcc.translation = Some(final_velocity * dt);
         } else {
             commands.entity(parent.get()).insert((
                 KinematicCharacterController {
-                    snap_to_ground: Some(CharacterLength::Absolute(0.2)),
+                    snap_to_ground: Some(CharacterLength::Absolute(0.05)),
                     offset: CharacterLength::Absolute(0.01),
                     slide: true,
                     max_slope_climb_angle: 45.0_f32.to_radians(),
@@ -200,6 +200,7 @@ pub fn sync_character_controllers(
                         include_dynamic_bodies: true,
                     }),
                     filter_flags: QueryFilterFlags::EXCLUDE_SENSORS,
+                    normal_nudge_factor: 0.01,
                     ..default()
                 },
                 RigidBody::KinematicPositionBased,
