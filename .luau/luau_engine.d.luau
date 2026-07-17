@@ -120,6 +120,7 @@ export type Instance = {
     Name: string,
     ClassName: string,
     Parent: Instance?,
+    Destroying: Signal<>,
     Clone: (self: Instance) -> Instance,
     Destroy: (self: Instance) -> (),
     GetChildren: (self: Instance) -> { Instance },
