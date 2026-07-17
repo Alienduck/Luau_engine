@@ -72,7 +72,6 @@ function module.Start()
 
 			if drop.CFrame.Position.Y < -5 then
 				drop:Destroy()
-				table.remove(rain_drops, i)
 			end
 		end
 	end)
