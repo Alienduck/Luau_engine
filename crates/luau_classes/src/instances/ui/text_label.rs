@@ -89,6 +89,7 @@ impl LuaModule for TextLabelModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
@@ -109,7 +110,7 @@ impl LuaModule for TextLabelModule {
                 });
 
                 let label = LuaTextLabel {
-                    base: InstanceData::new(handle, q.clone(), "TextLabel"),
+                    base: InstanceData::new(handle, q.clone(), "TextLabel", destroying_signal_id),
                     gui: GuiObject::default(),
                     text: "TextLabel".to_string(),
                     text_color: LuaColor3 {

@@ -179,8 +179,14 @@ impl LuaModule for MeshPartModule {
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
                 let touch_signal_id = LuaSignal::new(lua_ctx)?;
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let mesh_part = LuaMeshPart {
-                    base_part_data: BasePartData::new(handle, q.clone(), touch_signal_id.id),
+                    base_part_data: BasePartData::new(
+                        handle,
+                        q.clone(),
+                        touch_signal_id.id,
+                        destroying_signal_id,
+                    ),
                     mesh_id: "".to_string(),
                     collision_fidelity: 0,
                 };

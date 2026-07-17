@@ -104,8 +104,9 @@ impl LuaModule for BloomEffectModule {
             "new",
             lua.create_function(move |lua_cache, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_cache)?.id;
                 let effect = LuaBloomEffect {
-                    base: InstanceData::new(handle, q.clone(), "BloomEffect"),
+                    base: InstanceData::new(handle, q.clone(), "BloomEffect", destroying_signal_id),
                     intensity: 1.0,
                     size: 24.0,
                     threshold: 2.0,

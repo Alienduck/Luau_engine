@@ -96,6 +96,7 @@ impl LuaModule for WorkspaceModule {
 
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let handle = next_handle();
+        let destroying_signal_id = crate::types::signal::LuaSignal::new(lua)?.id;
         let q = queue.clone();
 
         q.push_raw(move |w: &mut World| {
@@ -111,7 +112,7 @@ impl LuaModule for WorkspaceModule {
         });
 
         let ws = LuaWorkspace {
-            base: InstanceData::new(handle, queue.clone(), "Workspace"),
+            base: InstanceData::new(handle, queue.clone(), "Workspace", destroying_signal_id),
         };
         let ud = lua.create_userdata(ws)?;
         lua.named_registry_value::<mlua::Table>("__instance_cache")?

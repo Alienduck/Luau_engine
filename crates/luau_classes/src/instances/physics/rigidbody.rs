@@ -175,8 +175,9 @@ impl LuaModule for RigidbodyModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let rb = LuaRigidbody {
-                    base: InstanceData::new(handle, q.clone(), "Rigidbody"),
+                    base: InstanceData::new(handle, q.clone(), "Rigidbody", destroying_signal_id),
                     anchored: false,
                     gravity_scale: 1.0,
                     mass: 1.0,

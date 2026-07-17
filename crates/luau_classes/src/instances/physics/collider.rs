@@ -3,6 +3,7 @@ use crate::{
     types::{
         enums::LuauPartShape,
         instance::{CloneableInstance, InstanceData},
+        signal::LuaSignal,
         vector3::LuaVector3,
     },
 };
@@ -231,8 +232,9 @@ impl LuaModule for ColliderModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroy_signal_id = LuaSignal::new(lua_ctx)?;
                 let col = LuaCollider {
-                    base: InstanceData::new(handle, q.clone(), "Collider"),
+                    base: InstanceData::new(handle, q.clone(), "Collider", destroy_signal_id.id),
                     size: LuaVector3 {
                         x: 1.0,
                         y: 1.0,

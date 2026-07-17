@@ -63,6 +63,7 @@ impl LuaModule for FrameModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 // TODO: replace with a command impl Scene with new bsn from
                 // Bevy 0.19
                 q.push_raw(move |w: &mut World| {
@@ -79,7 +80,7 @@ impl LuaModule for FrameModule {
                 });
 
                 let frame = LuaFrame {
-                    base: InstanceData::new(handle, q.clone(), "Frame"),
+                    base: InstanceData::new(handle, q.clone(), "Frame", destroying_signal_id),
                     gui: GuiObject::default(),
                 };
                 let ud = lua_ctx.create_userdata(frame)?;

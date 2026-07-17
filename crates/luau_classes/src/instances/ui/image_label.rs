@@ -65,6 +65,7 @@ impl LuaModule for ImageLabelModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn((
@@ -79,7 +80,7 @@ impl LuaModule for ImageLabelModule {
                 });
 
                 let label = LuaImageLabel {
-                    base: InstanceData::new(handle, q.clone(), "ImageLabel"),
+                    base: InstanceData::new(handle, q.clone(), "ImageLabel", destroying_signal_id),
                     gui: GuiObject::default(),
                     image: "".to_string(),
                 };

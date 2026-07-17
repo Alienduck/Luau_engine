@@ -216,8 +216,14 @@ impl luau_runtime::registry::LuaModule for PartModule {
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
                 let touched_signal = LuaSignal::new(lua_ctx)?;
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let part = LuaPart {
-                    data: BasePartData::new(handle, q.clone(), touched_signal.id),
+                    data: BasePartData::new(
+                        handle,
+                        q.clone(),
+                        touched_signal.id,
+                        destroying_signal_id,
+                    ),
                     shape: 0,
                 };
                 let spawn_copy = part.clone();

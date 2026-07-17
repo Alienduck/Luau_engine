@@ -221,8 +221,14 @@ impl luau_runtime::registry::LuaModule for CharacterControllerModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let ctrl = LuaCharacterController {
-                    base: InstanceData::new(handle, q.clone(), "CharacterController"),
+                    base: InstanceData::new(
+                        handle,
+                        q.clone(),
+                        "CharacterController",
+                        destroying_signal_id,
+                    ),
                     move_direction: LuaVector3::default(),
                     walk_speed: 16.0,
                     jump: false,

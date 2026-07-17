@@ -1,4 +1,4 @@
-use crate::types::instance::InstanceData;
+use crate::types::{instance::InstanceData, signal::LuaSignal};
 use luau_runtime::{
     bridge::{handle::next_handle, queue::EngineQueue},
     registry::LuaModule,
@@ -43,11 +43,13 @@ impl LuaModule for CollisionRenderModule {
     }
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let handle = next_handle();
+        let dsi = LuaSignal::new(lua)?.id;
         let render = LuauCollisionRender {
             base: crate::types::instance::InstanceData::new(
                 handle,
                 queue.clone(),
                 "CollisionRender",
+                dsi,
             ),
             enable: false,
             debug_mode: 0,

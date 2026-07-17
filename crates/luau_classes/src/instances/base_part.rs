@@ -45,9 +45,14 @@ pub struct BasePartData {
 }
 
 impl BasePartData {
-    pub fn new(handle: u64, queue: EngineQueue, touched_signal_id: u64) -> Self {
+    pub fn new(
+        handle: u64,
+        queue: EngineQueue,
+        touched_signal_id: u64,
+        destroying_signal_id: u64,
+    ) -> Self {
         Self {
-            base: InstanceData::new(handle, queue, "Part"),
+            base: InstanceData::new(handle, queue, "Part", destroying_signal_id),
             touched_signal_id,
             cframe: LuaCFrame::default(),
             size: LuaVector3 {

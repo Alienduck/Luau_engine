@@ -1,6 +1,7 @@
 use crate::types::{
     color3::LuaColor3,
     instance::{CloneableInstance, InstanceData},
+    signal::LuaSignal,
 };
 use bevy::prelude::*;
 use engine_core::components::LuauAtmosphere;
@@ -142,8 +143,9 @@ impl LuaModule for AtmosphereModule {
             "new",
             lua.create_function(move |lua_cache, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = LuaSignal::new(lua_cache)?.id;
                 let effect = LuaAtmosphere {
-                    base: InstanceData::new(handle, q.clone(), "Atmosphere"),
+                    base: InstanceData::new(handle, q.clone(), "Atmosphere", destroying_signal_id),
                     density: 0.3,
                     color: Color::srgb(0.78, 0.78, 0.78),
                     decay: Color::srgb(0.41, 0.44, 0.49),

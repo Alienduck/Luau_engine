@@ -360,6 +360,7 @@ impl LuaModule for LightingModule {
     }
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let handle = next_handle();
+        let destroying_signal_id = luau_classes::types::signal::LuaSignal::new(lua)?.id;
         let q = queue.clone();
 
         q.push_raw(move |w: &mut World| {
@@ -370,7 +371,7 @@ impl LuaModule for LightingModule {
         });
 
         let lighting = LuaLighting {
-            base: InstanceData::new(handle, queue.clone(), "Lighting"),
+            base: InstanceData::new(handle, queue.clone(), "Lighting", destroying_signal_id),
             ambient: LuaColor3 {
                 r: 1.0,
                 g: 1.0,
