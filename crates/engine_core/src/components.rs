@@ -21,6 +21,7 @@ pub struct LuauAtmosphere {
 #[derive(Component, Default)]
 pub struct LuauCharacterController {
     pub velocity: Vec3,
+    pub walk_speed: f32,
     pub vertical_velocity: f32,
     pub jump_power: f32,
     pub wants_to_jump: bool,
