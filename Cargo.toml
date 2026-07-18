@@ -15,10 +15,10 @@ license = "MIT"
 authors = ["Alienudck"]
 
 [workspace.dependencies]
-bevy = { version = "0.18.1", features = ["jpeg"] }
+bevy = { version = "0.19", features = ["jpeg"] }
 mlua = { version = "0.11.6", features = ["luau"] }
 log = "0.4"
-bevy_rapier3d = { version = "0.34.0", features = ["async-collider"] }
+avian3d = { version = "0.7" }
 crossbeam-channel = "0.5.15"
 num_enum = "0.7.6"
 strum = "0.28.0"
@@ -46,5 +46,5 @@ services = { workspace = true }
 bevy = { workspace = true }
 mlua = { workspace = true }
 log = { workspace = true }
-bevy_rapier3d = { workspace = true }
+avian3d = { workspace = true }
 crossbeam-channel = { workspace = true }
