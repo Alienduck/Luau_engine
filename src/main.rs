@@ -1,10 +1,7 @@
+use avian3d::prelude::*;
 use bevy::{
-    core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
-    render::view::Hdr, window::WindowMode,
-};
-use bevy_rapier3d::{
-    plugin::{NoUserData, RapierPhysicsPlugin, TimestepMode},
-    render::{DebugRenderMode, RapierDebugRenderPlugin},
+    camera::Hdr, core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
+    window::WindowMode,
 };
 use engine_core::{
     input::{ActionMap, update_action_states},
@@ -102,25 +99,16 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default().in_fixed_schedule())
+        .add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default()))
         .add_plugins(SmartCameraPlugin)
-        .add_plugins(RapierDebugRenderPlugin {
-            mode: DebugRenderMode::COLLIDER_SHAPES,
-            enabled: false,
-            ..default()
-        })
         .insert_resource(EngineQueueResource(rx))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(PendingTouches::default())
         .insert_resource(PhysicsCollisionGroups::default())
-        .insert_resource(TimestepMode::Fixed {
-            dt: 1.0 / 64.0,
-            substeps: 1,
-        })
         .insert_resource(cam_cframe)
-        .insert_non_send_resource(vm)
-        .insert_non_send_resource(scheduler)
+        .insert_non_send(vm)
+        .insert_non_send(scheduler)
         .add_systems(
             PreUpdate,
             (update_action_states, process_collisions).chain(),
@@ -211,7 +199,7 @@ fn setup_scene(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
             illuminance: 10_000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
