@@ -9,7 +9,7 @@ mlua = { workspace = true }
 luau_runtime = { workspace = true }
 log = { workspace = true }
 engine_core = { workspace = true }
-bevy_rapier3d = { workspace = true }
+avian3d = { workspace = true }
 num_enum = { workspace = true }
 strum = { workspace = true}
 strum_macros = { workspace = true}
