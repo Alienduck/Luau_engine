@@ -80,7 +80,7 @@ pub fn trigger_user_input(world: &mut World) {
     }
 
     let world_ptr = world as *mut World;
-    let vm = world.non_send_resource::<LuaVm>();
+    let vm = world.non_send::<LuaVm>();
     let lua = vm.lua();
 
     lua.set_app_data(world_ptr);

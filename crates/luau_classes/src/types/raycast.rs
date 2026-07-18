@@ -1,5 +1,4 @@
 use bevy::{platform::collections::HashSet, prelude::*};
-use bevy_rapier3d::prelude::*;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, LuauHandle},
@@ -155,21 +154,20 @@ pub fn workspace_raycast(
     direction: Vec3,
     params: Option<RaycastParams>,
 ) -> mlua::Result<Option<RaycastResult>> {
+    let Ok(dir) = Dir3::new(direction) else {
+        return Err(mlua::Error::runtime(format!(
+            "Failed to parse Vec3 into Dir3, the giving Vector was probably on a null direction"
+        )));
+    };
     let max_toi = direction.length();
-    let dir = direction.normalize_or_zero();
-    if dir == Vec3::ZERO {
-        return Ok(None);
-    }
-
     let mut entity_filter_list = HashSet::new();
     let mut filter_type = RaycastFilterType::Exclude;
     let mut respect_collider = true;
     let mut ray_group_id = 0;
-
+    let has_params = params.is_some();
     if let Some(p) = &params {
         filter_type = p.filter_type.clone();
         respect_collider = p.restpect_collider;
-
         if let Some(registry) =
             world.get_resource::<engine_core::resource::PhysicsCollisionGroups>()
         {
@@ -177,16 +175,13 @@ pub fn workspace_raycast(
                 ray_group_id = id;
             }
         }
-
         let handle_map = world.resource::<HandleMap>();
         let mut stack = Vec::new();
-
         for handle in &p.filter_descendant_instances {
             if let Some(entity) = handle_map.get_entity(*handle) {
                 stack.push(entity);
             }
         }
-
         while let Some(current_entity) = stack.pop() {
             entity_filter_list.insert(current_entity);
             if let Some(children) = world.get::<Children>(current_entity) {
@@ -194,47 +189,36 @@ pub fn workspace_raycast(
             }
         }
     }
-
-    let predicate = move |entity: Entity| match filter_type {
-        RaycastFilterType::Exclude => !entity_filter_list.contains(&entity),
-        RaycastFilterType::Include => entity_filter_list.contains(&entity),
-    };
-
-    let mut filter = QueryFilter::new();
-    if respect_collider {
-        filter = filter.exclude_sensors();
-    }
-
+    let mut query_filter = avian3d::prelude::SpatialQueryFilter::default();
     if let Some(registry) = world.get_resource::<engine_core::resource::PhysicsCollisionGroups>() {
-        let filter_mask = registry.masks[ray_group_id as usize];
-        let ray_groups = bevy_rapier3d::geometry::CollisionGroups::new(
-            bevy_rapier3d::geometry::Group::from_bits_truncate(1 << ray_group_id),
-            bevy_rapier3d::geometry::Group::from_bits_truncate(filter_mask),
-        );
-        filter = filter.groups(ray_groups);
+        query_filter = query_filter.with_mask(registry.masks[ray_group_id as usize]);
     }
-
-    if params.is_some() {
-        filter = filter.predicate(&predicate);
-    }
-
-    let intersection_result = {
-        let mut query = world.query::<RapierContext>();
-        let rapier_context_item = query
-            .single(world)
-            .map_err(|_| mlua::Error::runtime("RapierContext missing"))?;
-
-        let rapier_context = RapierContext {
-            simulation: rapier_context_item.simulation,
-            colliders: rapier_context_item.colliders,
-            joints: rapier_context_item.joints,
-            rigidbody_set: rapier_context_item.rigidbody_set,
-        };
-
-        rapier_context.cast_ray_and_get_normal(origin, dir, max_toi, true, filter)
+    let mut state = bevy::ecs::system::SystemState::<(
+        avian3d::prelude::SpatialQuery,
+        Query<(), With<avian3d::prelude::Sensor>>,
+    )>::new(world);
+    let Ok((spatial_query, sensors)) = state.get(world) else {
+        return Err(mlua::Error::runtime(format!(
+            "Failed to get spatial query state"
+        )));
     };
-
-    Ok(intersection_result.map(|(entity, intersection)| {
+    let predicate = |entity: Entity| -> bool {
+        if respect_collider && sensors.contains(entity) {
+            return false;
+        }
+        if has_params {
+            match filter_type {
+                RaycastFilterType::Exclude => !entity_filter_list.contains(&entity),
+                RaycastFilterType::Include => entity_filter_list.contains(&entity),
+            }
+        } else {
+            true
+        }
+    };
+    let hit =
+        spatial_query.cast_ray_predicate(origin, dir, max_toi, true, &query_filter, &predicate);
+    Ok(hit.map(|intersection| {
+        let entity = intersection.entity;
         let handle = world.get::<LuauHandle>(entity).map_or(0, |h| h.0);
         let mut material = BasePartMaterial::Plastic;
         if handle != 0 {
@@ -252,8 +236,8 @@ pub fn workspace_raycast(
         }
         RaycastResult {
             instance: handle,
-            position: intersection.point,
-            distance: intersection.time_of_impact,
+            position: origin + dir * intersection.distance,
+            distance: intersection.distance,
             material,
             normal: intersection.normal,
         }

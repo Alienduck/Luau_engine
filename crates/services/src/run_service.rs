@@ -47,7 +47,7 @@ pub fn trigger_run_service(world: &mut World) {
     let delta = world.resource::<Time>().delta().as_secs_f64();
     let world_ptr = world as *mut World;
 
-    let vm = world.non_send_resource::<LuaVm>();
+    let vm = world.non_send::<LuaVm>();
     let lua = vm.lua();
 
     lua.set_app_data(world_ptr);

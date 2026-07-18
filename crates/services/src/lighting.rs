@@ -146,13 +146,13 @@ pub fn sync_sky_system(
             let handle: Handle<Image> = asset_server.load(&sky.cubemap_path);
             if opt_skybox.is_none() {
                 commands.entity(cam_entity).insert(Skybox {
-                    image: handle.clone(),
+                    image: Some(handle.clone()),
                     brightness: 1000.0,
                     ..default()
                 });
             } else if let Some(mut s) = opt_skybox {
-                if s.image != handle {
-                    s.image = handle.clone();
+                if s.image != Some(handle.clone()) {
+                    s.image = Some(handle.clone());
                 }
             }
 

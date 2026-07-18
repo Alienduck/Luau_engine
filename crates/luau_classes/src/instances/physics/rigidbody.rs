@@ -1,5 +1,5 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::dynamics::Velocity;
 use luau_runtime::{
     bridge::{
         handle::{LuauHandle, next_handle},
@@ -63,7 +63,7 @@ impl UserData for LuaRigidbody {
 
             if let Some(old_h) = old_handle {
                 this.base.queue.push_raw(move |w: &mut World| {
-                    use bevy_rapier3d::dynamics::RigidBody;
+                    use avian3d::prelude::RigidBody;
                     use luau_runtime::bridge::handle::HandleMap;
                     if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
                         if let Ok(mut em) = w.get_entity_mut(e) {
@@ -204,7 +204,7 @@ impl LuaModule for RigidbodyModule {
 
 pub fn sync_velocity_rigidbody_system(
     vm: NonSend<luau_runtime::vm::LuaVm>,
-    query: Query<(&LuauHandle, &Velocity), Changed<Velocity>>,
+    query: Query<(&LuauHandle, &LinearVelocity, &AngularVelocity), Changed<LinearVelocity>>,
 ) {
     let Ok(cache) = vm
         .lua
@@ -213,7 +213,7 @@ pub fn sync_velocity_rigidbody_system(
         return;
     };
 
-    for (part_handle, velocity) in query.iter() {
+    for (part_handle, velocity, angular_velocity) in query.iter() {
         if let Ok(part_ud) = cache.get::<mlua::AnyUserData>(part_handle.0) {
             let children_handles: Vec<u64> = match part_ud.call_method("__get_children", ()) {
                 Ok(handles) => handles,
@@ -223,8 +223,8 @@ pub fn sync_velocity_rigidbody_system(
             for child_handle in children_handles {
                 if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
                     if let Ok(mut rb) = child_ud.borrow_mut::<LuaRigidbody>() {
-                        rb.velocity = velocity.linear;
-                        rb.angular_velocity = velocity.angular;
+                        rb.velocity = velocity.0;
+                        rb.angular_velocity = angular_velocity.0;
                         break;
                     }
                 }

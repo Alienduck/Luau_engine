@@ -1,14 +1,5 @@
+use avian3d::prelude::*;
 use bevy::{ecs::relationship::Relationship, prelude::*};
-use bevy_rapier3d::{
-    control::{
-        CharacterAutostep, CharacterLength, KinematicCharacterController,
-        KinematicCharacterControllerOutput,
-    },
-    dynamics::{GravityScale, RigidBody},
-    geometry::{CollisionGroups, Group},
-    pipeline::QueryFilterFlags,
-    plugin::{RapierConfiguration, TimestepMode},
-};
 use engine_core::components::LuauCharacterController;
 use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
 use mlua::{Lua, UserData};
@@ -121,91 +112,91 @@ impl UserData for LuaCharacterController {
 pub fn sync_character_controllers(
     mut commands: Commands,
     time: Res<Time>,
-    timestep_mode: Res<TimestepMode>,
-    rapier_config_query: Query<&RapierConfiguration>,
+    gravity: Res<avian3d::prelude::Gravity>,
+    spatial_query: avian3d::prelude::SpatialQuery,
     mut controllers: Query<(&ChildOf, &mut LuauCharacterController)>,
     mut parents: Query<(
-        &mut KinematicCharacterController,
-        Option<&KinematicCharacterControllerOutput>,
-        Option<&GravityScale>,
-        Option<&CollisionGroups>,
+        Entity,
+        Option<&mut avian3d::prelude::LinearVelocity>,
+        Option<&avian3d::prelude::GravityScale>,
+        Option<&avian3d::prelude::CollisionLayers>,
+        Option<&avian3d::prelude::Collider>,
+        Option<&bevy::prelude::GlobalTransform>,
     )>,
 ) {
-    let base_gravity = rapier_config_query
-        .single()
-        .map(|c| c.gravity.y)
-        .unwrap_or(-9.81);
-
-    let dt = match *timestep_mode {
-        TimestepMode::Variable {
-            max_dt, time_scale, ..
-        } => (time.delta_secs() * time_scale).min(max_dt),
-        TimestepMode::Fixed { dt, .. } => dt,
-        TimestepMode::Interpolated { dt, .. } => dt,
-    };
-
+    let base_gravity = gravity.0.y;
+    let dt = time.delta_secs();
     for (parent, mut ctrl) in controllers.iter_mut() {
+        let parent_entity = parent.get();
+        let Ok((_, vel_opt, gravity_scale, collision_layers, collider, transform)) =
+            parents.get_mut(parent_entity)
+        else {
+            continue;
+        };
+        let Some(mut velocity) = vel_opt else {
+            commands.entity(parent_entity).insert((
+                avian3d::prelude::RigidBody::Dynamic,
+                avian3d::prelude::LockedAxes::ROTATION_LOCKED,
+                avian3d::prelude::LinearVelocity::ZERO,
+                avian3d::prelude::Friction::new(0.0)
+                    .with_combine_rule(avian3d::prelude::CoefficientCombine::Min),
+                avian3d::prelude::GravityScale(0.0),
+            ));
+            continue;
+        };
         let mut current_v_velocity = ctrl.vertical_velocity;
         let jump_requested = ctrl.wants_to_jump;
         ctrl.wants_to_jump = false;
-        if let Ok((mut kcc, kcc_output, gravity_scale, collision_groups)) =
-            parents.get_mut(parent.get())
-        {
-            let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
-            let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
-            let applied_gravity = base_gravity * scale;
-            if ctrl.no_clip {
-                current_v_velocity = 0.0;
-                kcc.filter_groups = Some(CollisionGroups::new(Group::NONE, Group::NONE));
-            } else {
-                kcc.filter_groups = collision_groups.copied();
-                kcc.filter_flags = QueryFilterFlags::EXCLUDE_SENSORS;
-                if is_grounded {
-                    if jump_requested {
-                        current_v_velocity = ctrl.jump_power;
-                    } else if current_v_velocity < 0.0 {
-                        current_v_velocity = -0.1;
-                    }
-                } else {
-                    current_v_velocity += applied_gravity * dt;
-                    if current_v_velocity > 0.0 {
-                        if let Some(out) = kcc_output {
-                            if out.desired_translation.y > 0.0
-                                && out.effective_translation.y <= 0.001
-                            {
-                                current_v_velocity = 0.0;
-                            }
-                        }
-                    }
+        let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
+        let applied_gravity = base_gravity * scale;
+        if ctrl.no_clip {
+            current_v_velocity = 0.0;
+            commands
+                .entity(parent_entity)
+                .insert(avian3d::prelude::Sensor);
+            velocity.0 = ctrl.velocity;
+        } else {
+            commands
+                .entity(parent_entity)
+                .remove::<avian3d::prelude::Sensor>();
+            let mut is_grounded = false;
+            if let (Some(coll), Some(tf)) = (collider, transform) {
+                let aabb = coll.aabb(bevy::math::Vec3::ZERO, bevy::math::Quat::IDENTITY);
+                let mut filter =
+                    avian3d::prelude::SpatialQueryFilter::from_excluded_entities([parent_entity]);
+                if let Some(layers) = collision_layers {
+                    filter = filter.with_mask(layers.filters);
+                }
+                if spatial_query
+                    .cast_ray(
+                        tf.translation(),
+                        bevy::math::Dir3::NEG_Y,
+                        aabb.max.y + 0.1,
+                        true,
+                        &filter,
+                    )
+                    .is_some()
+                {
+                    is_grounded = true;
                 }
             }
-            ctrl.vertical_velocity = current_v_velocity;
-            let mut final_velocity = ctrl.velocity;
-            if !ctrl.no_clip {
-                final_velocity.y = current_v_velocity;
+            if is_grounded {
+                if jump_requested {
+                    current_v_velocity = ctrl.jump_power;
+                } else if current_v_velocity < 0.0 {
+                    current_v_velocity = -0.1;
+                }
+            } else {
+                current_v_velocity += applied_gravity * dt;
+                if current_v_velocity > 0.0 && velocity.y <= 0.001 {
+                    current_v_velocity = 0.0;
+                }
             }
-            kcc.translation = Some(final_velocity * dt);
-        } else {
-            commands.entity(parent.get()).insert((
-                KinematicCharacterController {
-                    snap_to_ground: Some(CharacterLength::Absolute(0.05)),
-                    offset: CharacterLength::Absolute(0.01),
-                    slide: true,
-                    max_slope_climb_angle: 45.0_f32.to_radians(),
-                    min_slope_slide_angle: 45.0_f32.to_radians(),
-                    apply_impulse_to_dynamic_bodies: true,
-                    autostep: Some(CharacterAutostep {
-                        max_height: CharacterLength::Absolute(0.5),
-                        min_width: CharacterLength::Absolute(0.2),
-                        include_dynamic_bodies: true,
-                    }),
-                    filter_flags: QueryFilterFlags::EXCLUDE_SENSORS,
-                    normal_nudge_factor: 0.01,
-                    ..default()
-                },
-                RigidBody::KinematicPositionBased,
-            ));
+            velocity.x = ctrl.velocity.x;
+            velocity.z = ctrl.velocity.z;
+            velocity.y = current_v_velocity;
         }
+        ctrl.vertical_velocity = current_v_velocity;
     }
 }
 

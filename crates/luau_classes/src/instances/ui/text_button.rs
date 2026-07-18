@@ -158,7 +158,7 @@ impl LuaModule for TextButtonModule {
                             BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 1.0)),
                             Text::new("Button"),
                             TextFont {
-                                font_size: 14.0,
+                                font_size: FontSize::Px(14.0),
                                 ..default()
                             },
                             TextColor(Color::srgb(0.0, 0.0, 0.0)),

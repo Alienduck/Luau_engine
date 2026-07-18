@@ -4,7 +4,7 @@ use crate::types::instance::{CloneableInstance, InstanceData};
 use crate::types::signal::LuaSignal;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
-use bevy::scene::{SceneInstance, SceneSpawner};
+use bevy::world_serialization::WorldInstance;
 use luau_runtime::vm::LuaVm;
 use luau_runtime::{
     bridge::{
@@ -144,9 +144,10 @@ impl LuaModule for ModelModule {
                     let entity = spawn_copy.base().spawn_base_entity(w);
                     spawn_copy.apply_bevy_components(entity, w);
 
-                    let handle_scene: Handle<Scene> = w.resource::<AssetServer>().load(&asset_path);
+                    let handle_scene: Handle<WorldAsset> =
+                        w.resource::<AssetServer>().load(&asset_path);
                     w.entity_mut(entity).insert((
-                        SceneRoot(handle_scene),
+                        WorldAssetRoot(handle_scene),
                         PendingModelScene {
                             loaded_signal_id: spawn_copy.loaded_signal_id,
                             queue: q_for_comp,
@@ -170,8 +171,8 @@ impl LuaModule for ModelModule {
 pub fn sync_model_hierarchy_system(
     mut commands: Commands,
     vm: NonSend<LuaVm>,
-    query: Query<(Entity, &LuauHandle, &SceneInstance, &PendingModelScene)>,
-    scene_spawner: Res<SceneSpawner>,
+    query: Query<(Entity, &LuauHandle, &WorldInstance, &PendingModelScene)>,
+    scene_spawner: Res<WorldInstanceSpawner>,
     name_query: Query<&Name>,
     mesh_query: Query<(), With<Mesh3d>>,
     parent_query: Query<&ChildOf>,

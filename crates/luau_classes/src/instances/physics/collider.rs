@@ -7,8 +7,8 @@ use crate::{
         vector3::LuaVector3,
     },
 };
+use avian3d::prelude::*;
 use bevy::{ecs::relationship::Relationship, prelude::*};
-use bevy_rapier3d::prelude::*;
 use engine_core::resource::PhysicsCollisionGroups;
 use luau_runtime::{
     bridge::{
@@ -77,13 +77,13 @@ impl UserData for LuaCollider {
                         if let Ok(mut em) = w.get_entity_mut(e) {
                             em.remove::<(
                                 Collider,
-                                ActiveEvents,
-                                AsyncSceneCollider,
-                                Ccd,
+                                CollisionEventsEnabled,
+                                ColliderConstructorHierarchy,
+                                SweptCcd,
                                 Sensor,
                                 Friction,
                                 Restitution,
-                                CollisionGroups,
+                                CollisionLayers,
                             )>();
                         }
                     }
@@ -92,40 +92,40 @@ impl UserData for LuaCollider {
                     if let Some(e) = w.resource::<HandleMap>().get_entity(new_h) {
                         if let Ok(mut em) = w.get_entity_mut(e) {
                             em.insert((
-                                Ccd::enabled(),
-                                ActiveEvents::COLLISION_EVENTS,
+                                SweptCcd::default(),
+                                CollisionEventsEnabled,
                                 Friction::new(friction),
-                                Restitution::coefficient(restitution),
+                                Restitution::new(restitution),
                             ));
-
                             if !can_collide {
                                 em.insert(Sensor);
                             } else {
                                 em.remove::<Sensor>();
                             }
-
                             if let Some(fidelity) = em.get::<LuauCollisionFidelity>() {
                                 match fidelity {
                                     LuauCollisionFidelity::Hull => {
-                                        em.insert(AsyncSceneCollider {
-                                            shape: Some(ComputedColliderShape::ConvexHull),
+                                        em.insert(ColliderConstructorHierarchy {
+                                            default_constructor: Some(
+                                                ColliderConstructor::ConvexHullFromMesh,
+                                            ),
                                             ..default()
                                         });
                                     }
                                     LuauCollisionFidelity::Precise => {
-                                        em.insert(AsyncSceneCollider {
-                                            shape: Some(ComputedColliderShape::TriMesh(
-                                                TriMeshFlags::default(),
-                                            )),
+                                        em.insert(ColliderConstructorHierarchy {
+                                            default_constructor: Some(
+                                                ColliderConstructor::TrimeshFromMeshWithConfig(
+                                                    TrimeshFlags::all(),
+                                                ),
+                                            ),
                                             ..default()
                                         });
                                     }
                                     LuauCollisionFidelity::Default => {
-                                        em.insert(AsyncSceneCollider {
-                                            shape: Some(
-                                                ComputedColliderShape::ConvexDecomposition(
-                                                    VHACDParameters::default(),
-                                                ),
+                                        em.insert(ColliderConstructorHierarchy {
+                                            default_constructor: Some(
+                                                ColliderConstructor::TrimeshFromMesh,
                                             ),
                                             ..default()
                                         });
@@ -136,10 +136,10 @@ impl UserData for LuaCollider {
                                 }
                             } else if let Some(shape) = em.get::<LuauPartShape>() {
                                 em.insert(match shape {
-                                    LuauPartShape::Ball => Collider::ball(hx.max(hy).max(hz)),
+                                    LuauPartShape::Ball => Collider::sphere(hx.max(hy).max(hz)),
                                     LuauPartShape::Cylinder => Collider::cylinder(hy, hx.max(hz)),
                                     LuauPartShape::Block => Collider::cuboid(hx, hy, hz),
-                                    LuauPartShape::Capsule => Collider::capsule_y(hy, hx.max(hz)),
+                                    LuauPartShape::Capsule => Collider::capsule(hy, hx.max(hz)),
                                 });
                             } else {
                                 em.insert(Collider::cuboid(hx, hy, hz));
@@ -263,20 +263,21 @@ impl LuaModule for ColliderModule {
 
 pub fn apply_default_collision_groups_system(
     mut commands: Commands,
-    query: Query<(Entity, Option<&ChildOf>), (With<Collider>, Without<CollisionGroups>)>,
+    query: Query<(Entity, Option<&ChildOf>), (With<Collider>, Without<CollisionLayers>)>,
     parent_query: Query<&ChildOf>,
-    group_query: Query<&CollisionGroups>,
+    group_query: Query<&CollisionLayers>,
     registry: Res<PhysicsCollisionGroups>,
 ) {
     if query.is_empty() {
         return;
     }
 
-    let default_mask = registry.masks[0];
-    let default_groups = CollisionGroups::new(
-        Group::from_bits_truncate(1),
-        Group::from_bits_truncate(default_mask),
-    );
+    let default_layer = registry.masks[0];
+    let mut members = LayerMask::NONE;
+    members.add(1);
+    let mut filters = LayerMask::NONE;
+    filters.add(default_layer);
+    let default_groups = CollisionLayers::new(members, default_layer);
 
     for (entity, opt_parent) in query.iter() {
         let mut applied_groups = default_groups;

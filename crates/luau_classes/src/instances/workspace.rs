@@ -3,8 +3,8 @@ use crate::types::{
     raycast::{RaycastParams, workspace_raycast},
     vector3::LuaVector3,
 };
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{ColliderDisabled, RigidBodyDisabled};
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, LuauHandle, next_handle},

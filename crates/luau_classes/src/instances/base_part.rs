@@ -185,7 +185,7 @@ pub struct PendingTouches(pub Vec<(u64, u64)>);
 /// Reads Rapier [`CollisionEvent::Started`] messages and place it in `PendingTouches`
 /// `Touched` signal on both involved parts.
 pub fn process_collisions(
-    mut rapier_msg: MessageReader<bevy_rapier3d::pipeline::CollisionEvent>,
+    mut collision_msg: MessageReader<avian3d::collision::collision_events::CollisionStart>,
     handle_query: Query<(
         &luau_runtime::bridge::handle::LuauHandle,
         Option<&TouchedSignalComponent>,
@@ -193,31 +193,23 @@ pub fn process_collisions(
     parent_query: Query<&ChildOf>,
     mut pending: ResMut<PendingTouches>,
 ) {
-    let get_instance_data = |mut entity: bevy::prelude::Entity| -> Option<(u64, Option<u64>)> {
+    let get_data = |mut entity: bevy::prelude::Entity| -> Option<(u64, Option<u64>)> {
         loop {
-            if let Ok((handle, signal_comp)) = handle_query.get(entity) {
-                return Some((handle.0, signal_comp.map(|s| s.0)));
+            if let Ok((h, s)) = handle_query.get(entity) {
+                return Some((h.0, s.map(|sig| sig.0)));
             }
-            if let Ok(parent) = parent_query.get(entity) {
-                entity = parent.get();
-            } else {
-                return None;
-            }
+            entity = parent_query.get(entity).ok()?.get();
         }
     };
-    for msg in rapier_msg.read() {
-        let bevy_rapier3d::pipeline::CollisionEvent::Started(e1, e2, _) = msg else {
-            continue;
-        };
-        for (self_e, other_e) in [(e1, e2), (e2, e1)] {
-            let Some((_, signal_id)) = get_instance_data(*self_e) else {
-                continue;
-            };
-            let Some((handle_other, _)) = get_instance_data(*other_e) else {
-                continue;
-            };
-            if let Some(id) = signal_id {
-                pending.0.push((id, handle_other));
+    for msg in collision_msg.read() {
+        for (self_e, other_e) in [
+            (msg.collider1, msg.collider2),
+            (msg.collider2, msg.collider1),
+        ] {
+            if let Some((_, Some(signal_id))) = get_data(self_e) {
+                if let Some((handle_other, _)) = get_data(other_e) {
+                    pending.0.push((signal_id, handle_other));
+                }
             }
         }
     }
