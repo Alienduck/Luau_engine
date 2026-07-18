@@ -23,6 +23,8 @@ crossbeam-channel = "0.5.15"
 num_enum = "0.7.6"
 strum = "0.28.0"
 strum_macros = "0.28.0"
+bevy-tnua = { version = "0.32" }
+bevy-tnua-avian3d = { version = "0.12" }
 
 engine_core = { path = "crates/engine_core" }
 luau_runtime = { path = "crates/luau_runtime" }
@@ -48,3 +50,5 @@ mlua = { workspace = true }
 log = { workspace = true }
 avian3d = { workspace = true }
 crossbeam-channel = { workspace = true }
+bevy-tnua = { workspace = true }
+bevy-tnua-avian3d = { workspace = true }
