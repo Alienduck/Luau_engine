@@ -508,7 +508,9 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             dynamic,
             gravity_scale,
         } => {
-            use avian3d::prelude::{GravityScale, LinearVelocity, RigidBody, Sleeping};
+            use avian3d::prelude::{
+                Collider, GravityScale, LinearVelocity, MassPropertiesBundle, RigidBody, Sleeping,
+            };
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
                     em.insert(if dynamic {
@@ -518,7 +520,12 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     })
                     .insert(GravityScale(gravity_scale))
                     .insert(LinearVelocity::default());
-
+                    if dynamic && !em.contains::<Mass>() {
+                        em.insert(MassPropertiesBundle::from_shape(
+                            &Collider::sphere(0.5),
+                            1.0,
+                        ));
+                    }
                     if let Some(_) = em.get::<Sleeping>() {
                         em.remove::<Sleeping>();
                     }
