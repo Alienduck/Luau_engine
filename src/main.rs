@@ -3,6 +3,8 @@ use bevy::{
     camera::Hdr, core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
     window::WindowMode,
 };
+use bevy_tnua::prelude::*;
+use bevy_tnua_avian3d::prelude::*;
 use engine_core::{
     input::{ActionMap, update_action_states},
     resource::PhysicsCollisionGroups,
@@ -100,6 +102,12 @@ fn main() {
             ..default()
         }))
         .add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default()))
+        .add_plugins((
+            TnuaControllerPlugin::<
+                luau_classes::instances::physics::character_controller::CharacterControllerScheme,
+            >::new(FixedUpdate),
+            TnuaAvian3dPlugin::new(FixedUpdate),
+        ))
         .add_plugins(SmartCameraPlugin)
         .insert_resource(EngineQueueResource(rx))
         .insert_resource(HandleMap::default())
@@ -113,7 +121,10 @@ fn main() {
             PreUpdate,
             (update_action_states, process_collisions).chain(),
         )
-        .add_systems(FixedUpdate, sync_character_controllers)
+        .add_systems(
+            FixedUpdate,
+            sync_character_controllers.before(TnuaUserControlsSystems),
+        )
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
