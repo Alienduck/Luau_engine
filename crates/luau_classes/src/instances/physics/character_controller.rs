@@ -1,5 +1,10 @@
 use avian3d::prelude::*;
 use bevy::{ecs::relationship::Relationship, prelude::*};
+use bevy_tnua::{
+    builtins::{TnuaBuiltinJumpConfig, TnuaBuiltinWalkConfig},
+    prelude::*,
+};
+use bevy_tnua_avian3d::prelude::*;
 use engine_core::components::LuauCharacterController;
 use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
 use mlua::{Lua, UserData};
@@ -109,94 +114,81 @@ impl UserData for LuaCharacterController {
     }
 }
 
+#[derive(TnuaScheme)]
+#[scheme(basis = TnuaBuiltinWalk)]
+pub enum CharacterControllerScheme {
+    Jumping(TnuaBuiltinJump),
+}
+
 pub fn sync_character_controllers(
     mut commands: Commands,
-    time: Res<Time>,
-    gravity: Res<avian3d::prelude::Gravity>,
-    spatial_query: avian3d::prelude::SpatialQuery,
     mut controllers: Query<(&ChildOf, &mut LuauCharacterController)>,
     mut parents: Query<(
         Entity,
-        Option<&mut avian3d::prelude::LinearVelocity>,
-        Option<&avian3d::prelude::GravityScale>,
-        Option<&avian3d::prelude::CollisionLayers>,
-        Option<&avian3d::prelude::Collider>,
-        Option<&bevy::prelude::GlobalTransform>,
+        Option<&mut TnuaController<CharacterControllerScheme>>,
+        Option<&mut LinearVelocity>,
     )>,
+    mut control_scheme_config: ResMut<Assets<CharacterControllerSchemeConfig>>,
 ) {
-    let base_gravity = gravity.0.y;
-    let dt = time.delta_secs();
     for (parent, mut ctrl) in controllers.iter_mut() {
         let parent_entity = parent.get();
-        let Ok((_, vel_opt, gravity_scale, collision_layers, collider, transform)) =
-            parents.get_mut(parent_entity)
-        else {
+        let Ok((_, tnua_opt, vel_opt)) = parents.get_mut(parent_entity) else {
             continue;
         };
-        let Some(mut velocity) = vel_opt else {
+        if tnua_opt.is_none() {
             commands.entity(parent_entity).insert((
-                avian3d::prelude::RigidBody::Dynamic,
-                avian3d::prelude::LockedAxes::ROTATION_LOCKED,
-                avian3d::prelude::LinearVelocity::ZERO,
-                avian3d::prelude::Friction::new(0.0)
-                    .with_combine_rule(avian3d::prelude::CoefficientCombine::Min),
-                avian3d::prelude::GravityScale(0.0),
+                RigidBody::Dynamic,
+                LockedAxes::ROTATION_LOCKED,
+                LinearVelocity::ZERO,
+                Friction::new(0.0).with_combine_rule(CoefficientCombine::Min),
+                GravityScale(1.0),
+                MassPropertiesBundle::from_shape(&Collider::sphere(0.5), 1.0),
+                TnuaController::<CharacterControllerScheme>::default(),
+                TnuaConfig::<CharacterControllerScheme>(control_scheme_config.add(
+                    CharacterControllerSchemeConfig {
+                        basis: TnuaBuiltinWalkConfig {
+                            speed: ctrl.walk_speed,
+                            ..default()
+                        },
+                        jumping: TnuaBuiltinJumpConfig {
+                            height: ctrl.jump_power,
+                            ..default()
+                        },
+                    },
+                )),
+                TnuaAvian3dSensorShape(Collider::cylinder(0.49, 0.0)),
             ));
             continue;
-        };
-        let mut current_v_velocity = ctrl.vertical_velocity;
+        }
+        let mut controller = tnua_opt.unwrap();
+
+        controller.initiate_action_feeding();
+
         let jump_requested = ctrl.wants_to_jump;
         ctrl.wants_to_jump = false;
-        let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
-        let applied_gravity = base_gravity * scale;
+
         if ctrl.no_clip {
-            current_v_velocity = 0.0;
-            commands
-                .entity(parent_entity)
-                .insert(avian3d::prelude::Sensor);
-            velocity.0 = ctrl.velocity;
+            commands.entity(parent_entity).insert(Sensor);
+            if let Some(mut vel) = vel_opt {
+                vel.0 = ctrl.velocity;
+            }
         } else {
-            commands
-                .entity(parent_entity)
-                .remove::<avian3d::prelude::Sensor>();
-            let mut is_grounded = false;
-            if let (Some(coll), Some(tf)) = (collider, transform) {
-                let aabb = coll.aabb(bevy::math::Vec3::ZERO, bevy::math::Quat::IDENTITY);
-                let mut filter =
-                    avian3d::prelude::SpatialQueryFilter::from_excluded_entities([parent_entity]);
-                if let Some(layers) = collision_layers {
-                    filter = filter.with_mask(layers.filters);
-                }
-                if spatial_query
-                    .cast_ray(
-                        tf.translation(),
-                        bevy::math::Dir3::NEG_Y,
-                        aabb.max.y + 0.1,
-                        true,
-                        &filter,
-                    )
-                    .is_some()
-                {
-                    is_grounded = true;
-                }
+            commands.entity(parent_entity).remove::<Sensor>();
+
+            let desired_velocity = Vec3::new(ctrl.velocity.x, 0.0, ctrl.velocity.z);
+
+            controller.basis = TnuaBuiltinWalk {
+                desired_motion: desired_velocity,
+                ..default()
+            };
+
+            if jump_requested {
+                controller.action(CharacterControllerScheme::Jumping(TnuaBuiltinJump {
+                    horizontal_displacement: Some(Vec3::new(0.0, ctrl.jump_power * 0.1, 0.0)),
+                    ..default()
+                }));
             }
-            if is_grounded {
-                if jump_requested {
-                    current_v_velocity = ctrl.jump_power;
-                } else if current_v_velocity < 0.0 {
-                    current_v_velocity = -0.1;
-                }
-            } else {
-                current_v_velocity += applied_gravity * dt;
-                if current_v_velocity > 0.0 && velocity.y <= 0.001 {
-                    current_v_velocity = 0.0;
-                }
-            }
-            velocity.x = ctrl.velocity.x;
-            velocity.z = ctrl.velocity.z;
-            velocity.y = current_v_velocity;
         }
-        ctrl.vertical_velocity = current_v_velocity;
     }
 }
 
