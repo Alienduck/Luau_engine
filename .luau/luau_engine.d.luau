@@ -190,7 +190,6 @@ export type CharacterController = Instance & {
     WalkSpeed: number,
     Jump: boolean,
     JumpPower: number,
-    NoClip: boolean,
 }
 
 export type ScreenGui = Instance & {}
