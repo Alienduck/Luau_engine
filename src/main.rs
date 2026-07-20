@@ -19,7 +19,7 @@ use luau_classes::{
         model::{ModelModule, sync_model_hierarchy_system},
         part::PartModule,
         physics::{
-            character_controller::{CharacterControllerModule, sync_character_controllers},
+            character_controller::{CharacterControllerModule, apply_controls},
             collider::{ColliderModule, apply_default_collision_groups_system},
             rigidbody::RigidbodyModule,
         },
@@ -121,10 +121,6 @@ fn main() {
             PreUpdate,
             (update_action_states, process_collisions).chain(),
         )
-        .add_systems(
-            FixedUpdate,
-            sync_character_controllers.before(TnuaUserControlsSystems),
-        )
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
@@ -144,6 +140,7 @@ fn main() {
                 sync_atmosphere_system,
                 process_button_interactions,
                 process_tweens_system,
+                apply_controls.in_set(TnuaUserControlsSystems),
             )
                 .chain(),
         )
