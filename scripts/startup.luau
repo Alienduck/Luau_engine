@@ -3,6 +3,7 @@ local player = require("./player")
 local ui = require("./ui")
 
 local map = environment.Start()
+task.wait(5)
 local subject = player.Start()
 ui.Start()
 

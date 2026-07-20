@@ -95,13 +95,11 @@ function env.Start()
 	model.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
 
 	model.Loaded:Connect(function()
-		print("Le modèle 3D est chargé !")
-
-		local cl = Collider.new()
-		cl.Parent = model
 		local rb = Rigidbody.new()
 		rb.Anchored = true
 		rb.Parent = model
+		local cl = Collider.new()
+		cl.Parent = model
 	end)
 
 	return model
