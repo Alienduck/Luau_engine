@@ -15,7 +15,7 @@ license = "MIT"
 authors = ["Alienudck"]
 
 [workspace.dependencies]
-bevy = { version = "0.19", features = ["jpeg"] }
+bevy = { version = "0.19", features = ["jpeg", "debug"] }
 mlua = { version = "0.11.6", features = ["luau"] }
 log = "0.4"
 avian3d = { version = "0.7" }
