@@ -216,22 +216,21 @@ pub enum EngineCommand {
         handle: u64,
         haze: f32,
     },
-    SetCharacterMovement {
+    SetCharacterWalkSpeed {
         handle: u64,
-        movement: Vec3,
-    },
-    SetCharacterJump {
-        handle: u64,
-        jump: bool,
+        walk_speed: f32,
     },
     SetCharacterJumpPower {
         handle: u64,
         jump_power: f32,
     },
-    /// `KinematicCharacterController` set the character clip mode
-    SetCharacterNoClip {
+    SetCharacterMoveDirection {
         handle: u64,
-        no_clip: bool,
+        direction: Vec3,
+    },
+    SetCharacterJump {
+        handle: u64,
+        jump: bool,
     },
     /// Despawn entity + remove from HandleMap
     Despawn {
@@ -520,7 +519,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     })
                     .insert(GravityScale(gravity_scale))
                     .insert(LinearVelocity::default());
-                    if dynamic && !em.contains::<Mass>() {
+                    if dynamic && !em.contains::<Mass>() && !em.contains::<Collider>() {
                         em.insert(MassPropertiesBundle::from_shape(
                             &Collider::sphere(0.5),
                             1.0,
@@ -784,17 +783,10 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
-        EngineCommand::SetCharacterMovement { handle, movement } => {
+        EngineCommand::SetCharacterWalkSpeed { handle, walk_speed } => {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.velocity = movement;
-                }
-            }
-        }
-        EngineCommand::SetCharacterJump { handle, jump } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.wants_to_jump = jump;
+                    cc.walk_speed = walk_speed;
                 }
             }
         }
@@ -805,10 +797,17 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
-        EngineCommand::SetCharacterNoClip { handle, no_clip } => {
+        EngineCommand::SetCharacterMoveDirection { handle, direction } => {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.no_clip = no_clip;
+                    cc.move_direction = direction;
+                }
+            }
+        }
+        EngineCommand::SetCharacterJump { handle, jump } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
+                    cc.jump = jump;
                 }
             }
         }
