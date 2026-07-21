@@ -100,6 +100,8 @@ function env.Start()
 		rb.Parent = model
 		local cl = Collider.new()
 		cl.Parent = model
+		Camera.Distance = 20
+		Camera:SetSubject(model)
 	end)
 
 	return model
