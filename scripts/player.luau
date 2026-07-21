@@ -25,8 +25,9 @@ function player.Start()
 
 	local controller = CharacterController.new()
 	controller.Parent = subject
-	controller.WalkSpeed = 10
+	controller.WalkSpeed = 20
 	controller.JumpPower = 20
+	controller.HipHeight = 1
 
 	local keys_pressed = {}
 	local entities: { entity.EntityModule } = {}
@@ -89,6 +90,9 @@ function player.Start()
 				ray_part:Destroy()
 				norm_part:Destroy()
 			end)
+		end
+		if key == "KeyY" then
+            print(controller.WalkSpeed)
 		end
 	end)
 
