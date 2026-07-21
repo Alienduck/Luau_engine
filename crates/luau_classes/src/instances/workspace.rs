@@ -3,7 +3,6 @@ use crate::types::{
     raycast::{RaycastParams, workspace_raycast},
     vector3::LuaVector3,
 };
-use avian3d::prelude::*;
 use bevy::prelude::*;
 use luau_runtime::{
     bridge::{
@@ -120,26 +119,5 @@ impl LuaModule for WorkspaceModule {
         lua.set_named_registry_value("__workspace_instance", ud.clone())?;
         lua.globals().set("workspace", ud)?;
         Ok(())
-    }
-}
-
-/// Synchronises Rapier dormancy flags with Bevy visibility.
-///
-/// Entities that become invisible (e.g. unparented from the workspace) have
-/// their collider and rigid body disabled so they don't affect simulation.
-pub fn sync_dormancy_system(
-    mut commands: Commands,
-    query: Query<(Entity, &InheritedVisibility), (With<LuauHandle>, Changed<InheritedVisibility>)>,
-) {
-    for (entity, inherited_visibility) in query.iter() {
-        let Ok(mut cmds) = commands.get_entity(entity) else {
-            continue;
-        };
-        if inherited_visibility.get() {
-            cmds.remove::<ColliderDisabled>()
-                .remove::<RigidBodyDisabled>();
-        } else {
-            cmds.insert((ColliderDisabled, RigidBodyDisabled));
-        }
     }
 }
