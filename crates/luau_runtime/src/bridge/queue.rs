@@ -232,6 +232,10 @@ pub enum EngineCommand {
         handle: u64,
         jump: bool,
     },
+    SetCharacterHipHeight {
+        handle: u64,
+        hip_height: f32,
+    },
     /// Despawn entity + remove from HandleMap
     Despawn {
         handle: u64,
@@ -808,6 +812,41 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
                     cc.jump = jump;
+                }
+            }
+        }
+        EngineCommand::SetCharacterHipHeight { handle, hip_height } => {
+            use bevy_tnua::{
+                TnuaConfig,
+                builtins::{TnuaBuiltinJumpConfig, TnuaBuiltinWalkConfig},
+            };
+            use engine_core::schema::*;
+
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                let (walk_speed, jump_power) = {
+                    let Some(mut luau_char) = world.get_mut::<LuauCharacterController>(e) else {
+                        return;
+                    };
+                    luau_char.hip_height = hip_height;
+                    (luau_char.walk_speed, luau_char.jump_power)
+                };
+
+                let config_handle = world
+                    .resource_mut::<Assets<CharacterControllerSchemeConfig>>()
+                    .add(CharacterControllerSchemeConfig {
+                        basis: TnuaBuiltinWalkConfig {
+                            speed: walk_speed,
+                            float_height: hip_height,
+                            ..default()
+                        },
+                        jumping: TnuaBuiltinJumpConfig {
+                            height: jump_power,
+                            ..default()
+                        },
+                    });
+
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    em.insert(TnuaConfig::<CharacterControllerScheme>(config_handle));
                 }
             }
         }
