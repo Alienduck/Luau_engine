@@ -28,7 +28,7 @@ use luau_classes::{
             screen_gui::ScreenGuiModule, text_button::TextButtonModule,
             text_label::TextLabelModule, ui_interactions::process_button_interactions,
         },
-        workspace::{WorkspaceModule, sync_dormancy_system},
+        workspace::WorkspaceModule,
     },
     types::{
         cframe::CFrameModule, color3::Color3Module, enums::EnumsModule, raycast::RaycastModule,
@@ -134,7 +134,6 @@ fn main() {
                 sync_model_hierarchy_system,
                 trigger_user_input,
                 trigger_run_service,
-                sync_dormancy_system,
                 sync_post_processing_system,
                 sync_sky_system,
                 sync_atmosphere_system,
