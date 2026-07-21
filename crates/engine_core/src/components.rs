@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-/// Struct to handle easier the bloom script side
-/// [TODO]: found a way to handle without the custom struct
 #[derive(Component)]
 pub struct LuauBloom {
     pub intensity: f32,
@@ -24,6 +22,7 @@ pub struct LuauCharacterController {
     pub jump_power: f32,
     pub move_direction: Vec3,
     pub jump: bool,
+    pub hip_height: f32,
     pub custom_forward_button: Option<KeyCode>,
     pub custom_behind_button: Option<KeyCode>,
     pub custom_left_button: Option<KeyCode>,
