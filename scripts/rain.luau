@@ -42,6 +42,8 @@ local PARAMS = {
 	end,
 }
 
+local SPAWN_INTERVAL = 0.05
+
 function module.Start()
 	local count = 0
 	local rain_drops: { Part } = {}
@@ -49,7 +51,10 @@ function module.Start()
 	RunService.RenderStepped:Connect(function(delta: number)
 		count += delta
 
-		count = 0
+		if count < SPAWN_INTERVAL then
+            return
+        end
+        count -= SPAWN_INTERVAL
 		local part = __spawn_part({
 			name = "RainDrop",
 			position = Vector3.new(PARAMS.POS_XZ(), PARAMS.POS_Y(), PARAMS.POS_XZ()),
@@ -72,6 +77,7 @@ function module.Start()
 
 			if drop.CFrame.Position.Y < -5 then
 				drop:Destroy()
+				table.remove(rain_drops, i)
 			end
 		end
 	end)
