@@ -103,9 +103,9 @@ fn main() {
         }))
         .add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default()))
         .add_plugins((
-            TnuaControllerPlugin::<
-                luau_classes::instances::physics::character_controller::CharacterControllerScheme,
-            >::new(FixedUpdate),
+            TnuaControllerPlugin::<engine_core::schema::CharacterControllerScheme>::new(
+                FixedUpdate,
+            ),
             TnuaAvian3dPlugin::new(FixedUpdate),
         ))
         .add_plugins(SmartCameraPlugin)
