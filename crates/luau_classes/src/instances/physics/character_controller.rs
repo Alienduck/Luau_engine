@@ -16,6 +16,7 @@ use crate::types::{
     instance::{CloneableInstance, InstanceData},
     vector3::LuaVector3,
 };
+use engine_core::schema::*;
 
 #[derive(Clone)]
 pub struct LuaCharacterController {
@@ -24,6 +25,7 @@ pub struct LuaCharacterController {
     pub walk_speed: f32,
     pub jump_power: f32,
     pub jump: bool,
+    pub hip_height: f32,
 }
 
 impl CloneableInstance for LuaCharacterController {
@@ -49,34 +51,53 @@ impl UserData for LuaCharacterController {
         fields.add_field_method_get("WalkSpeed", |_, this| Ok(this.walk_speed));
         fields.add_field_method_set("WalkSpeed", |_, this, v: f32| {
             this.walk_speed = v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterWalkSpeed {
-                    handle: this.base.handle,
-                    walk_speed: v,
-                },
-            );
+            if let Some(parent_handle) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetCharacterWalkSpeed {
+                        handle: parent_handle,
+                        walk_speed: v,
+                    },
+                );
+            }
             Ok(())
         });
         fields.add_field_method_get("Jump", |_, this| Ok(this.jump));
         fields.add_field_method_set("Jump", |_, this, v: bool| {
             this.jump = v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterJump {
-                    handle: this.base.handle,
-                    jump: v,
-                },
-            );
+            if let Some(parent_handle) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetCharacterJump {
+                        handle: parent_handle,
+                        jump: v,
+                    },
+                );
+            }
             Ok(())
         });
         fields.add_field_method_get("JumpPower", |_, this| Ok(this.jump_power));
         fields.add_field_method_set("JumpPower", |_, this, v: f32| {
             this.jump_power = v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterJumpPower {
-                    handle: this.base.handle,
-                    jump_power: v,
-                },
-            );
+            if let Some(parent_handle) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetCharacterJumpPower {
+                        handle: parent_handle,
+                        jump_power: v,
+                    },
+                );
+            }
+            Ok(())
+        });
+        fields.add_field_method_get("HipHeight", |_, this| Ok(this.hip_height));
+        fields.add_field_method_set("HipHeight", |_, this, v: f32| {
+            this.hip_height = v;
+            if let Some(parent_handle) = this.base.parent_handle {
+                this.base.queue.push(
+                    luau_runtime::bridge::queue::EngineCommand::SetCharacterHipHeight {
+                        handle: parent_handle,
+                        hip_height: v,
+                    },
+                );
+            }
             Ok(())
         });
         fields.add_field_method_set("Parent", |_, this, v: Option<mlua::AnyUserData>| {
@@ -84,9 +105,11 @@ impl UserData for LuaCharacterController {
             let new_handle = v
                 .as_ref()
                 .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
+            this.base.parent_handle = new_handle;
 
             let walk_speed = this.walk_speed;
             let jump_height = this.jump_power;
+            let hip_height = this.hip_height;
             this.base.queue.push_raw(move |w: &mut World| {
                 if let Some(old_handle) = old_handle {
                     if let Some(old_entity) = w.resource::<HandleMap>().get_entity(old_handle) {
@@ -105,14 +128,14 @@ impl UserData for LuaCharacterController {
                         let collider = w
                             .get::<Collider>(new_entity)
                             .cloned()
-                            .unwrap_or_else(|| Collider::capsule(0.5, 1.0));
+                            .unwrap_or_else(|| Collider::capsule(1.0, 1.0));
 
                         let config_handle = w
                             .resource_mut::<Assets<CharacterControllerSchemeConfig>>()
                             .add(CharacterControllerSchemeConfig {
                                 basis: TnuaBuiltinWalkConfig {
                                     speed: walk_speed,
-                                    float_height: 1.0,
+                                    float_height: hip_height,
                                     ..default()
                                 },
                                 jumping: TnuaBuiltinJumpConfig {
@@ -145,12 +168,6 @@ impl UserData for LuaCharacterController {
             Ok(this.base.name.clone())
         });
     }
-}
-
-#[derive(TnuaScheme)]
-#[scheme(basis = TnuaBuiltinWalk)]
-pub enum CharacterControllerScheme {
-    Jumping(TnuaBuiltinJump),
 }
 
 pub fn apply_controls(
@@ -186,7 +203,9 @@ pub fn apply_controls(
     };
     if inputs.pressed(jump) || luau_ctrl.jump {
         ctrl.action(CharacterControllerScheme::Jumping(Default::default()));
-        luau_ctrl.jump = false;
+        if luau_ctrl.jump {
+            luau_ctrl.jump = false;
+        }
     }
 }
 
@@ -214,6 +233,7 @@ impl luau_runtime::registry::LuaModule for CharacterControllerModule {
                     walk_speed: 16.0,
                     jump_power: 24.0,
                     jump: false,
+                    hip_height: 0.1,
                 };
                 let c = ctrl.clone();
                 q.push_raw(move |w: &mut World| {
