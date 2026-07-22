@@ -25,9 +25,9 @@ function player.Start()
 
 	local controller = CharacterController.new()
 	controller.Parent = subject
-	controller.WalkSpeed = 20
-	controller.JumpPower = 20
 	controller.HipHeight = 1
+	controller.WalkSpeed = 10
+	controller.JumpPower = 10
 
 	local keys_pressed = {}
 	local entities: { entity.EntityModule } = {}
