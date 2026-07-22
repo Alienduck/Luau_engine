@@ -16,7 +16,7 @@ pub struct LuauAtmosphere {
     pub haze: f32,
 }
 
-#[derive(Component, Default)]
+#[derive(Component)]
 pub struct LuauCharacterController {
     pub walk_speed: f32,
     pub jump_power: f32,
@@ -39,5 +39,22 @@ impl LuauCharacterController {
             self.custom_right_button.unwrap_or(KeyCode::KeyD),
             self.custom_jump_button.unwrap_or(KeyCode::Space),
         )
+    }
+}
+
+impl Default for LuauCharacterController {
+    fn default() -> Self {
+        Self {
+            walk_speed: 16.0,
+            jump_power: 24.0,
+            move_direction: Vec3::default(),
+            jump: false,
+            hip_height: 0.1,
+            custom_forward_button: None,
+            custom_behind_button: None,
+            custom_left_button: None,
+            custom_right_button: None,
+            custom_jump_button: None,
+        }
     }
 }
