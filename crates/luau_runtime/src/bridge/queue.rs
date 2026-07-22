@@ -216,25 +216,9 @@ pub enum EngineCommand {
         handle: u64,
         haze: f32,
     },
-    SetCharacterWalkSpeed {
+    SetCharacterStat {
         handle: u64,
-        walk_speed: f32,
-    },
-    SetCharacterJumpPower {
-        handle: u64,
-        jump_power: f32,
-    },
-    SetCharacterMoveDirection {
-        handle: u64,
-        direction: Vec3,
-    },
-    SetCharacterJump {
-        handle: u64,
-        jump: bool,
-    },
-    SetCharacterHipHeight {
-        handle: u64,
-        hip_height: f32,
+        stat: CharacterStat,
     },
     /// Despawn entity + remove from HandleMap
     Despawn {
@@ -286,6 +270,14 @@ impl EngineQueue {
     {
         self.0.send(EngineCommand::Raw(Box::new(f))).ok();
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum CharacterStat {
+    WalkSpeed(f32),
+    JumpPower(f32),
+    HipHeight(f32),
+    Jump(bool),
 }
 
 /// Bevy resource that holds the shared command buffer.
@@ -787,67 +779,40 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
-        EngineCommand::SetCharacterWalkSpeed { handle, walk_speed } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.walk_speed = walk_speed;
-                }
-            }
-        }
-        EngineCommand::SetCharacterJumpPower { handle, jump_power } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.jump_power = jump_power;
-                }
-            }
-        }
-        EngineCommand::SetCharacterMoveDirection { handle, direction } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.move_direction = direction;
-                }
-            }
-        }
-        EngineCommand::SetCharacterJump { handle, jump } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.jump = jump;
-                }
-            }
-        }
-        EngineCommand::SetCharacterHipHeight { handle, hip_height } => {
-            use bevy_tnua::{
-                TnuaConfig,
-                builtins::{TnuaBuiltinJumpConfig, TnuaBuiltinWalkConfig},
+        EngineCommand::SetCharacterStat { handle, stat } => {
+            let Some(e) = world.resource::<HandleMap>().get_entity(handle) else {
+                return;
             };
-            use engine_core::schema::*;
 
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                let (walk_speed, jump_power) = {
-                    let Some(mut luau_char) = world.get_mut::<LuauCharacterController>(e) else {
-                        return;
-                    };
-                    luau_char.hip_height = hip_height;
-                    (luau_char.walk_speed, luau_char.jump_power)
+            let (walk_speed, jump_power, hip_height) = {
+                let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) else {
+                    return;
                 };
-
-                let config_handle = world
-                    .resource_mut::<Assets<CharacterControllerSchemeConfig>>()
-                    .add(CharacterControllerSchemeConfig {
-                        basis: TnuaBuiltinWalkConfig {
-                            speed: walk_speed,
-                            float_height: hip_height,
-                            ..default()
-                        },
-                        jumping: TnuaBuiltinJumpConfig {
-                            height: jump_power,
-                            ..default()
-                        },
-                    });
-
-                if let Ok(mut em) = world.get_entity_mut(e) {
-                    em.insert(TnuaConfig::<CharacterControllerScheme>(config_handle));
+                match stat {
+                    CharacterStat::WalkSpeed(v) => cc.walk_speed = v,
+                    CharacterStat::JumpPower(v) => cc.jump_power = v,
+                    CharacterStat::HipHeight(v) => cc.hip_height = v,
+                    CharacterStat::Jump(v) => {
+                        cc.jump = v;
+                        return;
+                    }
                 }
+                (cc.walk_speed, cc.jump_power, cc.hip_height)
+            };
+
+            let Some(config_handle) = world
+                .get::<bevy_tnua::TnuaConfig<engine_core::schema::CharacterControllerScheme>>(e)
+                .map(|c| c.0.clone())
+            else {
+                return;
+            };
+            if let Some(mut config) = world
+                .resource_mut::<Assets<engine_core::schema::CharacterControllerSchemeConfig>>()
+                .get_mut(&config_handle)
+            {
+                config.basis.speed = walk_speed;
+                config.basis.float_height = hip_height;
+                config.jumping.height = jump_power;
             }
         }
         EngineCommand::Despawn { handle } => {
