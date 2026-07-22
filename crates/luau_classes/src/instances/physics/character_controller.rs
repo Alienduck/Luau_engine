@@ -6,10 +6,8 @@ use bevy_tnua::{
 };
 use bevy_tnua_avian3d::prelude::*;
 use engine_core::components::LuauCharacterController;
-use luau_runtime::bridge::{
-    handle::{HandleMap, next_handle},
-    queue::EngineQueue,
-};
+use luau_runtime::bridge::handle::{HandleMap, next_handle};
+use luau_runtime::bridge::queue::*;
 use mlua::{Lua, UserData};
 
 use crate::types::{
@@ -26,6 +24,17 @@ pub struct LuaCharacterController {
     pub jump_power: f32,
     pub jump: bool,
     pub hip_height: f32,
+}
+
+impl LuaCharacterController {
+    fn push_stat(&self, stat: CharacterStat) {
+        if let Some(parent_handle) = self.base.parent_handle {
+            self.base.queue.push(EngineCommand::SetCharacterStat {
+                handle: parent_handle,
+                stat,
+            });
+        }
+    }
 }
 
 impl CloneableInstance for LuaCharacterController {
@@ -51,53 +60,25 @@ impl UserData for LuaCharacterController {
         fields.add_field_method_get("WalkSpeed", |_, this| Ok(this.walk_speed));
         fields.add_field_method_set("WalkSpeed", |_, this, v: f32| {
             this.walk_speed = v;
-            if let Some(parent_handle) = this.base.parent_handle {
-                this.base.queue.push(
-                    luau_runtime::bridge::queue::EngineCommand::SetCharacterWalkSpeed {
-                        handle: parent_handle,
-                        walk_speed: v,
-                    },
-                );
-            }
+            this.push_stat(CharacterStat::WalkSpeed(v));
             Ok(())
         });
         fields.add_field_method_get("Jump", |_, this| Ok(this.jump));
         fields.add_field_method_set("Jump", |_, this, v: bool| {
             this.jump = v;
-            if let Some(parent_handle) = this.base.parent_handle {
-                this.base.queue.push(
-                    luau_runtime::bridge::queue::EngineCommand::SetCharacterJump {
-                        handle: parent_handle,
-                        jump: v,
-                    },
-                );
-            }
+            this.push_stat(CharacterStat::Jump(v));
             Ok(())
         });
         fields.add_field_method_get("JumpPower", |_, this| Ok(this.jump_power));
         fields.add_field_method_set("JumpPower", |_, this, v: f32| {
             this.jump_power = v;
-            if let Some(parent_handle) = this.base.parent_handle {
-                this.base.queue.push(
-                    luau_runtime::bridge::queue::EngineCommand::SetCharacterJumpPower {
-                        handle: parent_handle,
-                        jump_power: v,
-                    },
-                );
-            }
+            this.push_stat(CharacterStat::JumpPower(v));
             Ok(())
         });
         fields.add_field_method_get("HipHeight", |_, this| Ok(this.hip_height));
         fields.add_field_method_set("HipHeight", |_, this, v: f32| {
             this.hip_height = v;
-            if let Some(parent_handle) = this.base.parent_handle {
-                this.base.queue.push(
-                    luau_runtime::bridge::queue::EngineCommand::SetCharacterHipHeight {
-                        handle: parent_handle,
-                        hip_height: v,
-                    },
-                );
-            }
+            this.push_stat(CharacterStat::HipHeight(v));
             Ok(())
         });
         fields.add_field_method_set("Parent", |_, this, v: Option<mlua::AnyUserData>| {
