@@ -155,6 +155,7 @@ pub fn apply_controls(
         &mut TnuaController<CharacterControllerScheme>,
         &mut LuauCharacterController,
     )>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
     inputs: ResMut<ButtonInput<KeyCode>>,
 ) {
     let Ok((mut ctrl, mut luau_ctrl)) = tnua_query.single_mut() else {
@@ -162,23 +163,37 @@ pub fn apply_controls(
     };
     ctrl.initiate_action_feeding();
 
-    let mut direction = Vec3::ZERO;
     let (forward, behind, left, right, jump) = luau_ctrl.custom_inputs_or_default();
 
+    let mut local_dir = Vec3::ZERO;
     if inputs.pressed(forward) {
-        direction += Vec3::NEG_Z;
+        local_dir.z -= 1.0;
     }
     if inputs.pressed(behind) {
-        direction += Vec3::Z;
+        local_dir.z += 1.0;
     }
     if inputs.pressed(left) {
-        direction += Vec3::NEG_X;
+        local_dir.x -= 1.0;
     }
     if inputs.pressed(right) {
-        direction += Vec3::X;
+        local_dir.x += 1.0;
     }
+
+    let direction = if let Ok(camera_transform) = camera_query.single() {
+        let mut cam_forward = camera_transform.forward().as_vec3();
+        cam_forward.y = 0.0;
+        let cam_forward = cam_forward.normalize_or_zero();
+
+        let mut cam_right = camera_transform.right().as_vec3();
+        cam_right.y = 0.0;
+        let cam_right = cam_right.normalize_or_zero();
+
+        (cam_forward * -local_dir.z) + (cam_right * local_dir.x)
+    } else {
+        local_dir
+    };
     ctrl.basis = TnuaBuiltinWalk {
-        desired_motion: direction.normalize_or_zero(),
+        desired_motion: direction,
         ..default()
     };
     if inputs.pressed(jump) || luau_ctrl.jump {
