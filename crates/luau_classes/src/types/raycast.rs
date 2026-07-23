@@ -1,5 +1,5 @@
 use bevy::{platform::collections::HashSet, prelude::*};
-use engine_core::definitions::services::PhysicsCollisionGroups;
+use engine_core::definitions::physics::collision_group::PhysicsCollisionGroups;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, LuauHandle},

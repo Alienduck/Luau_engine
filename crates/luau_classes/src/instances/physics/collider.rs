@@ -9,7 +9,7 @@ use crate::{
 };
 use avian3d::prelude::*;
 use bevy::{ecs::relationship::Relationship, prelude::*};
-use engine_core::definitions::services::PhysicsCollisionGroups;
+use engine_core::definitions::physics::collision_group::PhysicsCollisionGroups;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, next_handle},

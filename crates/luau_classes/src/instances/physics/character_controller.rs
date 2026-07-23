@@ -5,7 +5,7 @@ use bevy_tnua::{
     prelude::*,
 };
 use bevy_tnua_avian3d::prelude::*;
-use engine_core::definitions::physics::LuauCharacterController;
+use engine_core::definitions::physics::character_controller::*;
 use luau_runtime::bridge::handle::{HandleMap, next_handle};
 use luau_runtime::bridge::queue::*;
 use mlua::{Lua, UserData};
@@ -14,7 +14,6 @@ use crate::types::{
     instance::{CloneableInstance, InstanceData},
     vector3::LuaVector3,
 };
-use engine_core::definitions::physics::*;
 
 #[derive(Clone)]
 pub struct LuaCharacterController {

@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crossbeam_channel::{Receiver, Sender};
 use engine_core::{
     definitions::lighting::{LuauAtmosphere, LuauBloom},
-    definitions::physics::LuauCharacterController,
-    definitions::services::PhysicsCollisionGroups,
+    definitions::physics::character_controller::LuauCharacterController,
+    definitions::physics::collision_group::PhysicsCollisionGroups,
 };
 
 /// A single mutation enqueued by a Luau setter.
@@ -804,14 +804,14 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             let Some(config_handle) =
                 world
                     .get::<bevy_tnua::TnuaConfig<
-                        engine_core::definitions::physics::CharacterControllerScheme,
+                        engine_core::definitions::physics::character_controller::CharacterControllerScheme,
                     >>(e)
                     .map(|c| c.0.clone())
             else {
                 return;
             };
             if let Some(mut config) = world
-                .resource_mut::<Assets<engine_core::definitions::physics::CharacterControllerSchemeConfig>>()
+                .resource_mut::<Assets<engine_core::definitions::physics::character_controller::CharacterControllerSchemeConfig>>()
                 .get_mut(&config_handle)
             {
                 config.basis.speed = walk_speed;
