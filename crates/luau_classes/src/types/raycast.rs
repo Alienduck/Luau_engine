@@ -1,4 +1,5 @@
 use bevy::{platform::collections::HashSet, prelude::*};
+use engine_core::definitions::services::PhysicsCollisionGroups;
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, LuauHandle},
@@ -168,9 +169,7 @@ pub fn workspace_raycast(
     if let Some(p) = &params {
         filter_type = p.filter_type.clone();
         respect_collider = p.restpect_collider;
-        if let Some(registry) =
-            world.get_resource::<engine_core::resource::PhysicsCollisionGroups>()
-        {
+        if let Some(registry) = world.get_resource::<PhysicsCollisionGroups>() {
             if let Some(&id) = registry.groups.get(&p.collision_group) {
                 ray_group_id = id;
             }
@@ -190,7 +189,7 @@ pub fn workspace_raycast(
         }
     }
     let mut query_filter = avian3d::prelude::SpatialQueryFilter::default();
-    if let Some(registry) = world.get_resource::<engine_core::resource::PhysicsCollisionGroups>() {
+    if let Some(registry) = world.get_resource::<PhysicsCollisionGroups>() {
         query_filter = query_filter.with_mask(registry.masks[ray_group_id as usize]);
     }
     let mut state = bevy::ecs::system::SystemState::<(
