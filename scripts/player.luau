@@ -25,7 +25,7 @@ function player.Start()
 
 	local controller = CharacterController.new()
 	controller.Parent = subject
-	controller.HipHeight = 1
+	controller.HipHeight = subject.Size.Y / 2
 	controller.WalkSpeed = 10
 	controller.JumpPower = 10
 
