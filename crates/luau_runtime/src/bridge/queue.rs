@@ -2,8 +2,9 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 use crossbeam_channel::{Receiver, Sender};
 use engine_core::{
-    components::{LuauAtmosphere, LuauBloom, LuauCharacterController},
-    resource::PhysicsCollisionGroups,
+    definitions::lighting::{LuauAtmosphere, LuauBloom},
+    definitions::physics::LuauCharacterController,
+    definitions::services::PhysicsCollisionGroups,
 };
 
 /// A single mutation enqueued by a Luau setter.
@@ -800,14 +801,17 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 (cc.walk_speed, cc.jump_power, cc.hip_height)
             };
 
-            let Some(config_handle) = world
-                .get::<bevy_tnua::TnuaConfig<engine_core::schema::CharacterControllerScheme>>(e)
-                .map(|c| c.0.clone())
+            let Some(config_handle) =
+                world
+                    .get::<bevy_tnua::TnuaConfig<
+                        engine_core::definitions::physics::CharacterControllerScheme,
+                    >>(e)
+                    .map(|c| c.0.clone())
             else {
                 return;
             };
             if let Some(mut config) = world
-                .resource_mut::<Assets<engine_core::schema::CharacterControllerSchemeConfig>>()
+                .resource_mut::<Assets<engine_core::definitions::physics::CharacterControllerSchemeConfig>>()
                 .get_mut(&config_handle)
             {
                 config.basis.speed = walk_speed;

@@ -1,5 +1,5 @@
 use bevy::{core_pipeline::Skybox, pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
-use engine_core::components::{LuauAtmosphere, LuauBloom};
+use engine_core::definitions::lighting::{LuauAtmosphere, LuauBloom};
 use luau_classes::{
     instances::lighting::sky::LuauSky,
     types::{

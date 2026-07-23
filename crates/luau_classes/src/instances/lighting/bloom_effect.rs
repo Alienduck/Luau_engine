@@ -1,6 +1,6 @@
 use crate::types::instance::{CloneableInstance, InstanceData};
 use bevy::prelude::*;
-use engine_core::components::LuauBloom;
+use engine_core::definitions::lighting::LuauBloom;
 use luau_runtime::{
     bridge::{handle::next_handle, queue::EngineQueue},
     registry::LuaModule,

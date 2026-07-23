@@ -6,8 +6,8 @@ use bevy::{
 use bevy_tnua::prelude::*;
 use bevy_tnua_avian3d::prelude::*;
 use engine_core::{
+    definitions::services::PhysicsCollisionGroups,
     input::{ActionMap, update_action_states},
-    resource::PhysicsCollisionGroups,
 };
 use luau_classes::{
     debug::collision_render::CollisionRenderModule,
@@ -103,7 +103,7 @@ fn main() {
         }))
         .add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default()))
         .add_plugins((
-            TnuaControllerPlugin::<engine_core::schema::CharacterControllerScheme>::new(
+            TnuaControllerPlugin::<engine_core::definitions::physics::CharacterControllerScheme>::new(
                 FixedUpdate,
             ),
             TnuaAvian3dPlugin::new(FixedUpdate),

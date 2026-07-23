@@ -4,7 +4,7 @@ use crate::types::{
     signal::LuaSignal,
 };
 use bevy::prelude::*;
-use engine_core::components::LuauAtmosphere;
+use engine_core::definitions::lighting::LuauAtmosphere;
 use luau_runtime::{
     bridge::{handle::next_handle, queue::EngineQueue},
     registry::LuaModule,
