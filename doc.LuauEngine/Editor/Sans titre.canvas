@@ -1,0 +1,14 @@
+{
+	"nodes":[
+		{"id":"bcefb6c3e1b40ef9","x":-800,"y":-200,"width":792,"height":598,"type":"file","file":"Editor/MVP.md"},
+		{"id":"618a8c50d9325fbb","x":380,"y":-160,"width":250,"height":60,"type":"text","text":"- [ ] **Séparation des états**"},
+		{"id":"421f23702067ee7d","x":380,"y":-60,"width":250,"height":60,"type":"text","text":"- [ ] **Viewport 3D**"}
+	],
+	"edges":[
+		{"id":"640520d76a882424","fromNode":"bcefb6c3e1b40ef9","fromSide":"right","toNode":"618a8c50d9325fbb","toSide":"left"},
+		{"id":"17a883dfc9f29d14","fromNode":"618a8c50d9325fbb","fromSide":"left","toNode":"bcefb6c3e1b40ef9","toSide":"right","toEnd":"none","color":"#6b4b86"},
+		{"id":"d9c75c8aba6a679d","fromNode":"bcefb6c3e1b40ef9","fromSide":"right","toNode":"618a8c50d9325fbb","toSide":"left"},
+		{"id":"32710084f8d0a6be","fromNode":"bcefb6c3e1b40ef9","fromSide":"right","toNode":"618a8c50d9325fbb","toSide":"left"},
+		{"id":"ccc488377542905b","fromNode":"bcefb6c3e1b40ef9","fromSide":"right","toNode":"421f23702067ee7d","toSide":"left","color":"#6b4b86"}
+	]
+}
