@@ -1,10 +1,13 @@
 [workspace]
 members = [
-    ".",
     "crates/engine_core",
     "crates/luau_runtime",
     "crates/luau_classes",
     "crates/services",
+    "crates/editor_core",
+    "crates/editor_ui",
+    "crates/editor_bin",
+    "crates/editor_parser",
 ]
 resolver = "2"
 
