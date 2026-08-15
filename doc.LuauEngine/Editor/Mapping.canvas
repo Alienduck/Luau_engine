@@ -1,0 +1,10 @@
+{
+	"nodes":[
+		{"id":"43f0e777029749bd","type":"file","file":"images/editor_visual.png","x":-1920,"y":-222,"width":960,"height":642},
+		{"id":"b6d3a0659ac98c79","type":"file","file":"images/lucid_editor.png","x":-1910,"y":520,"width":940,"height":600},
+		{"id":"bcefb6c3e1b40ef9","type":"file","file":"Editor/MVP.md","x":-840,"y":-200,"width":792,"height":598}
+	],
+	"edges":[
+		{"id":"10af4e1e45b68ffa","fromNode":"43f0e777029749bd","fromSide":"right","toNode":"bcefb6c3e1b40ef9","toSide":"left","color":"#ae30e8"}
+	]
+}
