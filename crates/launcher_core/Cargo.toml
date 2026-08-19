@@ -1,0 +1,5 @@
+[package]
+name = "launcher_core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true

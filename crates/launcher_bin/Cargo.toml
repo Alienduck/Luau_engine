@@ -1,0 +1,7 @@
+[package]
+name = "launcher_bin"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]

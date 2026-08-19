@@ -1,0 +1,5 @@
+[package]
+name = "launcher_ui"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
