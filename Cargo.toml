@@ -8,6 +8,9 @@ members = [
     "crates/editor_ui",
     "crates/editor_bin",
     "crates/editor_parser",
+    "crates/launcher_bin",
+    "crates/launcher_ui",
+    "crates/launcher_core",
 ]
 resolver = "2"
 
@@ -28,6 +31,15 @@ strum = "0.28.0"
 strum_macros = "0.28.0"
 bevy-tnua = { version = "0.32" }
 bevy-tnua-avian3d = { version = "0.12" }
+bevy_egui = "0.42.0"
+reqwest = "0.13.4"
+self-replace = "1.5.0"
+directories = "6.0.0"
+egui_extras = { version = "0.36.1", features = ["image"] }
+tokio = { version = "1.53.1", features = ["full"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+rfd = "0.17.2"
 
 engine_core = { path = "crates/engine_core" }
 luau_runtime = { path = "crates/luau_runtime" }
@@ -55,3 +67,12 @@ avian3d = { workspace = true }
 crossbeam-channel = { workspace = true }
 bevy-tnua = { workspace = true }
 bevy-tnua-avian3d = { workspace = true }
+# rfd = { workspace = true }
+# bevy_egui = { workspace = true }
+# reqwest = { workspace = true }
+# self-replace = { workspace = true }
+# directories = { workspace = true }
+# serde = { workspace = true }
+# tokio = { workspace = true }
+# serde_json = { workspace = true }
+# egui_extras = { workspace = true }
