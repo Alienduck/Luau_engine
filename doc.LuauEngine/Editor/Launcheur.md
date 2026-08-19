@@ -45,6 +45,12 @@ Actuellement on va voir les possibles problèmes que l'on va rencontrer ainsi qu
 | Versioning     | Pour savoir si le launcheur est à jour il faut comparer avec les release sur Github, [`reqwest`](https://docs.rs/reqwest/latest/reqwest/) permettra de faire les requêtes.                                                      |
 | Mettre à jour  | Pour mettre un jour une app qui est en cours d'exécution c'est compliquer surtout sur Windows, heureusement que la crate [`self_replace`](https://docs.rs/self-replace/latest/self_replace/) existe !                           |
 | Sérialisation  | Pour sérialiser les données on va utiliser [`serde`](https://docs.rs/serde/latest/serde/) et [`serde_json`](https://docs.rs/serde-json-core/latest/serde_json_core/)                                                            |
+| Méta données   | Pour afficher les projets avec différentes infos il faudra avoir un fichier avec ces données sur chaque projet et les lire, on créera un fichier `project_registry.json`                                                        |
+| Settings       | Il faudra un onglet paramètres pour changer par exemple le dossier qui contient les projets.                                                                                                                                    |
+| Thread issue   | Le fait d'utiliser `reqwest` bloque le thread principal, il faudra utiliser `IoTaskPool` de bevy ou alors le `tokio` runtime                                                                                                    |
+| Offline        | Le fait d'être hors ligne (sans réseau) provoquera des erreurs avec `reqwest` il faut gérer ces erreurs plutôt que de panic                                                                                                     |
+| Annulation     | Quand l'utilisateur ferme la fenêtre de `rfd` il faut capturer l'action et obliger l'utilisateur à sélectionner un dossier                                                                                                      |
+| Concurrence    | Si un projet est déjà ouvert et que l'utilisateur essaie d'ouvrir à nouveau ce projet il faut l'en empêcher en vérifiant si un processus avec ce projet est déjà en cours                                                       |
 
 # Personas
 
