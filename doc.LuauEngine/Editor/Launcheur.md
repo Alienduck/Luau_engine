@@ -67,3 +67,14 @@ L'utilisateur reviens le lendemain, il avait créé un projet de test, il revien
 
 L'utilisateur démarre le launcheur, le launcheur affiche une notification toaster avec afficher **Mettre à jour le launcheur** et le launcheur se met automatiquement à jour sans soucis.
 
+# Rendu
+
+Pour rendre l'éditeur et le launcheur séparément il faut les compiler séparément également.
+```shell
+cargo launcher
+cargo editor
+```
+
+Donc d'un coté on va voir une release non publique sur Github de l'éditeur dans un zip et une release publique de l'exécutable du launcheur.
+
+L'utilisateur n'aura besoin seulement que de télécharger le launcheur et de manière automatique le launcheur va télécharger l'éditeur sur Github avec la release non publique.
