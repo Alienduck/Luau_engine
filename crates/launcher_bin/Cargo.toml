@@ -5,3 +5,6 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+bevy = { workspace = true }
+launcher_ui =  { workspace = true }
+launcher_core =  { workspace = true }
