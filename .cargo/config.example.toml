@@ -1,0 +1,7 @@
+[alias]
+b = "build"
+r = "run"
+br = "b --release"
+rr = "r --release"
+editor = "rr -p editor_bin"
+launcher = "rr -p launcher_bin"
