@@ -22,5 +22,5 @@ target
 *.lock
 *.zed
 *.vscode
-*.cargo
+*.cargo/config.toml
 .obsidian/
