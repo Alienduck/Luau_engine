@@ -10,23 +10,21 @@ impl Plugin for TopPanel {
 
 fn build(mut commands: Commands, asset_server: Res<AssetServer>) {
     let container = commands
-        .spawn(Node {
-            width: percent(100),
-            height: percent(20),
-            align_items: AlignItems::Center,
+        .spawn((Node {
+            width: Val::Percent(100.0),
+            padding: UiRect::all(Val::Px(5.0)),
             justify_content: JustifyContent::Center,
             ..default()
-        })
+        },))
         .id();
 
     let image = commands
         .spawn((
-            ImageNode::new(asset_server.load("images/banner.png"))
-                .with_mode(NodeImageMode::Stretch),
+            ImageNode::new(asset_server.load("images/banner.png")),
             Node {
-                width: percent(100),
-                aspect_ratio: Some(16.0 / 9.0),
-                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                aspect_ratio: Some(2560.0 / 640.0),
+                border_radius: BorderRadius::all(Val::Px(10.0)),
                 ..default()
             },
         ))
