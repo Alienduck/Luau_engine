@@ -6,16 +6,15 @@ pub struct LauncherPlugin;
 
 impl Plugin for LauncherPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(top_panel::TopPanel)
-            .add_systems(Startup, (setup, setup_banner));
+        app.add_systems(Startup, (setup.spawn(), setup_banner));
     }
 }
 
 #[derive(Resource, Default)]
 pub struct BannerImage(pub Handle<Image>);
 
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+fn setup() -> impl SceneList {
+    bsn_list![Camera2d, top_panel::top_panel()]
 }
 
 pub fn setup_banner(mut commands: Commands, asset_server: Res<AssetServer>) {
