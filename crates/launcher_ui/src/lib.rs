@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod bottom_pannel;
 mod top_panel;
 
 pub struct LauncherPlugin;
