@@ -1,7 +1,7 @@
 # Luau Engine
 ## What is this project?
 
-Luau Engine is an optimized game engine designed to simplify video game creation using the Luau language. Developed in Rust and leveraging the power of the Bevy engine as well as the Rapier3D physics engine, it aims to deliver high performance while providing an intuitive API.
+Luau Engine is an optimized game engine designed to simplify video game creation using the Luau language. Developed in Rust and leveraging the power of the Bevy engine as well as the Avian3D physics engine, it aims to deliver high performance while providing an intuitive API.
 
 The main goal of this project is to recreate the familiar concepts and architecture of the Roblox API (such as the manipulation of `Part` instances, the `Camera` system, or the use of signals via `RunService` and `UserInputService`). This allows developers to work in a familiar development environment, but completely independent of the Roblox ecosystem, thus avoiding the drawbacks and limitations associated with that platform. Eventually, the project also plans to develop its own visual editor.
 ## How to use it?
@@ -33,3 +33,5 @@ Here is how you can help:
 - Engine improvements: Optimizing the queue system (`EngineQueue`) between the Luau environment and Bevy's ECS world, adding physics engine features, or fixing bugs.
 
 - Contribution process: Feel free to fork the repository, create a dedicated branch for your addition, and then submit a Pull Request. You can also open Issues to discuss new ideas, report problems, or participate in brainstorming the design of the future game editor.
+
+- Rules about PR: Every Pull Request must be about the same issue, if the Pull Request try to handle several unrealated problems it will be rejected.
