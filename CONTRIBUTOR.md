@@ -1,30 +1,28 @@
-# Contribuer au Projet
+# Contribute
 
-Merci de l'intérêt que vous portez à ce projet ! Pour maintenir un code propre, lisible et une architecture cohérente, nous vous demandons de respecter scrupuleusement les règles suivantes lors de vos contributions.
+Thanks for your interest on this project ! To maintain the code clean, readable and get a coherent architecture, we are asking you to respect the following rules when you are contributing.
 
-## 1. Politique d'utilisation de l'Intelligence Artificielle
+## 1. Artifical Intelingence Politic
 
-Nous privilégions la réflexion humaine et la compréhension profonde du code.
+We prioritize the human reflection and comprehension on the code.
 
-- **Assistance autorisée :** L'utilisation de LLM (Large Language Models) pour vous aider, vous débloquer ou optimiser une logique est parfaitement acceptée.
-    
-- **Génération aveugle interdite :** Le code généré par IA sans réflexion ni relecture est strictement interdit. Vous devez être capable d'expliquer et de justifier chaque ligne de code que vous soumettez.
-    
+- **Assist authorize**: Using LLM to help you writing code and optimize the time to write some code is accepted.
 
-## 2. Règle de la Responsabilité Unique (Pull Requests)
+- **Blind generation**: Vibecoding is clearly forbidden. You must be able to
+ explain and justify what your code is doing.
 
-Chaque Pull Request (PR) doit être atomique et ciblée.
+## 2. Unique Responsabilities Rules (Pull Requests)
 
-- **Une PR = Une modification.** Si votre objectif est de modifier une classe spécifique, ne touchez **qu'à cette seule classe**.
-    
-- Ne modifiez pas plusieurs scripts ou d'autres fichiers de manière aléatoire ou non liée à l'objectif principal de votre PR. Si vous repérez d'autres problèmes, ouvrez une PR distincte.
-    
+Every Pull Request (PR) must be atomic and targeted.
 
-## 3. Politique des Commentaires
+- **PR = single editing**: If you are aiming to edit a specific class, the edit code must be only on **this class**.
 
-Le code doit être suffisamment clair et expressif par lui-même.
+- Do not edit code arbitrarily or code not related to the PR, if you found any other problem open a different PR.
 
-- **Pas de commentaires internes :** Les commentaires explicatifs ou inutiles à l'intérieur du corps des fonctions sont interdits, même pour des algorithmes complexes.
-    
-- **Documentation uniquement :** Seuls les commentaires de documentation (doc comments, c'est-à-dire `///` en Rust ou `--` de haut niveau en Luau) situés **en dehors et au-dessus** des fonctions, des classes ou des structures sont acceptés.
-    
+## 3. Comment Politic
+
+The code need to be sufficient and clear to express itself.
+
+- **No inside comment**: The explain comments or useless inside function body are forbidden, even for complex algorithm.
+
+- **Documentation only**: Only documentation comments (doc comment like this `///` in Rust or `--` in high level in Luau) they must be **on top** of functions, classes and/or structs.
