@@ -23,7 +23,7 @@ impl From<Color> for LuaColor3 {
 impl From<LuaColor3> for Color {
     fn from(value: LuaColor3) -> Self {
         Self::Srgba(Srgba {
-            red: value.b,
+            red: value.r,
             green: value.g,
             blue: value.b,
             alpha: 1.0,
