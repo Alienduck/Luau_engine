@@ -125,20 +125,23 @@ fn main() {
         .add_systems(
             Update,
             (
-                tick_scheduler,
-                flush_touched_signals,
-                process_engine_queue,
+                // 1. Sync Bevy -> Lua
                 base_part::sync_transforms_system,
-                apply_default_collision_groups_system,
                 luau_classes::instances::physics::rigidbody::sync_velocity_rigidbody_system,
                 sync_model_hierarchy_system,
-                trigger_user_input,
-                trigger_run_service,
                 sync_post_processing_system,
                 sync_sky_system,
                 sync_atmosphere_system,
+                apply_default_collision_groups_system,
+                // 2. Exécution Lua (Systèmes exclusifs avec injection de *mut World)
+                tick_scheduler,
+                flush_touched_signals,
+                trigger_user_input,
                 process_button_interactions,
+                trigger_run_service,
                 process_tweens_system,
+                // 3. Sync Lua -> Bevy
+                process_engine_queue,
                 apply_controls.in_set(TnuaUserControlsSystems),
             )
                 .chain(),

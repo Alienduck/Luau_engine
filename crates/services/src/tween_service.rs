@@ -37,11 +37,15 @@ pub struct TweenEngine {
     pub active_tweens: HashMap<u64, ActiveTween>,
 }
 
-pub fn process_tweens_system(vm: NonSend<LuaVm>, time: Res<Time>) {
-    let dt = time.delta_secs();
-    let lua = &vm.lua;
+pub fn process_tweens_system(world: &mut World) {
+    let world_ptr = world as *mut World;
+    let vm = world.non_send::<LuaVm>();
+    vm.lua.set_app_data(world_ptr);
 
+    let dt = world.resource::<Time>().delta_secs();
+    let lua = &vm.lua;
     let Some(mut engine) = lua.app_data_mut::<TweenEngine>() else {
+        vm.lua.remove_app_data::<*mut World>();
         return;
     };
 
@@ -52,10 +56,8 @@ pub fn process_tweens_system(vm: NonSend<LuaVm>, time: Res<Time>) {
         if tween.state != PlayState::Playing {
             continue;
         }
-
         tween.elapsed += dt;
         let is_finished = tween.elapsed >= tween.info.time;
-
         let alpha = calculate_alpha(
             tween.elapsed,
             tween.info.time,
@@ -79,27 +81,27 @@ pub fn process_tweens_system(vm: NonSend<LuaVm>, time: Res<Time>) {
     engine
         .active_tweens
         .retain(|_, t| t.state != PlayState::Completed || t.lua_token.strong_count() > 0);
-
-    // Drop the engine so Lua can use it
     drop(engine);
 
     for (instance, prop_name, current_val) in updates {
         match current_val.into_lua(lua) {
             Ok(lua_val) => {
                 if let Err(e) = instance.set(prop_name.clone(), lua_val) {
-                    println!("[TweenService] Error while applying '{}': {}", prop_name, e);
+                    bevy::log::error!("[TweenService] Error while applying '{}': {}", prop_name, e);
                 }
             }
-            Err(e) => println!("[TweenService] Error while converting Rust -> Lua: {}", e),
+            Err(e) => bevy::log::error!("[TweenService] Error while converting Rust -> Lua: {}", e),
         }
     }
 
     for sig_id in completed_signals {
         let signal = LuaSignal { id: sig_id };
         if let Err(e) = signal.fire(lua, ()) {
-            println!("[TweenService] Error firing Completed signal: {}", e);
+            bevy::log::error!("[TweenService] Error firing Completed signal: {}", e);
         }
     }
+
+    vm.lua.remove_app_data::<*mut World>();
 }
 
 #[derive(Clone)]

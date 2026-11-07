@@ -216,22 +216,28 @@ pub fn process_collisions(
 }
 
 /// Process the collision signals
-pub fn flush_touched_signals(
-    vm: NonSend<luau_runtime::vm::LuaVm>,
-    mut pending: ResMut<PendingTouches>,
-) {
+pub fn flush_touched_signals(world: &mut World) {
+    let pending = std::mem::take(&mut world.resource_mut::<PendingTouches>().0);
+    let world_ptr = world as *mut World;
+    let vm = world.non_send::<luau_runtime::vm::LuaVm>();
+    vm.lua.set_app_data(world_ptr);
+
     let Ok(cache) = vm
         .lua
         .named_registry_value::<mlua::Table>("__instance_cache")
     else {
+        vm.lua.remove_app_data::<*mut World>();
         return;
     };
-    for (signal_id, other_handle) in pending.0.drain(..) {
+
+    for (signal_id, other_handle) in pending {
         if let Ok(other_ud) = cache.get::<mlua::AnyUserData>(other_handle) {
             let signal = LuaSignal { id: signal_id };
             let _ = signal.fire(&vm.lua, other_ud);
         }
     }
+
+    vm.lua.remove_app_data::<*mut World>();
 }
 
 /// Update LuaPosition of BasePart updated by Rapier's physic
