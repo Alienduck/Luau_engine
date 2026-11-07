@@ -136,7 +136,7 @@ impl UserData for LuaRigidbody {
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.base.name.clone()));
         methods.add_method_mut("ApplyImpulse", |_, this, velocity: LuaVector3| {
             let impulse: Vec3 = velocity.into();
-            this.velocity = impulse;
+            this.velocity += impulse / this.mass;
             if let Some(parent_h) = this.base.parent_handle {
                 this.base.queue.push(EngineCommand::ApplyRigidbodyImpulse {
                     handle: parent_h,
@@ -147,7 +147,7 @@ impl UserData for LuaRigidbody {
         });
         methods.add_method_mut("ApplyAngularImpulse", |_, this, angular: LuaVector3| {
             let angular_velocity: Vec3 = angular.into();
-            this.angular_velocity = angular_velocity;
+            this.angular_velocity += angular_velocity / this.mass;
             if let Some(parent_h) = this.base.parent_handle {
                 this.base
                     .queue
