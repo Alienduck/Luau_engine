@@ -704,7 +704,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 let mut query = world.query::<(Entity, &avian3d::prelude::CollisionLayers)>();
 
                 for (entity, cg) in query.iter(world) {
-                    let memberships = cg.memberships.to_be();
+                    let memberships = cg.memberships.0;
                     if memberships != 0 {
                         let group_id = memberships.trailing_zeros();
                         if group_id < 32 {
