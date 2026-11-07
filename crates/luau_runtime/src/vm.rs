@@ -132,7 +132,7 @@ fn inject_task_stdlib(lua: &Lua, spawner: SpawnerQueue) -> mlua::Result<()> {
         })?;
     lua.globals().set("__task_spawn", spawn_func)?;
 
-    let defer_spawner = spawner;
+    let defer_spawner = spawner.clone();
     let defer_func = lua.create_function(move |lua, func: mlua::Value| {
         let thread = match func {
             mlua::Value::Function(f) => lua.create_thread(f)?,
@@ -143,6 +143,18 @@ fn inject_task_stdlib(lua: &Lua, spawner: SpawnerQueue) -> mlua::Result<()> {
         Ok(thread)
     })?;
     lua.globals().set("__task_defer", defer_func)?;
+
+    let delay_spawner = spawner;
+    let delay_func = lua.create_function(move |lua, (delay, func): (f64, mlua::Value)| {
+        let thread = match func {
+            mlua::Value::Function(f) => lua.create_thread(f)?,
+            mlua::Value::Thread(t) => t,
+            _ => return Err(mlua::Error::runtime("expected function or thread")),
+        };
+        delay_spawner.0.borrow_mut().push((thread.clone(), delay));
+        Ok(thread)
+    })?;
+    lua.globals().set("__task_delay", delay_func)?;
 
     lua.load(
         r#"
@@ -159,6 +171,14 @@ fn inject_task_stdlib(lua: &Lua, spawner: SpawnerQueue) -> mlua::Result<()> {
                 return __task_defer(coroutine.create(function() f(unpack(args)) end))
             else
                 return __task_defer(f)
+            end
+        end
+        function task.delay(t, f, ...)
+            local args = {...}
+            if #args > 0 then
+                return __task_delay(t or 0, coroutine.create(function() f(unpack(args)) end))
+            else
+                return __task_delay(t or 0, f)
             end
         end
         "#,

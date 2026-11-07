@@ -131,8 +131,9 @@ impl LuaModule for TextButtonModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let button = LuaTextButton {
-                    base: InstanceData::new(handle, q.clone(), "TextButton"),
+                    base: InstanceData::new(handle, q.clone(), "TextButton", destroying_signal_id),
                     gui: GuiObject::default(),
                     text: "Button".to_string(),
                     text_color: LuaColor3 {
@@ -157,7 +158,7 @@ impl LuaModule for TextButtonModule {
                             BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 1.0)),
                             Text::new("Button"),
                             TextFont {
-                                font_size: 14.0,
+                                font_size: FontSize::Px(14.0),
                                 ..default()
                             },
                             TextColor(Color::srgb(0.0, 0.0, 0.0)),

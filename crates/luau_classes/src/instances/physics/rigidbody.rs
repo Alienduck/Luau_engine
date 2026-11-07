@@ -1,5 +1,5 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::dynamics::Velocity;
 use luau_runtime::{
     bridge::{
         handle::{LuauHandle, next_handle},
@@ -63,7 +63,7 @@ impl UserData for LuaRigidbody {
 
             if let Some(old_h) = old_handle {
                 this.base.queue.push_raw(move |w: &mut World| {
-                    use bevy_rapier3d::dynamics::RigidBody;
+                    use avian3d::prelude::RigidBody;
                     use luau_runtime::bridge::handle::HandleMap;
                     if let Some(e) = w.resource::<HandleMap>().get_entity(old_h) {
                         if let Ok(mut em) = w.get_entity_mut(e) {
@@ -136,7 +136,7 @@ impl UserData for LuaRigidbody {
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.base.name.clone()));
         methods.add_method_mut("ApplyImpulse", |_, this, velocity: LuaVector3| {
             let impulse: Vec3 = velocity.into();
-            this.velocity = impulse;
+            this.velocity += impulse / this.mass;
             if let Some(parent_h) = this.base.parent_handle {
                 this.base.queue.push(EngineCommand::ApplyRigidbodyImpulse {
                     handle: parent_h,
@@ -147,7 +147,7 @@ impl UserData for LuaRigidbody {
         });
         methods.add_method_mut("ApplyAngularImpulse", |_, this, angular: LuaVector3| {
             let angular_velocity: Vec3 = angular.into();
-            this.angular_velocity = angular_velocity;
+            this.angular_velocity += angular_velocity / this.mass;
             if let Some(parent_h) = this.base.parent_handle {
                 this.base
                     .queue
@@ -175,8 +175,9 @@ impl LuaModule for RigidbodyModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let rb = LuaRigidbody {
-                    base: InstanceData::new(handle, q.clone(), "Rigidbody"),
+                    base: InstanceData::new(handle, q.clone(), "Rigidbody", destroying_signal_id),
                     anchored: false,
                     gravity_scale: 1.0,
                     mass: 1.0,
@@ -203,7 +204,7 @@ impl LuaModule for RigidbodyModule {
 
 pub fn sync_velocity_rigidbody_system(
     vm: NonSend<luau_runtime::vm::LuaVm>,
-    query: Query<(&LuauHandle, &Velocity), Changed<Velocity>>,
+    query: Query<(&LuauHandle, &LinearVelocity, &AngularVelocity), Changed<LinearVelocity>>,
 ) {
     let Ok(cache) = vm
         .lua
@@ -212,7 +213,7 @@ pub fn sync_velocity_rigidbody_system(
         return;
     };
 
-    for (part_handle, velocity) in query.iter() {
+    for (part_handle, velocity, angular_velocity) in query.iter() {
         if let Ok(part_ud) = cache.get::<mlua::AnyUserData>(part_handle.0) {
             let children_handles: Vec<u64> = match part_ud.call_method("__get_children", ()) {
                 Ok(handles) => handles,
@@ -222,8 +223,8 @@ pub fn sync_velocity_rigidbody_system(
             for child_handle in children_handles {
                 if let Ok(child_ud) = cache.get::<mlua::AnyUserData>(child_handle) {
                     if let Ok(mut rb) = child_ud.borrow_mut::<LuaRigidbody>() {
-                        rb.velocity = velocity.linear;
-                        rb.angular_velocity = velocity.angular;
+                        rb.velocity = velocity.0;
+                        rb.angular_velocity = angular_velocity.0;
                         break;
                     }
                 }

@@ -1,5 +1,7 @@
 use luau_runtime::{bridge::queue::EngineQueue, registry::LuaModule};
 use mlua::Lua;
+use num_enum::FromPrimitive;
+use strum_macros::{AsRefStr, Display, EnumString};
 
 #[derive(bevy::prelude::Component, Clone, Copy, PartialEq)]
 pub enum LuauPartShape {
@@ -9,8 +11,10 @@ pub enum LuauPartShape {
     Capsule,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
+#[repr(u8)]
 pub enum EasingStyle {
+    #[default]
     Linear,
     Sine,
     Quad,
@@ -24,15 +28,19 @@ pub enum EasingStyle {
     Back,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
+#[repr(u8)]
 pub enum EasingDirection {
+    #[default]
     In,
     Out,
     InOut,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
+#[repr(u8)]
 pub enum RenderCollisionMode {
+    #[default]
     ColliderShapes,
     RigidbodyAxes,
     MultiBodyJoints,
@@ -43,36 +51,43 @@ pub enum RenderCollisionMode {
     ColliderAABBS,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
-pub enum PartMaterial {
+#[derive(
+    Default,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    FromPrimitive,
+    EnumString,
+    AsRefStr,
+    Display,
+)]
+#[repr(u8)]
+pub enum BasePartMaterial {
     #[default]
     Plastic,
     Neon,
 }
 
-impl PartMaterial {
-    pub fn from_str(from: &str) -> Self {
-        match from {
-            "Neon" => Self::Neon,
-            _ => Self::Plastic,
-        }
-    }
-
-    pub fn as_str(self: Self) -> &'static str {
-        match self {
-            Self::Neon => "Neon",
-            _ => "Plastic",
-        }
-    }
-}
-
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
+#[repr(u8)]
 pub enum ColliderRestitution {
     Min,
     Max,
     #[default]
     Average,
     Multiply,
+}
+
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, FromPrimitive)]
+#[repr(u8)]
+pub enum RaycastFilterType {
+    #[default]
+    Exclude,
+    Include,
 }
 
 pub struct EnumsModule;
@@ -143,6 +158,11 @@ impl LuaModule for EnumsModule {
         collision_restitution_mode.set("Average", ColliderRestitution::Average as u8)?;
         collision_restitution_mode.set("Multiply", ColliderRestitution::Multiply as u8)?;
         enum_table.set("Restitution", collision_restitution_mode)?;
+
+        let rft = lua.create_table()?;
+        rft.set("Exclude", RaycastFilterType::Exclude as u8)?;
+        rft.set("Include", RaycastFilterType::Include as u8)?;
+        enum_table.set("RaycastFilterType", rft)?;
 
         env.set("Enum", enum_table)?;
         Ok(())

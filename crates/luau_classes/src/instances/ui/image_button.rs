@@ -103,8 +103,9 @@ impl LuaModule for ImageButtonModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let button = LuaImageButton {
-                    base: InstanceData::new(handle, q.clone(), "ImageButton"),
+                    base: InstanceData::new(handle, q.clone(), "ImageButton", destroying_signal_id),
                     gui: GuiObject::default(),
                     image: "".to_string(),
                     click_id: LuaSignal::new(lua_ctx)?.id,

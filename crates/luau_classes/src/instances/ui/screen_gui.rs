@@ -75,6 +75,7 @@ impl LuaModule for ScreenGuiModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 q.push_raw(move |w: &mut World| {
                     let entity = w
                         .spawn(Node {
@@ -87,7 +88,7 @@ impl LuaModule for ScreenGuiModule {
                 });
 
                 let sg = LuaScreenGui {
-                    base: InstanceData::new(handle, q.clone(), "ScreenGui"),
+                    base: InstanceData::new(handle, q.clone(), "ScreenGui", destroying_signal_id),
                 };
                 let ud = lua_ctx.create_userdata(sg)?;
                 lua_ctx

@@ -1,12 +1,14 @@
+use avian3d::prelude::*;
 use bevy::{
-    core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
-    render::view::Hdr, window::WindowMode,
+    camera::Hdr, core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
+    window::WindowMode,
 };
-use bevy_rapier3d::{
-    plugin::{NoUserData, RapierPhysicsPlugin},
-    render::{DebugRenderMode, RapierDebugRenderPlugin},
+use bevy_tnua::prelude::*;
+use bevy_tnua_avian3d::prelude::*;
+use engine_core::{
+    definitions::physics::collision_group::PhysicsCollisionGroups,
+    input::{ActionMap, update_action_states},
 };
-use engine_core::input::{ActionMap, update_action_states};
 use luau_classes::{
     debug::collision_render::CollisionRenderModule,
     instances::{
@@ -17,8 +19,8 @@ use luau_classes::{
         model::{ModelModule, sync_model_hierarchy_system},
         part::PartModule,
         physics::{
-            character_controller::{CharacterControllerModule, sync_character_controllers},
-            collider::ColliderModule,
+            character_controller::{CharacterControllerModule, apply_controls},
+            collider::{ColliderModule, apply_default_collision_groups_system},
             rigidbody::RigidbodyModule,
         },
         ui::{
@@ -26,10 +28,10 @@ use luau_classes::{
             screen_gui::ScreenGuiModule, text_button::TextButtonModule,
             text_label::TextLabelModule, ui_interactions::process_button_interactions,
         },
-        workspace::{WorkspaceModule, sync_dormancy_system},
+        workspace::WorkspaceModule,
     },
     types::{
-        cframe::CFrameModule, color3::Color3Module, enums::EnumsModule,
+        cframe::CFrameModule, color3::Color3Module, enums::EnumsModule, raycast::RaycastModule,
         tween_info::TweenInfoModule, udim2::Udim2Module, vector2::Vector2Module,
         vector3::Vector3Module,
     },
@@ -47,6 +49,7 @@ use services::{
     lighting::{
         LightingModule, sync_atmosphere_system, sync_post_processing_system, sync_sky_system,
     },
+    physic_service::PhysicsServiceModule,
     run_service::{RunServiceModule, trigger_run_service},
     tween_service::{TweenEngine, TweenServiceModule, process_tweens_system},
     user_input::{UserInputModule, trigger_user_input},
@@ -98,47 +101,48 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default()))
+        .add_plugins((
+            TnuaControllerPlugin::<
+                engine_core::definitions::physics::character_controller::CharacterControllerScheme,
+            >::new(FixedUpdate),
+            TnuaAvian3dPlugin::new(FixedUpdate),
+        ))
         .add_plugins(SmartCameraPlugin)
-        .add_plugins(RapierDebugRenderPlugin {
-            mode: DebugRenderMode::COLLIDER_SHAPES,
-            enabled: false,
-            ..default()
-        })
         .insert_resource(EngineQueueResource(rx))
         .insert_resource(HandleMap::default())
         .insert_resource(ActionMap::default())
         .insert_resource(PendingTouches::default())
+        .insert_resource(PhysicsCollisionGroups::default())
         .insert_resource(cam_cframe)
-        .insert_non_send_resource(vm)
-        .insert_non_send_resource(scheduler)
+        .insert_non_send(vm)
+        .insert_non_send(scheduler)
         .add_systems(
             PreUpdate,
-            (
-                sync_character_controllers,
-                update_action_states,
-                process_collisions,
-            )
-                .chain(),
+            (update_action_states, process_collisions).chain(),
         )
         .add_systems(Startup, setup_scene)
         .add_systems(
             Update,
             (
-                tick_scheduler,
-                flush_touched_signals,
-                process_engine_queue,
+                // 1. Sync Bevy -> Lua
                 base_part::sync_transforms_system,
                 luau_classes::instances::physics::rigidbody::sync_velocity_rigidbody_system,
                 sync_model_hierarchy_system,
-                trigger_user_input,
-                trigger_run_service,
-                sync_dormancy_system,
                 sync_post_processing_system,
                 sync_sky_system,
                 sync_atmosphere_system,
+                apply_default_collision_groups_system,
+                // 2. Exécution Lua (Systèmes exclusifs avec injection de *mut World)
+                tick_scheduler,
+                flush_touched_signals,
+                trigger_user_input,
                 process_button_interactions,
+                trigger_run_service,
                 process_tweens_system,
+                // 3. Sync Lua -> Bevy
+                process_engine_queue,
+                apply_controls.in_set(TnuaUserControlsSystems),
             )
                 .chain(),
         )
@@ -152,6 +156,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Color3Module::name(), Color3Module::register),
         (CFrameModule::name(), CFrameModule::register),
         (TweenInfoModule::name(), TweenInfoModule::register),
+        (RaycastModule::name(), RaycastModule::register),
         (PartModule::name(), PartModule::register),
         (MeshPartModule::name(), MeshPartModule::register),
         (ModelModule::name(), ModelModule::register),
@@ -176,6 +181,7 @@ fn register_all(lua: &mlua::Lua, queue: &EngineQueue) {
         (Udim2Module::name(), Udim2Module::register),
         (WorkspaceModule::name(), WorkspaceModule::register),
         (LightingModule::name(), LightingModule::register),
+        (PhysicsServiceModule::name(), PhysicsServiceModule::register),
         (TweenServiceModule::name(), TweenServiceModule::register),
         (EnumsModule::name(), EnumsModule::register),
         (
@@ -203,7 +209,7 @@ fn setup_scene(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
             illuminance: 10_000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),

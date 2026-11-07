@@ -1,5 +1,5 @@
 use bevy::{core_pipeline::Skybox, pbr::FogFalloff, post_process::bloom::Bloom, prelude::*};
-use engine_core::components::{LuauAtmosphere, LuauBloom};
+use engine_core::definitions::lighting::{LuauAtmosphere, LuauBloom};
 use luau_classes::{
     instances::lighting::sky::LuauSky,
     types::{
@@ -146,13 +146,13 @@ pub fn sync_sky_system(
             let handle: Handle<Image> = asset_server.load(&sky.cubemap_path);
             if opt_skybox.is_none() {
                 commands.entity(cam_entity).insert(Skybox {
-                    image: handle.clone(),
+                    image: Some(handle.clone()),
                     brightness: 1000.0,
                     ..default()
                 });
             } else if let Some(mut s) = opt_skybox {
-                if s.image != handle {
-                    s.image = handle.clone();
+                if s.image != Some(handle.clone()) {
+                    s.image = Some(handle.clone());
                 }
             }
 
@@ -360,6 +360,7 @@ impl LuaModule for LightingModule {
     }
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let handle = next_handle();
+        let destroying_signal_id = luau_classes::types::signal::LuaSignal::new(lua)?.id;
         let q = queue.clone();
 
         q.push_raw(move |w: &mut World| {
@@ -370,7 +371,7 @@ impl LuaModule for LightingModule {
         });
 
         let lighting = LuaLighting {
-            base: InstanceData::new(handle, queue.clone(), "Lighting"),
+            base: InstanceData::new(handle, queue.clone(), "Lighting", destroying_signal_id),
             ambient: LuaColor3 {
                 r: 1.0,
                 g: 1.0,

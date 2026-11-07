@@ -4,7 +4,7 @@ use crate::types::instance::{CloneableInstance, InstanceData};
 use crate::types::signal::LuaSignal;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
-use bevy::scene::{SceneInstance, SceneSpawner};
+use bevy::world_serialization::WorldInstance;
 use luau_runtime::vm::LuaVm;
 use luau_runtime::{
     bridge::{
@@ -101,8 +101,9 @@ impl LuaModule for ModelModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let model = LuaModel {
-                    base: InstanceData::new(handle, q.clone(), "Model"),
+                    base: InstanceData::new(handle, q.clone(), "Model", destroying_signal_id),
                     collision_fidelity: 0,
                     loaded_signal_id: 0,
                 };
@@ -127,9 +128,10 @@ impl LuaModule for ModelModule {
             lua.create_function(move |lua_ctx, path: String| {
                 let handle = next_handle();
                 let loaded_signal = LuaSignal::new(lua_ctx)?;
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
 
                 let model = LuaModel {
-                    base: InstanceData::new(handle, q_from.clone(), "Model"),
+                    base: InstanceData::new(handle, q_from.clone(), "Model", destroying_signal_id),
                     collision_fidelity: 0,
                     loaded_signal_id: loaded_signal.id,
                 };
@@ -142,9 +144,10 @@ impl LuaModule for ModelModule {
                     let entity = spawn_copy.base().spawn_base_entity(w);
                     spawn_copy.apply_bevy_components(entity, w);
 
-                    let handle_scene: Handle<Scene> = w.resource::<AssetServer>().load(&asset_path);
+                    let handle_scene: Handle<WorldAsset> =
+                        w.resource::<AssetServer>().load(&asset_path);
                     w.entity_mut(entity).insert((
-                        SceneRoot(handle_scene),
+                        WorldAssetRoot(handle_scene),
                         PendingModelScene {
                             loaded_signal_id: spawn_copy.loaded_signal_id,
                             queue: q_for_comp,
@@ -168,8 +171,8 @@ impl LuaModule for ModelModule {
 pub fn sync_model_hierarchy_system(
     mut commands: Commands,
     vm: NonSend<LuaVm>,
-    query: Query<(Entity, &LuauHandle, &SceneInstance, &PendingModelScene)>,
-    scene_spawner: Res<SceneSpawner>,
+    query: Query<(Entity, &LuauHandle, &WorldInstance, &PendingModelScene)>,
+    scene_spawner: Res<WorldInstanceSpawner>,
     name_query: Query<&Name>,
     mesh_query: Query<(), With<Mesh3d>>,
     parent_query: Query<&ChildOf>,
@@ -208,8 +211,14 @@ pub fn sync_model_hierarchy_system(
 
             if is_mesh {
                 let touch_id = LuaSignal::new(lua).unwrap().id;
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua).unwrap().id;
                 let mut mesh_part = LuaMeshPart {
-                    base_part_data: BasePartData::new(handle, pending_data.queue.clone(), touch_id),
+                    base_part_data: BasePartData::new(
+                        handle,
+                        pending_data.queue.clone(),
+                        touch_id,
+                        destroying_signal_id,
+                    ),
                     mesh_id: "".to_string(),
                     collision_fidelity: 0,
                 };
@@ -217,8 +226,14 @@ pub fn sync_model_hierarchy_system(
                 let ud = lua.create_userdata(mesh_part).unwrap();
                 cache.set(handle, ud).unwrap();
             } else {
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua).unwrap().id;
                 let mut model = LuaModel {
-                    base: InstanceData::new(handle, pending_data.queue.clone(), "Model"),
+                    base: InstanceData::new(
+                        handle,
+                        pending_data.queue.clone(),
+                        "Model",
+                        destroying_signal_id,
+                    ),
                     collision_fidelity: 0,
                     loaded_signal_id: 0,
                 };

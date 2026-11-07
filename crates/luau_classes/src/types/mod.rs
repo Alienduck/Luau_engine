@@ -3,6 +3,7 @@ pub mod color3;
 pub mod enums;
 pub mod gui_object;
 pub mod instance;
+pub mod raycast;
 pub mod signal;
 pub mod tween_core;
 pub mod tween_info;

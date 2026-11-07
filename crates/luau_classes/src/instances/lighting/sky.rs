@@ -86,8 +86,9 @@ impl LuaModule for SkyModule {
             "new",
             lua.create_function(move |lua_cache, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_cache)?.id;
                 let effect = LuaSky {
-                    base: InstanceData::new(handle, q.clone(), "Sky"),
+                    base: InstanceData::new(handle, q.clone(), "Sky", destroying_signal_id),
                     cubemap_path: "".to_string(),
                 };
                 let clone_for_spawn = effect.clone();

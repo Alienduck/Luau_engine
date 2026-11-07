@@ -1,7 +1,7 @@
 # Luau Engine
 ## Qu'est-ce que ce projet ?
 
-Luau Engine est un moteur de jeu optimisé conçu pour simplifier la création de jeux vidéo en utilisant le langage Luau. Développé en Rust et s'appuyant sur la puissance du moteur Bevy ainsi que sur le moteur physique Rapier3D, il vise à offrir des performances élevées tout en proposant une API intuitive.
+Luau Engine est un moteur de jeu optimisé conçu pour simplifier la création de jeux vidéo en utilisant le langage Luau. Développé en Rust et s'appuyant sur la puissance du moteur Bevy ainsi que sur le moteur physique Avian3D, il vise à offrir des performances élevées tout en proposant une API intuitive.
 
 L'objectif principal de ce projet est de reprendre les concepts familiers et l'architecture de l'API de Roblox (comme la manipulation des instances `Part`, le système de `Camera`, ou encore l'utilisation de signaux via `RunService` et `UserInputService`). Cela permet aux développeurs de retrouver un environnement de développement connu, mais de manière totalement indépendante de la sphère Roblox, évitant ainsi les inconvénients et les limitations liés à cette plateforme. À terme, le projet prévoit également le développement de son propre éditeur visuel.
 ## Comment l'utiliser ?
@@ -28,8 +28,10 @@ Les contributions sont grandement appréciées pour faire évoluer Luau Engine !
 
 Voici comment vous pouvez aider :
 
-- Ajout de nouvelles classes ou services : Vous pouvez implémenter de nouvelles classes Luau (dans le crate luau_classes) ou de nouveaux services globaux (dans le crate services) pour enrichir l'API disponible pour les `scripts`.
+- Ajout de nouvelles classes ou services : Vous pouvez implémenter de nouvelles classes Luau (dans la crate luau_classes) ou de nouveaux services globaux (dans la crate services) pour enrichir l'API disponible pour les `scripts`.
 
 - Améliorations du moteur : Optimisation du système de files d'attente (`EngineQueue`) entre l'environnement Luau et le monde ECS de Bevy, ajouts liés au moteur physique, ou corrections de bugs.
 
 - Processus de contribution : N'hésitez pas à forker le dépôt, créer une branche dédiée à votre ajout, puis soumettre une Pull Request. Vous pouvez également ouvrir des Issues pour discuter de nouvelles idées, signaler des problèmes, ou participer aux réflexions sur la conception du futur éditeur de jeu.
+
+- Règles des PR: Chaque Pull Request doit impérativement traiter un seul sujet, si votre Pull Request tente de régler plusieurs problèmes en même temps qui n'ont aucun lien la PR sera rejetée.

@@ -1,13 +1,13 @@
-use bevy::{ecs::relationship::Relationship, prelude::*};
-use bevy_rapier3d::{
-    control::{
-        CharacterAutostep, CharacterLength, KinematicCharacterController,
-        KinematicCharacterControllerOutput,
-    },
-    plugin::RapierConfiguration,
+use avian3d::prelude::*;
+use bevy::prelude::*;
+use bevy_tnua::{
+    builtins::{TnuaBuiltinJumpConfig, TnuaBuiltinWalkConfig},
+    prelude::*,
 };
-use engine_core::components::LuauCharacterController;
-use luau_runtime::bridge::{handle::next_handle, queue::EngineQueue};
+use bevy_tnua_avian3d::prelude::*;
+use engine_core::definitions::physics::character_controller::*;
+use luau_runtime::bridge::handle::{HandleMap, next_handle};
+use luau_runtime::bridge::queue::*;
 use mlua::{Lua, UserData};
 
 use crate::types::{
@@ -20,9 +20,20 @@ pub struct LuaCharacterController {
     pub base: InstanceData,
     pub move_direction: LuaVector3,
     pub walk_speed: f32,
-    pub jump: bool,
     pub jump_power: f32,
-    pub no_clip: bool,
+    pub jump: bool,
+    pub hip_height: f32,
+}
+
+impl LuaCharacterController {
+    fn push_stat(&self, stat: CharacterStat) {
+        if let Some(parent_handle) = self.base.parent_handle {
+            self.base.queue.push(EngineCommand::SetCharacterStat {
+                handle: parent_handle,
+                stat,
+            });
+        }
+    }
 }
 
 impl CloneableInstance for LuaCharacterController {
@@ -45,64 +56,88 @@ impl UserData for LuaCharacterController {
     fn add_fields<F: mlua::prelude::LuaUserDataFields<Self>>(fields: &mut F) {
         crate::impl_base_instance_fields!(fields);
         fields.add_field_method_get("MoveDirection", |_, this| Ok(this.move_direction));
-        fields.add_field_method_set("MoveDirection", |_, this, v: LuaVector3| {
-            this.move_direction = v;
-            let velocity: Vec3 = v.into();
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterMovement {
-                    handle: this.base.handle,
-                    movement: velocity * this.walk_speed,
-                },
-            );
-            Ok(())
-        });
         fields.add_field_method_get("WalkSpeed", |_, this| Ok(this.walk_speed));
         fields.add_field_method_set("WalkSpeed", |_, this, v: f32| {
             this.walk_speed = v;
-            let velocity = Vec3::new(
-                this.move_direction.x,
-                this.move_direction.y,
-                this.move_direction.z,
-            ) * v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterMovement {
-                    handle: this.base.handle,
-                    movement: velocity,
-                },
-            );
+            this.push_stat(CharacterStat::WalkSpeed(v));
             Ok(())
         });
         fields.add_field_method_get("Jump", |_, this| Ok(this.jump));
         fields.add_field_method_set("Jump", |_, this, v: bool| {
             this.jump = v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterJump {
-                    handle: this.base.handle,
-                    jump: v,
-                },
-            );
+            this.push_stat(CharacterStat::Jump(v));
             Ok(())
         });
         fields.add_field_method_get("JumpPower", |_, this| Ok(this.jump_power));
         fields.add_field_method_set("JumpPower", |_, this, v: f32| {
             this.jump_power = v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterJumpPower {
-                    handle: this.base.handle,
-                    jump_power: v,
-                },
-            );
+            this.push_stat(CharacterStat::JumpPower(v));
             Ok(())
         });
-        fields.add_field_method_get("NoClip", |_, this| Ok(this.no_clip));
-        fields.add_field_method_set("NoClip", |_, this, v: bool| {
-            this.no_clip = v;
-            this.base.queue.push(
-                luau_runtime::bridge::queue::EngineCommand::SetCharacterNoClip {
-                    handle: this.base.handle,
-                    no_clip: v,
-                },
-            );
+        fields.add_field_method_get("HipHeight", |_, this| Ok(this.hip_height));
+        fields.add_field_method_set("HipHeight", |_, this, v: f32| {
+            this.hip_height = v;
+            this.push_stat(CharacterStat::HipHeight(v));
+            Ok(())
+        });
+        fields.add_field_method_set("Parent", |_, this, v: Option<mlua::AnyUserData>| {
+            let old_handle = this.base.parent_handle;
+            let new_handle = v
+                .as_ref()
+                .and_then(|ud| crate::types::instance::instance_handle_from_any(ud));
+            this.base.parent_handle = new_handle;
+
+            let walk_speed = this.walk_speed;
+            let jump_height = this.jump_power;
+            let hip_height = this.hip_height;
+            this.base.queue.push_raw(move |w: &mut World| {
+                if let Some(old_handle) = old_handle {
+                    if let Some(old_entity) = w.resource::<HandleMap>().get_entity(old_handle) {
+                        if let Ok(mut e) = w.get_entity_mut(old_entity) {
+                            e.remove::<(
+                                TnuaController<CharacterControllerScheme>,
+                                TnuaConfig<CharacterControllerScheme>,
+                                TnuaAvian3dSensorShape,
+                                LuauCharacterController,
+                            )>();
+                        }
+                    }
+                }
+                if let Some(new_handle) = new_handle {
+                    if let Some(new_entity) = w.resource::<HandleMap>().get_entity(new_handle) {
+                        let collider = w
+                            .get::<Collider>(new_entity)
+                            .cloned()
+                            .unwrap_or_else(|| Collider::capsule(1.0, 1.0));
+
+                        let config_handle = w
+                            .resource_mut::<Assets<CharacterControllerSchemeConfig>>()
+                            .add(CharacterControllerSchemeConfig {
+                                basis: TnuaBuiltinWalkConfig {
+                                    speed: walk_speed,
+                                    float_height: hip_height,
+                                    ..default()
+                                },
+                                jumping: TnuaBuiltinJumpConfig {
+                                    height: jump_height,
+                                    ..default()
+                                },
+                            });
+
+                        if let Ok(mut e) = w.get_entity_mut(new_entity) {
+                            e.insert((
+                                TnuaController::<CharacterControllerScheme>::default(),
+                                TnuaConfig::<CharacterControllerScheme>(config_handle),
+                                TnuaAvian3dSensorShape(collider),
+                                LuauCharacterController::default(),
+                                Friction::new(0.0).with_combine_rule(CoefficientCombine::Min),
+                                Restitution::new(0.0).with_combine_rule(CoefficientCombine::Min),
+                                LockedAxes::ROTATION_LOCKED,
+                            ));
+                        }
+                    }
+                }
+            });
             Ok(())
         });
     }
@@ -115,78 +150,56 @@ impl UserData for LuaCharacterController {
     }
 }
 
-pub fn sync_character_controllers(
-    mut commands: Commands,
-    rapier_config_query: Query<&RapierConfiguration>,
-    mut controllers: Query<(&ChildOf, &mut LuauCharacterController)>,
-    mut parents: Query<(
-        &mut KinematicCharacterController,
-        Option<&KinematicCharacterControllerOutput>,
-        Option<&bevy_rapier3d::prelude::GravityScale>,
+pub fn apply_controls(
+    mut tnua_query: Query<(
+        &mut TnuaController<CharacterControllerScheme>,
+        &mut LuauCharacterController,
     )>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    inputs: ResMut<ButtonInput<KeyCode>>,
 ) {
-    let fixed_dt = 1.0 / 60.0;
-    let base_gravity = if let Ok(rapier_config) = rapier_config_query.single() {
-        rapier_config.gravity.y
-    } else {
-        -9.81
+    let Ok((mut ctrl, mut luau_ctrl)) = tnua_query.single_mut() else {
+        return;
     };
+    ctrl.initiate_action_feeding();
 
-    for (parent, mut ctrl) in controllers.iter_mut() {
-        let mut current_v_velocity = ctrl.vertical_velocity;
+    let (forward, behind, left, right, jump) = luau_ctrl.custom_inputs_or_default();
 
-        if let Ok((mut kcc, kcc_output, gravity_scale)) = parents.get_mut(parent.get()) {
-            let is_grounded = kcc_output.map(|o| o.grounded).unwrap_or(false);
-            let scale = gravity_scale.map(|g| g.0).unwrap_or(1.0);
-            let applied_gravity = base_gravity * scale;
+    let mut local_dir = Vec3::ZERO;
+    if inputs.pressed(forward) {
+        local_dir.z -= 1.0;
+    }
+    if inputs.pressed(behind) {
+        local_dir.z += 1.0;
+    }
+    if inputs.pressed(left) {
+        local_dir.x -= 1.0;
+    }
+    if inputs.pressed(right) {
+        local_dir.x += 1.0;
+    }
 
-            if ctrl.no_clip {
-                current_v_velocity = 0.0;
-                kcc.filter_groups = Some(bevy_rapier3d::geometry::CollisionGroups::new(
-                    bevy_rapier3d::geometry::Group::NONE,
-                    bevy_rapier3d::geometry::Group::NONE,
-                ));
-            } else {
-                kcc.filter_groups = None;
-                kcc.filter_flags = bevy_rapier3d::pipeline::QueryFilterFlags::EXCLUDE_SENSORS;
-                if is_grounded {
-                    if ctrl.wants_to_jump {
-                        current_v_velocity = ctrl.jump_power;
-                        ctrl.wants_to_jump = false;
-                    } else if current_v_velocity < 0.0 {
-                        current_v_velocity = 0.0;
-                    }
-                } else {
-                    current_v_velocity += applied_gravity * fixed_dt;
-                }
-            }
+    let direction = if let Ok(camera_transform) = camera_query.single() {
+        let mut cam_forward = camera_transform.forward().as_vec3();
+        cam_forward.y = 0.0;
+        let cam_forward = cam_forward.normalize_or_zero();
 
-            ctrl.vertical_velocity = current_v_velocity;
+        let mut cam_right = camera_transform.right().as_vec3();
+        cam_right.y = 0.0;
+        let cam_right = cam_right.normalize_or_zero();
 
-            let mut final_velocity = ctrl.velocity;
-
-            if !ctrl.no_clip {
-                final_velocity.y = current_v_velocity;
-            }
-
-            kcc.translation = Some(final_velocity * fixed_dt);
-        } else {
-            commands.entity(parent.get()).insert((
-                KinematicCharacterController {
-                    snap_to_ground: Some(CharacterLength::Absolute(0.1)),
-                    offset: CharacterLength::Absolute(0.02),
-                    slide: true,
-                    apply_impulse_to_dynamic_bodies: true,
-                    autostep: Some(CharacterAutostep {
-                        max_height: CharacterLength::Absolute(0.5),
-                        min_width: CharacterLength::Absolute(0.2),
-                        include_dynamic_bodies: true,
-                    }),
-                    filter_flags: bevy_rapier3d::pipeline::QueryFilterFlags::EXCLUDE_SENSORS,
-                    ..default()
-                },
-                bevy_rapier3d::prelude::RigidBody::KinematicPositionBased,
-            ));
+        (cam_forward * -local_dir.z) + (cam_right * local_dir.x)
+    } else {
+        local_dir
+    };
+    ctrl.basis = TnuaBuiltinWalk {
+        desired_motion: direction,
+        ..default()
+    };
+    if inputs.pressed(jump) || luau_ctrl.jump {
+        ctrl.action(CharacterControllerScheme::Jumping(Default::default()));
+        if luau_ctrl.jump {
+            luau_ctrl.jump = false;
         }
     }
 }
@@ -203,13 +216,19 @@ impl luau_runtime::registry::LuaModule for CharacterControllerModule {
             "new",
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let ctrl = LuaCharacterController {
-                    base: InstanceData::new(handle, q.clone(), "CharacterController"),
+                    base: InstanceData::new(
+                        handle,
+                        q.clone(),
+                        "CharacterController",
+                        destroying_signal_id,
+                    ),
                     move_direction: LuaVector3::default(),
                     walk_speed: 16.0,
-                    jump: false,
                     jump_power: 24.0,
-                    no_clip: false,
+                    jump: false,
+                    hip_height: 0.1,
                 };
                 let c = ctrl.clone();
                 q.push_raw(move |w: &mut World| {

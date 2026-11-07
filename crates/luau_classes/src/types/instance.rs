@@ -14,10 +14,16 @@ pub struct InstanceData {
     pub parent_handle: Option<u64>,
     pub children_handles: Vec<u64>,
     pub queue: EngineQueue,
+    pub destroying_signal_id: u64,
 }
 
 impl InstanceData {
-    pub fn new(handle: u64, queue: EngineQueue, class_name: &'static str) -> Self {
+    pub fn new(
+        handle: u64,
+        queue: EngineQueue,
+        class_name: &'static str,
+        destroying_signal_id: u64,
+    ) -> Self {
         Self {
             handle,
             name: class_name.to_string(),
@@ -25,6 +31,7 @@ impl InstanceData {
             parent_handle: None,
             children_handles: Vec::new(),
             queue,
+            destroying_signal_id,
         }
     }
 
@@ -110,6 +117,8 @@ macro_rules! impl_instance_userdata {
             use $crate::types::instance::CloneableInstance;
             let mut cloned = this.clone();
             *cloned.base_mut() = cloned.base().prepare_clone();
+            cloned.base_mut().destroying_signal_id = $crate::types::signal::LuaSignal::new(lua)?.id;
+
             cloned.on_cloned(lua)?;
             let c = cloned.clone();
             let entity_handle = c.base().handle;
@@ -294,6 +303,34 @@ macro_rules! impl_instance_userdata {
                 )))
             },
         );
+
+        $methods.add_meta_method("__type", |_, _, ()| Ok("Instance"));
+
+        $methods.add_method("IsA", |_, this, class_name: String| {
+            use $crate::types::instance::CloneableInstance;
+            let actual_class = this.base().class_name;
+
+            if actual_class == class_name {
+                return Ok(true);
+            }
+            if class_name == "Instance" {
+                return Ok(true);
+            }
+            if class_name == "BasePart" && (actual_class == "Part" || actual_class == "MeshPart") {
+                return Ok(true);
+            }
+            if class_name == "GuiObject"
+                && (actual_class == "Frame"
+                    || actual_class == "TextLabel"
+                    || actual_class == "TextButton"
+                    || actual_class == "ImageLabel"
+                    || actual_class == "ImageButton")
+            {
+                return Ok(true);
+            }
+
+            Ok(false)
+        });
     };
 }
 
@@ -326,6 +363,12 @@ macro_rules! impl_base_instance_fields {
             use $crate::types::instance::CloneableInstance;
             this.base_mut().set_parent(lua, parent);
             Ok(())
+        });
+        $fields.add_field_method_get("Destroying", |_, this| {
+            use $crate::types::instance::CloneableInstance;
+            Ok($crate::types::signal::LuaSignal {
+                id: this.base().destroying_signal_id,
+            })
         });
     };
 }
@@ -362,11 +405,16 @@ pub fn collect_descendants(
 }
 
 pub fn recursive_destroy(
-    _lua: &mlua::Lua,
+    lua: &mlua::Lua,
     cache: &mlua::Table,
     data: &InstanceData,
     notify_parent: bool,
 ) -> mlua::Result<()> {
+    let destroying_sig = crate::types::signal::LuaSignal {
+        id: data.destroying_signal_id,
+    };
+    let _ = destroying_sig.fire(lua, ());
+
     let children = data.children_handles.clone();
 
     for child_handle in children {

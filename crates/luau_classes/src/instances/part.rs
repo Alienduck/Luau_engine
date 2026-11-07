@@ -1,8 +1,10 @@
+use std::str::FromStr;
+
 use super::base_part::BasePartData;
 use crate::types::{
     cframe::LuaCFrame,
     color3::LuaColor3,
-    enums::{LuauPartShape, PartMaterial},
+    enums::{BasePartMaterial, LuauPartShape},
     instance::{CloneableInstance, InstanceData},
     signal::LuaSignal,
     vector3::LuaVector3,
@@ -44,7 +46,7 @@ impl CloneableInstance for LuaPart {
     }
     fn apply_bevy_components(&self, entity: Entity, w: &mut World) {
         self.data.apply_base_components(entity, w);
-        let emissive = if self.data.material == PartMaterial::Neon {
+        let emissive = if self.data.material == BasePartMaterial::Neon {
             LinearRgba::rgb(
                 self.data.color.r * 10.0,
                 self.data.color.g * 10.0,
@@ -115,7 +117,9 @@ impl UserData for LuaPart {
                 id: this.data.touched_signal_id,
             })
         });
-        fields.add_field_method_get("Material", |_, this| Ok(this.data.material.as_str()));
+        fields.add_field_method_get("Material", |_, this| {
+            Ok(this.data.material.as_ref().to_string())
+        });
         fields.add_field_method_get("Shape", |_, this| Ok(this.shape));
         fields.add_field_method_set("Position", |_, this, v: LuaVector3| {
             this.data.set_position(v);
@@ -138,7 +142,8 @@ impl UserData for LuaPart {
             Ok(())
         });
         fields.add_field_method_set("Material", |_, this, v: String| {
-            this.data.set_material(PartMaterial::from_str(&v));
+            this.data
+                .set_material(BasePartMaterial::from_str(&v).unwrap_or_default());
             Ok(())
         });
         fields.add_field_method_set("Shape", |_, this, v: u8| {
@@ -211,8 +216,14 @@ impl luau_runtime::registry::LuaModule for PartModule {
             lua.create_function(move |lua_ctx, ()| {
                 let handle = next_handle();
                 let touched_signal = LuaSignal::new(lua_ctx)?;
+                let destroying_signal_id = crate::types::signal::LuaSignal::new(lua_ctx)?.id;
                 let part = LuaPart {
-                    data: BasePartData::new(handle, q.clone(), touched_signal.id),
+                    data: BasePartData::new(
+                        handle,
+                        q.clone(),
+                        touched_signal.id,
+                        destroying_signal_id,
+                    ),
                     shape: 0,
                 };
                 let spawn_copy = part.clone();

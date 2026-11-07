@@ -52,6 +52,13 @@ function ui.Start()
 	RunService.RenderStepped:Connect(function(delta: number)
 		container.Rotation += 5 * delta
 	end)
+
+	local center_point = Frame.new()
+	center_point.Position = UDim2.fromScale(0.5, 0.5)
+	center_point.AnchorPoint = Vector2.new(0.5, 0.5)
+	center_point.BackgroundColor3 = Color3.new(1, 1, 1)
+	center_point.Size = UDim2.fromOffset(4, 4)
+	center_point.BackgroundTransparency = 0.8
 end
 
 return ui

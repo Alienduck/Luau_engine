@@ -1,6 +1,9 @@
-use crate::types::instance::{CloneableInstance, InstanceData};
+use crate::types::{
+    instance::{CloneableInstance, InstanceData},
+    raycast::{RaycastParams, workspace_raycast},
+    vector3::LuaVector3,
+};
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::{ColliderDisabled, RigidBodyDisabled};
 use luau_runtime::{
     bridge::{
         handle::{HandleMap, LuauHandle, next_handle},
@@ -66,6 +69,19 @@ impl UserData for LuaWorkspace {
             Err(mlua::Error::runtime("Workspace cannot be destroyed"))
         });
 
+        methods.add_method(
+                    "Raycast",
+                    |lua, _, (origin, direction, params): (LuaVector3, LuaVector3, Option<RaycastParams>)| {
+                        let world_ptr = *lua
+                            .app_data_ref::<*mut World>()
+                            .ok_or_else(|| mlua::Error::runtime("World_ptr missing"))?;
+                        let world = unsafe { &mut *world_ptr };
+                        let origin_vec = Vec3::new(origin.x, origin.y, origin.z);
+                        let direction_vec = Vec3::new(direction.x, direction.y, direction.z);
+                        workspace_raycast(lua, world, origin_vec, direction_vec, params)
+                    },
+                );
+
         methods.add_meta_method(ToString, |_, this, ()| Ok(this.base.name.clone()));
     }
 }
@@ -79,6 +95,7 @@ impl LuaModule for WorkspaceModule {
 
     fn register(lua: &Lua, queue: &EngineQueue) -> mlua::Result<()> {
         let handle = next_handle();
+        let destroying_signal_id = crate::types::signal::LuaSignal::new(lua)?.id;
         let q = queue.clone();
 
         q.push_raw(move |w: &mut World| {
@@ -94,7 +111,7 @@ impl LuaModule for WorkspaceModule {
         });
 
         let ws = LuaWorkspace {
-            base: InstanceData::new(handle, queue.clone(), "Workspace"),
+            base: InstanceData::new(handle, queue.clone(), "Workspace", destroying_signal_id),
         };
         let ud = lua.create_userdata(ws)?;
         lua.named_registry_value::<mlua::Table>("__instance_cache")?
@@ -102,26 +119,5 @@ impl LuaModule for WorkspaceModule {
         lua.set_named_registry_value("__workspace_instance", ud.clone())?;
         lua.globals().set("workspace", ud)?;
         Ok(())
-    }
-}
-
-/// Synchronises Rapier dormancy flags with Bevy visibility.
-///
-/// Entities that become invisible (e.g. unparented from the workspace) have
-/// their collider and rigid body disabled so they don't affect simulation.
-pub fn sync_dormancy_system(
-    mut commands: Commands,
-    query: Query<(Entity, &InheritedVisibility), (With<LuauHandle>, Changed<InheritedVisibility>)>,
-) {
-    for (entity, inherited_visibility) in query.iter() {
-        let Ok(mut cmds) = commands.get_entity(entity) else {
-            continue;
-        };
-        if inherited_visibility.get() {
-            cmds.remove::<ColliderDisabled>()
-                .remove::<RigidBodyDisabled>();
-        } else {
-            cmds.insert((ColliderDisabled, RigidBodyDisabled));
-        }
     }
 }

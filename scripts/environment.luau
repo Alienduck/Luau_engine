@@ -95,19 +95,13 @@ function env.Start()
 	model.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition
 
 	model.Loaded:Connect(function()
-		print("Le modèle 3D est chargé !")
-
-		for _, part in ipairs(model:GetDescendants()) do
-			if part.ClassName == "Part" then
-				(part :: Part).Transparency = math.random(0, 100) / 100
-			end
-		end
-
-		local cl = Collider.new()
-		cl.Parent = model
 		local rb = Rigidbody.new()
 		rb.Anchored = true
 		rb.Parent = model
+		local cl = Collider.new()
+		cl.Parent = model
+		Camera.Distance = 20
+		Camera:SetSubject(model)
 	end)
 
 	return model

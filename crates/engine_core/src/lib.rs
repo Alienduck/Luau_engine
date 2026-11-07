@@ -1,3 +1,3 @@
 pub mod app;
-pub mod components;
+pub mod definitions;
 pub mod input;

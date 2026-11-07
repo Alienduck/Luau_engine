@@ -1,5 +1,5 @@
 use crate::types::{
-    cframe::LuaCFrame, color3::LuaColor3, enums::PartMaterial, instance::InstanceData,
+    cframe::LuaCFrame, color3::LuaColor3, enums::BasePartMaterial, instance::InstanceData,
     signal::LuaSignal, vector3::LuaVector3,
 };
 use bevy::{
@@ -39,15 +39,20 @@ pub struct BasePartData {
     pub color: LuaColor3,
     /// 0.0 = fully opaque, 1.0 = fully transparent.
     pub transparency: f32,
-    pub material: PartMaterial,
+    pub material: BasePartMaterial,
     pub shadow_caster: bool,
     pub shadow_receiver: bool,
 }
 
 impl BasePartData {
-    pub fn new(handle: u64, queue: EngineQueue, touched_signal_id: u64) -> Self {
+    pub fn new(
+        handle: u64,
+        queue: EngineQueue,
+        touched_signal_id: u64,
+        destroying_signal_id: u64,
+    ) -> Self {
         Self {
-            base: InstanceData::new(handle, queue, "Part"),
+            base: InstanceData::new(handle, queue, "Part", destroying_signal_id),
             touched_signal_id,
             cframe: LuaCFrame::default(),
             size: LuaVector3 {
@@ -61,7 +66,7 @@ impl BasePartData {
                 b: 0.8,
             },
             transparency: 0.0,
-            material: PartMaterial::Plastic,
+            material: BasePartMaterial::Plastic,
             shadow_caster: true,
             shadow_receiver: true,
         }
@@ -73,10 +78,10 @@ impl BasePartData {
         }
     }
 
-    pub fn set_material(&mut self, m: PartMaterial) {
+    pub fn set_material(&mut self, m: BasePartMaterial) {
         self.material = m;
         let (r, g, b) = (self.color.r, self.color.g, self.color.b);
-        if m == PartMaterial::Neon {
+        if m == BasePartMaterial::Neon {
             self.base.queue.push(EngineCommand::SetEmissive {
                 handle: self.base.handle,
                 r: r * 10.0,
@@ -136,7 +141,7 @@ impl BasePartData {
             b: c.b,
             alpha,
         });
-        if self.material == PartMaterial::Neon {
+        if self.material == BasePartMaterial::Neon {
             self.base.queue.push(EngineCommand::SetEmissive {
                 handle: self.base.handle,
                 r: c.r * 10.0,
@@ -180,7 +185,7 @@ pub struct PendingTouches(pub Vec<(u64, u64)>);
 /// Reads Rapier [`CollisionEvent::Started`] messages and place it in `PendingTouches`
 /// `Touched` signal on both involved parts.
 pub fn process_collisions(
-    mut rapier_msg: MessageReader<bevy_rapier3d::pipeline::CollisionEvent>,
+    mut collision_msg: MessageReader<avian3d::collision::collision_events::CollisionStart>,
     handle_query: Query<(
         &luau_runtime::bridge::handle::LuauHandle,
         Option<&TouchedSignalComponent>,
@@ -188,53 +193,51 @@ pub fn process_collisions(
     parent_query: Query<&ChildOf>,
     mut pending: ResMut<PendingTouches>,
 ) {
-    let get_instance_data = |mut entity: bevy::prelude::Entity| -> Option<(u64, Option<u64>)> {
+    let get_data = |mut entity: bevy::prelude::Entity| -> Option<(u64, Option<u64>)> {
         loop {
-            if let Ok((handle, signal_comp)) = handle_query.get(entity) {
-                return Some((handle.0, signal_comp.map(|s| s.0)));
+            if let Ok((h, s)) = handle_query.get(entity) {
+                return Some((h.0, s.map(|sig| sig.0)));
             }
-            if let Ok(parent) = parent_query.get(entity) {
-                entity = parent.get();
-            } else {
-                return None;
-            }
+            entity = parent_query.get(entity).ok()?.get();
         }
     };
-    for msg in rapier_msg.read() {
-        let bevy_rapier3d::pipeline::CollisionEvent::Started(e1, e2, _) = msg else {
-            continue;
-        };
-        for (self_e, other_e) in [(e1, e2), (e2, e1)] {
-            let Some((_, signal_id)) = get_instance_data(*self_e) else {
-                continue;
-            };
-            let Some((handle_other, _)) = get_instance_data(*other_e) else {
-                continue;
-            };
-            if let Some(id) = signal_id {
-                pending.0.push((id, handle_other));
+    for msg in collision_msg.read() {
+        for (self_e, other_e) in [
+            (msg.collider1, msg.collider2),
+            (msg.collider2, msg.collider1),
+        ] {
+            if let Some((_, Some(signal_id))) = get_data(self_e) {
+                if let Some((handle_other, _)) = get_data(other_e) {
+                    pending.0.push((signal_id, handle_other));
+                }
             }
         }
     }
 }
 
 /// Process the collision signals
-pub fn flush_touched_signals(
-    vm: NonSend<luau_runtime::vm::LuaVm>,
-    mut pending: ResMut<PendingTouches>,
-) {
+pub fn flush_touched_signals(world: &mut World) {
+    let pending = std::mem::take(&mut world.resource_mut::<PendingTouches>().0);
+    let world_ptr = world as *mut World;
+    let vm = world.non_send::<luau_runtime::vm::LuaVm>();
+    vm.lua.set_app_data(world_ptr);
+
     let Ok(cache) = vm
         .lua
         .named_registry_value::<mlua::Table>("__instance_cache")
     else {
+        vm.lua.remove_app_data::<*mut World>();
         return;
     };
-    for (signal_id, other_handle) in pending.0.drain(..) {
+
+    for (signal_id, other_handle) in pending {
         if let Ok(other_ud) = cache.get::<mlua::AnyUserData>(other_handle) {
             let signal = LuaSignal { id: signal_id };
             let _ = signal.fire(&vm.lua, other_ud);
         }
     }
+
+    vm.lua.remove_app_data::<*mut World>();
 }
 
 /// Update LuaPosition of BasePart updated by Rapier's physic

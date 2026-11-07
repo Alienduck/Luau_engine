@@ -1,10 +1,11 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::{
-    geometry::{Friction, Restitution, Sensor},
-    render::{DebugRenderContext, DebugRenderMode},
-};
 use crossbeam_channel::{Receiver, Sender};
-use engine_core::components::{LuauAtmosphere, LuauBloom, LuauCharacterController};
+use engine_core::{
+    definitions::lighting::{LuauAtmosphere, LuauBloom},
+    definitions::physics::character_controller::LuauCharacterController,
+    definitions::physics::collision_group::PhysicsCollisionGroups,
+};
 
 /// A single mutation enqueued by a Luau setter.
 ///
@@ -142,6 +143,15 @@ pub enum EngineCommand {
         handle: u64,
         restitution: f32,
     },
+    SetCollisionGroup {
+        handle: u64,
+        group: String,
+    },
+    SetCollisionGroups {
+        handle: u64,
+        memberships: u32,
+        filters: u32,
+    },
     /// `ImageNode` insert an ImageNode
     SetImageNode {
         handle: u64,
@@ -158,6 +168,14 @@ pub enum EngineCommand {
     /// `DirectionalLight` set the directional light global shadows
     SetLightingGlobalShadows {
         enabled: bool,
+    },
+    RegisterCollisionGroup {
+        name: String,
+    },
+    SetCollisionGroupCollidable {
+        group1: String,
+        group2: String,
+        collidable: bool,
     },
     /// `Bloom` set the bloom intensity
     SetBloomIntensity {
@@ -199,22 +217,9 @@ pub enum EngineCommand {
         handle: u64,
         haze: f32,
     },
-    SetCharacterMovement {
+    SetCharacterStat {
         handle: u64,
-        movement: Vec3,
-    },
-    SetCharacterJump {
-        handle: u64,
-        jump: bool,
-    },
-    SetCharacterJumpPower {
-        handle: u64,
-        jump_power: f32,
-    },
-    /// `KinematicCharacterController` set the character clip mode
-    SetCharacterNoClip {
-        handle: u64,
-        no_clip: bool,
+        stat: CharacterStat,
     },
     /// Despawn entity + remove from HandleMap
     Despawn {
@@ -266,6 +271,14 @@ impl EngineQueue {
     {
         self.0.send(EngineCommand::Raw(Box::new(f))).ok();
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum CharacterStat {
+    WalkSpeed(f32),
+    JumpPower(f32),
+    HipHeight(f32),
+    Jump(bool),
 }
 
 /// Bevy resource that holds the shared command buffer.
@@ -342,7 +355,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     .get::<MeshMaterial3d<StandardMaterial>>(e)
                     .map(|m| m.0.clone())
                 {
-                    if let Some(mat) = world
+                    if let Some(mut mat) = world
                         .resource_mut::<Assets<StandardMaterial>>()
                         .get_mut(&mat_h)
                     {
@@ -394,7 +407,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     .get::<MeshMaterial3d<StandardMaterial>>(e)
                     .map(|m| m.0.clone())
                 {
-                    if let Some(mat) = world
+                    if let Some(mut mat) = world
                         .resource_mut::<Assets<StandardMaterial>>()
                         .get_mut(&mat_h)
                     {
@@ -482,7 +495,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
         EngineCommand::SetFontSize { handle, size } => {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Some(mut tf) = world.get_mut::<TextFont>(e) {
-                    tf.font_size = size;
+                    tf.font_size = FontSize::Px(size);
                 }
             }
         }
@@ -491,24 +504,26 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             dynamic,
             gravity_scale,
         } => {
-            use bevy_rapier3d::dynamics::{GravityScale, RigidBody, Sleeping, Velocity};
+            use avian3d::prelude::{
+                Collider, GravityScale, LinearVelocity, MassPropertiesBundle, RigidBody, Sleeping,
+            };
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
                     em.insert(if dynamic {
                         RigidBody::Dynamic
                     } else {
-                        RigidBody::Fixed
+                        RigidBody::Static
                     })
                     .insert(GravityScale(gravity_scale))
-                    .insert(Velocity::default());
-
-                    if let Some(mut sleep) = em.get_mut::<Sleeping>() {
-                        sleep.sleeping = false;
-                    } else {
-                        em.insert(Sleeping {
-                            sleeping: false,
-                            ..Default::default()
-                        });
+                    .insert(LinearVelocity::default());
+                    if dynamic && !em.contains::<Mass>() && !em.contains::<Collider>() {
+                        em.insert(MassPropertiesBundle::from_shape(
+                            &Collider::sphere(0.5),
+                            1.0,
+                        ));
+                    }
+                    if let Some(_) = em.get::<Sleeping>() {
+                        em.remove::<Sleeping>();
                     }
                 }
             }
@@ -517,44 +532,33 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             handle,
             gravity_scale,
         } => {
-            use bevy_rapier3d::dynamics::{GravityScale, Sleeping};
+            use avian3d::prelude::{GravityScale, Sleeping};
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
                     em.insert(GravityScale(gravity_scale));
-                    if let Some(mut sleep) = em.get_mut::<Sleeping>() {
-                        sleep.sleeping = false;
-                    } else {
-                        em.insert(Sleeping {
-                            sleeping: false,
-                            ..Default::default()
-                        });
+                    if let Some(_) = em.get::<Sleeping>() {
+                        em.remove::<Sleeping>();
                     }
                 }
             }
         }
         EngineCommand::SetRigidbodyMass { handle, mass } => {
-            use bevy_rapier3d::geometry::ColliderMassProperties;
+            use avian3d::prelude::Mass;
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
-                    if let Some(mut cmp) = em.get_mut::<ColliderMassProperties>() {
-                        *cmp = ColliderMassProperties::Mass(mass);
-                    } else {
-                        em.insert(ColliderMassProperties::Mass(mass));
-                    }
+                    em.insert(Mass(mass));
                 }
             }
         }
         EngineCommand::ApplyRigidbodyImpulse { handle, impulse } => {
-            use bevy_rapier3d::dynamics::ExternalImpulse;
+            use avian3d::prelude::{LinearVelocity, Mass};
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
-                    if let Some(mut ei) = em.get_mut::<ExternalImpulse>() {
-                        ei.impulse = impulse;
+                    let mass = em.get::<Mass>().map_or(1.0, |m| m.0);
+                    if let Some(mut lv) = em.get_mut::<LinearVelocity>() {
+                        lv.0 += impulse / mass;
                     } else {
-                        em.insert(ExternalImpulse {
-                            impulse,
-                            ..default()
-                        });
+                        em.insert(LinearVelocity(impulse / mass));
                     }
                 }
             }
@@ -563,16 +567,13 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             handle,
             angular_velocity,
         } => {
-            use bevy_rapier3d::dynamics::Velocity;
+            use avian3d::prelude::AngularVelocity;
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 if let Ok(mut em) = world.get_entity_mut(e) {
-                    if let Some(mut v) = em.get_mut::<Velocity>() {
-                        v.angular = angular_velocity;
+                    if let Some(mut v) = em.get_mut::<AngularVelocity>() {
+                        v.0 = angular_velocity;
                     } else {
-                        em.insert(Velocity {
-                            angular: angular_velocity,
-                            ..default()
-                        });
+                        em.insert(AngularVelocity(angular_velocity));
                     }
                 }
             }
@@ -581,6 +582,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             handle,
             can_collide,
         } => {
+            use avian3d::prelude::Sensor;
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
                 let mut entity_mut = world.entity_mut(e);
                 if can_collide {
@@ -592,8 +594,8 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
         }
         EngineCommand::SetColliderFriction { handle, friction } => {
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if world.get::<Friction>(e).is_some() {
-                    world.get_mut::<Friction>(e).unwrap().coefficient = friction;
+                if let Some(mut f) = world.get_mut::<Friction>(e) {
+                    *f = Friction::new(friction);
                 } else {
                     world.entity_mut(e).insert(Friction::new(friction));
                 }
@@ -608,6 +610,34 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                     world.get_mut::<Restitution>(e).unwrap().coefficient = restitution;
                 } else {
                     world.entity_mut(e).insert(Restitution::new(restitution));
+                }
+            }
+        }
+        EngineCommand::SetCollisionGroup { handle, group } => {
+            let mut memberships = 1;
+            let mut filters = u32::MAX;
+            if let Some(registry) = world.get_resource::<PhysicsCollisionGroups>() {
+                let id = registry.groups.get(&group).copied().unwrap_or(0);
+                memberships = 1 << id;
+                filters = registry.masks[id as usize];
+            }
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    em.insert(avian3d::prelude::CollisionLayers::from_bits(
+                        memberships,
+                        filters,
+                    ));
+                }
+            }
+        }
+        EngineCommand::SetCollisionGroups {
+            handle,
+            memberships,
+            filters,
+        } => {
+            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
+                if let Ok(mut em) = world.get_entity_mut(e) {
+                    em.insert(CollisionLayers::from_bits(memberships, filters));
                 }
             }
         }
@@ -633,7 +663,65 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
         }
         EngineCommand::SetLightingGlobalShadows { enabled } => {
             if let Ok(mut d) = world.query::<&mut DirectionalLight>().single_mut(world) {
-                d.shadows_enabled = enabled;
+                d.shadow_maps_enabled = enabled;
+            }
+        }
+        EngineCommand::RegisterCollisionGroup { name } => {
+            if let Some(mut registry) = world.get_resource_mut::<PhysicsCollisionGroups>() {
+                let next_id = registry.next_id;
+                if !registry.groups.contains_key(&name) && registry.next_id < 32 {
+                    registry.groups.insert(name, next_id);
+                    registry.next_id += 1;
+                }
+            }
+        }
+        EngineCommand::SetCollisionGroupCollidable {
+            group1,
+            group2,
+            collidable,
+        } => {
+            let mut id1_opt = None;
+            let mut id2_opt = None;
+            if let Some(registry) = world.get_resource::<PhysicsCollisionGroups>() {
+                id1_opt = registry.groups.get(&group1).copied();
+                id2_opt = registry.groups.get(&group2).copied();
+            }
+
+            if let (Some(id1), Some(id2)) = (id1_opt, id2_opt) {
+                let masks = {
+                    let mut registry = world.resource_mut::<PhysicsCollisionGroups>();
+                    if collidable {
+                        registry.masks[id1 as usize] |= 1 << id2;
+                        registry.masks[id2 as usize] |= 1 << id1;
+                    } else {
+                        registry.masks[id1 as usize] &= !(1 << id2);
+                        registry.masks[id2 as usize] &= !(1 << id1);
+                    }
+                    registry.masks.clone()
+                };
+
+                let mut updates = Vec::new();
+                let mut query = world.query::<(Entity, &avian3d::prelude::CollisionLayers)>();
+
+                for (entity, cg) in query.iter(world) {
+                    let memberships = cg.memberships.0;
+                    if memberships != 0 {
+                        let group_id = memberships.trailing_zeros();
+                        if group_id < 32 {
+                            let new_cg = avian3d::prelude::CollisionLayers::from_bits(
+                                memberships,
+                                masks[group_id as usize],
+                            );
+                            updates.push((entity, new_cg));
+                        }
+                    }
+                }
+
+                for (entity, new_cg) in updates {
+                    if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                        entity_mut.insert(new_cg);
+                    }
+                }
             }
         }
         EngineCommand::SetBloomIntensity { handle, intensity } => {
@@ -692,32 +780,43 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
                 }
             }
         }
-        EngineCommand::SetCharacterMovement { handle, movement } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.velocity = movement;
+        EngineCommand::SetCharacterStat { handle, stat } => {
+            let Some(e) = world.resource::<HandleMap>().get_entity(handle) else {
+                return;
+            };
+
+            let (walk_speed, jump_power, hip_height) = {
+                let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) else {
+                    return;
+                };
+                match stat {
+                    CharacterStat::WalkSpeed(v) => cc.walk_speed = v,
+                    CharacterStat::JumpPower(v) => cc.jump_power = v,
+                    CharacterStat::HipHeight(v) => cc.hip_height = v,
+                    CharacterStat::Jump(v) => {
+                        cc.jump = v;
+                        return;
+                    }
                 }
-            }
-        }
-        EngineCommand::SetCharacterJump { handle, jump } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.wants_to_jump = jump;
-                }
-            }
-        }
-        EngineCommand::SetCharacterJumpPower { handle, jump_power } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.jump_power = jump_power;
-                }
-            }
-        }
-        EngineCommand::SetCharacterNoClip { handle, no_clip } => {
-            if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                if let Some(mut cc) = world.get_mut::<LuauCharacterController>(e) {
-                    cc.no_clip = no_clip;
-                }
+                (cc.walk_speed, cc.jump_power, cc.hip_height)
+            };
+
+            let Some(config_handle) =
+                world
+                    .get::<bevy_tnua::TnuaConfig<
+                        engine_core::definitions::physics::character_controller::CharacterControllerScheme,
+                    >>(e)
+                    .map(|c| c.0.clone())
+            else {
+                return;
+            };
+            if let Some(mut config) = world
+                .resource_mut::<Assets<engine_core::definitions::physics::character_controller::CharacterControllerSchemeConfig>>()
+                .get_mut(&config_handle)
+            {
+                config.basis.speed = walk_speed;
+                config.basis.float_height = hip_height;
+                config.jumping.height = jump_power;
             }
         }
         EngineCommand::Despawn { handle } => {
@@ -737,7 +836,7 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
 
             if let Some(child) = child_e {
                 if let Ok(mut e_mut) = world.get_entity_mut(child) {
-                    e_mut.remove_parent_in_place();
+                    e_mut.remove::<ChildOf>();
                     e_mut.insert(if parent_e.is_some() {
                         Visibility::Inherited
                     } else {
@@ -752,25 +851,44 @@ fn apply_command(world: &mut World, cmd: EngineCommand) {
             }
         }
         EngineCommand::EnableRenderCollisionDebug { enable } => {
-            world.resource_mut::<DebugRenderContext>().enabled = enable;
+            if let Some(mut store) = world.get_resource_mut::<bevy::prelude::GizmoConfigStore>() {
+                let (config, _) = store.config_mut::<avian3d::prelude::PhysicsGizmos>();
+                config.enabled = enable;
+            }
         }
         EngineCommand::SetModeRenderCollisionDebug { mode } => {
-            let rapier_mode = match mode {
-                0 => DebugRenderMode::COLLIDER_SHAPES,
-                1 => DebugRenderMode::RIGID_BODY_AXES,
-                2 => DebugRenderMode::MULTIBODY_JOINTS,
-                3 => DebugRenderMode::IMPULSE_JOINTS,
-                4 => DebugRenderMode::JOINTS,
-                5 => DebugRenderMode::SOLVER_CONTACTS,
-                6 => DebugRenderMode::CONTACTS,
-                _ => DebugRenderMode::COLLIDER_AABBS,
-            };
-            world.resource_mut::<DebugRenderContext>().pipeline.mode = rapier_mode;
+            use avian3d::prelude::{Collider, DebugRender, RigidBody};
+            use bevy::math::Vec3;
+            use bevy::prelude::{Color, Entity, Or, With};
+            let mut updates = Vec::new();
+            let mut query = world.query_filtered::<
+                (Entity, Option<&DebugRender>),
+                Or<(With<Collider>, With<RigidBody>)>
+            >();
+            for (entity, dr) in query.iter(world) {
+                let mut new_dr = dr.cloned().unwrap_or_default();
+                new_dr.collider_color = None;
+                new_dr.aabb_color = None;
+                new_dr.axis_lengths = None;
+                match mode {
+                    0 => new_dr.collider_color = Some(Color::srgb(0.0, 1.0, 0.0)),
+                    1 => new_dr.axis_lengths = Some(Vec3::splat(1.0)),
+                    2..=6 => {}
+                    _ => new_dr.aabb_color = Some(Color::srgb(0.0, 0.0, 1.0)),
+                }
+                updates.push((entity, new_dr));
+            }
+            for (entity, new_dr) in updates {
+                if let Ok(mut em) = world.get_entity_mut(entity) {
+                    em.insert(new_dr);
+                }
+            }
         }
         EngineCommand::LoadAsset { handle, asset_path } => {
-            let handle_scene: Handle<Scene> = world.resource::<AssetServer>().load(&asset_path);
+            let handle_scene: Handle<WorldAsset> =
+                world.resource::<AssetServer>().load(&asset_path);
             if let Some(e) = world.resource::<HandleMap>().get_entity(handle) {
-                world.entity_mut(e).insert(SceneRoot(handle_scene));
+                world.entity_mut(e).insert(WorldAssetRoot(handle_scene));
             }
         }
         EngineCommand::Raw(f) => f(world),

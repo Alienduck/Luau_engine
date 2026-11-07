@@ -8,13 +8,16 @@ function player.Start()
 	subject.Name = "Subject"
 	subject.Parent = workspace
 	subject.Size = Vector3.one
-	subject.Position = Vector3.new(0, 2, 0)
+	subject.Position = Vector3.new(0, 10, 0)
 	subject.Transparency = 0
 	subject.Material = Enum.Material.Neon
 	subject.Shape = Enum.Shape.Capsule
 
+	PhysicsService:RegisterCollisionGroup("Player")
+	PhysicsService:CollisionGroupSetCollidable("Default", "Player", true)
 	local s_collider = Collider.new()
 	s_collider.Parent = subject
+	s_collider.CollisionGroup = "Player"
 
 	local rb_subject = Rigidbody.new()
 	rb_subject.Parent = subject
@@ -22,8 +25,9 @@ function player.Start()
 
 	local controller = CharacterController.new()
 	controller.Parent = subject
+	controller.HipHeight = subject.Size.Y / 2
 	controller.WalkSpeed = 10
-	controller.JumpPower = 20
+	controller.JumpPower = 10
 
 	local keys_pressed = {}
 	local entities: { entity.EntityModule } = {}
@@ -35,9 +39,6 @@ function player.Start()
 		end
 		if key == "Space" then
 			controller.Jump = true
-		end
-		if key == "KeyC" then
-			controller.NoClip = not controller.NoClip
 		end
 		if key == "KeyX" then
 			local entity = entity.new({ position = subject.Position })
@@ -54,41 +55,49 @@ function player.Start()
 		if key == "Tab" then
 			print(rb_subject.Velocity)
 		end
+		if key == "Left" then
+			local origin = Camera.CFrame.Position
+			local raycast_params = RaycastParams.new()
+
+			if Camera.FirstPerson then
+				raycast_params.FilterDescendantInstances = { subject }
+				raycast_params.FilterType = Enum.RaycastFilterType.Exclude
+			end
+
+			local result = workspace:Raycast(origin, Camera.CFrame.LookVector * 100, raycast_params)
+			if not result then
+				return
+			end
+			print(result)
+
+			local dist = (result.Position - origin).Magnitude
+
+			local ray_part = Part.new()
+			ray_part.Size = Vector3.new(0.05, 0.05, dist)
+			ray_part.CFrame = CFrame.lookAt(origin, result.Position) * CFrame.new(0, 0, -dist / 2)
+			ray_part.Color = Color3.new(1, 0, 0)
+			ray_part.Parent = workspace
+
+			local norm_len = 2.0
+			local norm_part = Part.new()
+			norm_part.Parent = workspace
+			norm_part.Size = Vector3.new(0.05, 0.05, norm_len)
+			norm_part.CFrame = CFrame.lookAt(result.Position, result.Position + result.Normal)
+				* CFrame.new(0, 0, -norm_len / 2)
+			norm_part.Color = Color3.new(0, 1, 0)
+
+			task.delay(1, function()
+				ray_part:Destroy()
+				norm_part:Destroy()
+			end)
+		end
+		if key == "KeyY" then
+            print(controller.WalkSpeed)
+		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(key: string, _: string)
 		keys_pressed[key] = false
-	end)
-
-	RunService.RenderStepped:Connect(function(delta: number)
-		local n = controller.NoClip
-		local camLook = Camera.CFrame.LookVector
-		local camRight = Camera.CFrame.RightVector
-		camLook = Vector3.new(camLook.X, n and camLook.Y or 0, camLook.Z).Unit
-		camRight = Vector3.new(camRight.X, n and camRight.Y or 0, camRight.Z).Unit
-
-		local dir = Vector3.zero
-		if keys_pressed["KeyW"] then
-			dir = dir + camLook
-		end
-		if keys_pressed["KeyS"] then
-			dir = dir - camLook
-		end
-		if keys_pressed["KeyA"] then
-			dir = dir - camRight
-		end
-		if keys_pressed["KeyD"] then
-			dir = dir + camRight
-		end
-		if keys_pressed["Space"] and n then
-			dir = dir + Vector3.new(0, 1, 0)
-		end
-
-		if dir.Magnitude > 0 then
-			dir = dir.Unit
-		end
-
-		controller.MoveDirection = dir
 	end)
 
 	local function random_color(): Color3

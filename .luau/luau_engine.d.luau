@@ -23,6 +23,12 @@ type Vector3Meta = {
     __mul: (Vector3, number) -> Vector3,
 }
 
+type CFrameMeta = {
+    __add: (CFrame, CFrame) -> CFrame,
+    __sub: (CFrame, CFrame) -> CFrame,
+    __mul: (CFrame, CFrame) -> CFrame,
+}
+
 export type Vector2 = typeof(setmetatable(
     {} :: { X: number, Y: number },
     {} :: Vector2Meta
@@ -40,20 +46,21 @@ export type Color3 = {
     Lerp: (self: Color3, goal: Color3, alpha: number) -> Color3,
 }
 
-export type CFrame = {
-    Position: Vector3,
-    LookVector: Vector3,
-    RightVector: Vector3,
-    UpVector: Vector3,
-    X: number,
-    Y: number,
-    Z: number,
-    Inverse: (self: CFrame) -> CFrame,
-    Lerp: (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
-    ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
-} & {
-    __mul: (CFrame, CFrame) -> CFrame,
-}
+export type CFrame = typeof(setmetatable(
+    {} :: {
+        Position: Vector3,
+        LookVector: Vector3,
+        RightVector: Vector3,
+        UpVector: Vector3,
+        X: number,
+        Y: number,
+        Z: number,
+        Inverse: (self: CFrame) -> CFrame,
+        Lerp: (self: CFrame, goal: CFrame, alpha: number) -> CFrame,
+        ToEulerAnglesYXZ: (self: CFrame) -> (number, number, number),
+    },
+    {} :: CFrameMeta
+))
 
 export type UDim2 = {}
 
@@ -73,10 +80,47 @@ export type Tween = {
     Cancel: (self: Tween) -> (),
 }
 
+--[=[
+    RaycastParams is used for `workspace:Raycast()` set the field to edit Raycast behavior.
+    @param FilterDescendantInstances: *{ Instance }* | **empty array by default**
+    @param FilterType: *Enum.FilterType* | **Exclude by default**
+    @param RespectCollider: *boolean* | **true by default**
+    # Examples
+    ```lua
+    local raycast_params = RaycastParams.new()
+    raycast_params.FilterDescendantInstances = { player_part }
+    raycast_params.FilterType = Enum.FilterType.Exclude
+    raycast_params.FilterTpe = false
+
+    local raycast_result = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector, raycast_params)
+
+    if not raycast_result then return end
+
+    print(raycast_result)
+    ```
+]=]
+export type RaycastParams = {
+    -- Used to know which Instance to aim, empty by default
+    FilterDescendantInstances: { Instance },
+    -- Used to know what to do from Instances inside `FilterDescendantInstances`, Exclude by default
+    FilterType: number,
+    -- Used to know if only Instances with Colliders are interacting with Raycast, true by default
+    RespectCollider: boolean,
+}
+
+export type RaycastResult = {
+    Instance: Instance,
+    Position: Vector3,
+    Distance: number,
+    Material: number,
+    Normal: Vector3
+}
+
 export type Instance = {
     Name: string,
     ClassName: string,
     Parent: Instance?,
+    Destroying: Signal<>,
     Clone: (self: Instance) -> Instance,
     Destroy: (self: Instance) -> (),
     GetChildren: (self: Instance) -> { Instance },
@@ -127,6 +171,7 @@ export type Collider = Instance & {
     Friction: number,
     CanCollide: boolean,
     Restitution: number,
+    CollisionGroup: string
 }
 
 export type Rigidbody = Instance & {
@@ -145,7 +190,7 @@ export type CharacterController = Instance & {
     WalkSpeed: number,
     Jump: boolean,
     JumpPower: number,
-    NoClip: boolean,
+    HipHeight: number,
 }
 
 export type ScreenGui = Instance & {}
@@ -207,7 +252,9 @@ export type Atmosphere = Instance & {
     Haze: number,
 }
 
-export type Workspace = Instance
+export type Workspace = Instance & {
+    Raycast: (self: Workspace, origin: Vector3, direction: Vector3, params: RaycastParams?) -> RaycastResult?
+}
 
 export type Lighting = Instance & {
     Ambient: Color3,
@@ -218,6 +265,11 @@ export type Lighting = Instance & {
     FogColor: Color3,
     FogEnd: number,
     FogStart: number,
+}
+
+export type PhysicsService = Instance & {
+    RegisterCollisionGroup: (self: PhysicsService, name: string) -> (),
+    CollisionGroupSetCollidable: (self: PhysicsService, group1: string, group2: string, collidable: boolean) -> (),
 }
 
 export type RunService = {
@@ -269,9 +321,17 @@ declare TweenService: {
     Create: (self: any, instance: Instance, info: TweenInfo, properties: { [string]: any }) -> Tween,
 }
 
+--[=[
+    - RaycastParams is a class to give parameters for `workspace:Raycast()`
+]=]
+declare RaycastParams: {
+    new: () -> RaycastParams
+}
+
 declare task: {
     spawn: <T...>(f: (T...) -> (), T...) -> thread,
     defer: <T...>(f: (T...) -> (), T...) -> thread,
+    delay: <T...>(delay: number, f: (T...) -> (), T...) -> thread,
     wait: (time: number?) -> number,
 }
 
@@ -293,6 +353,7 @@ declare Atmosphere: { new: () -> Atmosphere }
 
 declare workspace: Workspace
 declare Lighting: Lighting
+declare PhysicsService: PhysicsService
 declare Camera: Camera
 declare RunService: RunService
 declare UserInputService: UserInputService
